@@ -705,3 +705,175 @@ legend {
   background: var(--accent-soft);
   color: var(--accent-dark);
 }
+
+/* ---- Patients list: richer table ---- */
+
+.patient-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.patient-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patient-table th,
+.patient-table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.patient-table th {
+  background: var(--surface-tint);
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.patient-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.patient-table tbody tr:hover {
+  background: var(--surface-tint);
+}
+
+.patient-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.patient-table-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.patient-table-name .patient-meta {
+  display: block;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.status-badge--dialysis {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.status-badge--transplant {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+/* ---- Labs: category pills + abnormal highlighting ---- */
+
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.category-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.category-pill:hover {
+  background: var(--surface-tint);
+}
+
+.category-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.row-abnormal {
+  background: var(--danger-soft);
+}
+
+.value-abnormal {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* ---- Patient detail: header card ---- */
+
+.patient-header-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  margin: 10px 0 20px;
+  flex-wrap: wrap;
+}
+
+.patient-header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.glance-avatar--lg {
+  width: 54px;
+  height: 54px;
+  font-size: 1.2rem;
+}
+
+.patient-header-name {
+  margin: 0 0 2px;
+  font-size: 1.3rem;
+}
+
+.patient-header-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.patient-header-badges {
+  margin-top: 8px;
+}
+
+.patient-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.button-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.button-secondary:hover {
+  background: var(--surface-tint);
+}

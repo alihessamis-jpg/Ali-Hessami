@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
+import { isAbnormal } from '../../lib/labRange'
 import { COMMON_LAB_TESTS, LAB_CATEGORIES } from '../../lib/labPresets'
 import type { LabEntry } from '../../types/domain'
 
@@ -15,6 +16,7 @@ export function LabsTab({ patientId }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>('All')
 
   useEffect(() => {
     refresh()
@@ -62,6 +64,19 @@ export function LabsTab({ patientId }: Props) {
     }
   }
 
+  const presentCategories = useMemo(() => {
+    const set = new Set(entries.map((e) => e.category).filter((c): c is string => !!c))
+    return LAB_CATEGORIES.filter((c) => set.has(c))
+  }, [entries])
+
+  const uncategorizedCount = useMemo(() => entries.some((e) => !e.category), [entries])
+
+  const visibleEntries = useMemo(() => {
+    if (activeCategory === 'All') return entries
+    if (activeCategory === 'Other') return entries.filter((e) => !e.category)
+    return entries.filter((e) => e.category === activeCategory)
+  }, [entries, activeCategory])
+
   return (
     <div>
       <datalist id="lab-category-options">
@@ -104,38 +119,72 @@ export function LabsTab({ patientId }: Props) {
       ) : entries.length === 0 ? (
         <p className="empty-state">No labs recorded yet.</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Category</th>
-              <th>Test</th>
-              <th>Value</th>
-              <th>Unit</th>
-              <th>Ref range</th>
-              <th>Comment</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.id}>
-                <td>{e.date}</td>
-                <td>{e.category}</td>
-                <td>{e.test}</td>
-                <td>{e.value ?? ''}</td>
-                <td>{e.unit}</td>
-                <td>{e.ref}</td>
-                <td>{e.comment}</td>
-                <td>
-                  <button className="link-button" onClick={() => void handleDelete(e.id)}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
+        <>
+          <div className="category-pills">
+            <button
+              type="button"
+              className={`category-pill ${activeCategory === 'All' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('All')}
+            >
+              All ({entries.length})
+            </button>
+            {presentCategories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`category-pill ${activeCategory === c ? 'active' : ''}`}
+                onClick={() => setActiveCategory(c)}
+              >
+                {c} ({entries.filter((e) => e.category === c).length})
+              </button>
             ))}
-          </tbody>
-        </table>
+            {uncategorizedCount && (
+              <button
+                type="button"
+                className={`category-pill ${activeCategory === 'Other' ? 'active' : ''}`}
+                onClick={() => setActiveCategory('Other')}
+              >
+                Other
+              </button>
+            )}
+          </div>
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Test</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>Ref range</th>
+                <th>Comment</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleEntries.map((e) => {
+                const abnormal = isAbnormal(e.value, e.ref)
+                return (
+                  <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
+                    <td>{e.date}</td>
+                    <td>{e.category}</td>
+                    <td>{e.test}</td>
+                    <td className={abnormal ? 'value-abnormal' : ''}>{e.value ?? ''}</td>
+                    <td>{e.unit}</td>
+                    <td>{e.ref}</td>
+                    <td>{e.comment}</td>
+                    <td>
+                      <button className="link-button" onClick={() => void handleDelete(e.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   )

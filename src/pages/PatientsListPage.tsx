@@ -75,18 +75,44 @@ export function PatientsListPage() {
       ) : patients.length === 0 ? (
         <p className="empty-state">No patients yet. Add one to get started.</p>
       ) : (
-        <ul className="patient-list">
-          {patients.map((p) => (
-            <li key={p.id}>
-              <Link to={`/patients/${p.id}`}>
-                <span className="patient-name">{p.name}</span>
-                <span className="patient-meta">
-                  {[p.code, p.bed, p.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="patient-table-wrap">
+          <table className="patient-table">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Age</th>
+                <th>Bed</th>
+                <th>Diagnosis</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map((p) => (
+                <tr key={p.id} onClick={() => navigate(`/patients/${p.id}`)}>
+                  <td>
+                    <Link to={`/patients/${p.id}`} className="patient-table-name">
+                      <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                      <span>
+                        <span className="patient-name">{p.name}</span>
+                        {p.code && <span className="patient-meta">{p.code}</span>}
+                      </span>
+                    </Link>
+                  </td>
+                  <td>{p.age != null ? `${p.age}y` : '—'}</td>
+                  <td>{p.bed || '—'}</td>
+                  <td>{p.diagnosis || '—'}</td>
+                  <td>
+                    {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
+                    {p.transplantStatus && (
+                      <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
+                    )}
+                    {!p.dialysisStatus && !p.transplantStatus && '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

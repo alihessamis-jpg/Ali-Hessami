@@ -52,18 +52,46 @@ export function PatientDetailPage() {
   if (error) return <p className="form-error">{error}</p>
   if (!patient || !id) return <p>Patient not found.</p>
 
+  const meta = [
+    patient.code,
+    patient.age != null ? `${patient.age}y` : null,
+    patient.sex,
+    patient.bed,
+    patient.diagnosis,
+  ].filter(Boolean)
+
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <Link to="/patients" className="back-link">
-            ← Patients
-          </Link>
-          <h1>{patient.name}</h1>
+      <Link to="/patients" className="back-link">
+        ← Patients
+      </Link>
+
+      <div className="patient-header-card">
+        <div className="patient-header-main">
+          <span className="glance-avatar glance-avatar--lg">{patient.name.charAt(0).toUpperCase()}</span>
+          <div>
+            <h1 className="patient-header-name">{patient.name}</h1>
+            {meta.length > 0 && <p className="patient-header-meta">{meta.join(' · ')}</p>}
+            {(patient.dialysisStatus || patient.transplantStatus) && (
+              <div className="patient-header-badges">
+                {patient.dialysisStatus && (
+                  <span className="status-badge status-badge--dialysis">{patient.dialysisStatus}</span>
+                )}
+                {patient.transplantStatus && (
+                  <span className="status-badge status-badge--transplant">{patient.transplantStatus}</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <Link to={`/study/personal-cases/new?patientId=${id}`} className="button-link">
-          Build teaching case from this patient
-        </Link>
+        <div className="patient-header-actions">
+          <Link to={`/study/personal-cases/new?patientId=${id}`} className="button-link">
+            Build teaching case
+          </Link>
+          <button type="button" className="button-secondary" onClick={() => window.print()}>
+            Print
+          </button>
+        </div>
       </div>
 
       <nav className="tab-bar">
