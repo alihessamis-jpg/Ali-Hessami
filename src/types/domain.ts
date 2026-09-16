@@ -23,7 +23,6 @@ export interface Patient {
   dialysisStatus?: string | null
   dialysisModality?: string | null
   transplantStatus?: string | null
-  documentPath?: string | null
 
   // Assessment: history
   chiefComplaint?: string | null
@@ -326,6 +325,14 @@ export interface CaseLogEntry {
 }
 
 export type CaseLogEntryDraft = Omit<CaseLogEntry, 'id'>
+
+export interface PatientDocument {
+  id: string
+  patientId: string
+  storagePath: string
+  filename?: string | null
+  createdAt: string
+}
 
 export interface ResearchProject {
   id: string

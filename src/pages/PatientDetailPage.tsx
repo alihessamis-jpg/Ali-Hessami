@@ -121,7 +121,7 @@ export function PatientDetailPage() {
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}
-        {tab === 'document' && <DocumentTab patient={patient} onUpdated={setPatient} />}
+        {tab === 'document' && <DocumentTab patientId={id} />}
       </div>
     </div>
   )

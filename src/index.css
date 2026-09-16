@@ -993,6 +993,55 @@ legend {
   text-decoration: underline;
 }
 
+/* ---- Patient detail: document attachments ---- */
+
+.document-grid {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.document-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.document-card-preview {
+  aspect-ratio: 3 / 4;
+  background: var(--surface-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.document-card-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.document-card-pdf {
+  color: var(--accent-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.document-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
 /* ---- Labs: category pills + abnormal highlighting ---- */
 
 .category-pills {

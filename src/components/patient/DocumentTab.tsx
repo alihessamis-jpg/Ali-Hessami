@@ -1,53 +1,68 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
-import { updatePatient } from '../../lib/api/patients'
+import {
+  addPatientDocument,
+  deletePatientDocument,
+  listPatientDocuments,
+} from '../../lib/api/patientDocuments'
 import {
   deletePatientDocumentFile,
   getPatientDocumentSignedUrl,
   uploadPatientDocumentFile,
 } from '../../lib/storage'
+import { toShamsi } from '../../lib/shamsi'
 import { useAuth } from '../../context/AuthContext'
-import type { Patient } from '../../types/domain'
+import type { PatientDocument } from '../../types/domain'
 
 interface Props {
-  patient: Patient
-  onUpdated: (patient: Patient) => void
+  patientId: string
 }
 
 function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
 }
 
-export function DocumentTab({ patient, onUpdated }: Props) {
+export function DocumentTab({ patientId }: Props) {
   const { session } = useAuth()
-  const [url, setUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [documents, setDocuments] = useState<PatientDocument[]>([])
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!patient.documentPath) {
-      setUrl(null)
-      return
-    }
-    setLoading(true)
-    getPatientDocumentSignedUrl(patient.documentPath)
-      .then(setUrl)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load document'))
-      .finally(() => setLoading(false))
-  }, [patient.documentPath])
+    refresh()
+  }, [patientId])
 
-  async function handleFile(file: File | undefined | null) {
-    if (!file || !session) return
+  function refresh() {
+    setLoading(true)
+    listPatientDocuments(patientId)
+      .then((rows) => {
+        setDocuments(rows)
+        rows.forEach((doc) => {
+          getPatientDocumentSignedUrl(doc.storagePath)
+            .then((url) => setUrls((prev) => ({ ...prev, [doc.id]: url })))
+            .catch(() => undefined)
+        })
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load documents'))
+      .finally(() => setLoading(false))
+  }
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !session) return
     setUploading(true)
     setError(null)
     try {
-      const oldPath = patient.documentPath
-      const path = await uploadPatientDocumentFile(session.user.id, patient.id, file)
-      const updated = await updatePatient(patient.id, { documentPath: path })
-      onUpdated(updated)
-      if (oldPath) await deletePatientDocumentFile(oldPath).catch(() => undefined)
+      for (const file of Array.from(fileList)) {
+        const path = await uploadPatientDocumentFile(session.user.id, patientId, file)
+        const doc = await addPatientDocument(patientId, path, file.name)
+        setDocuments((prev) => [doc, ...prev])
+        getPatientDocumentSignedUrl(path)
+          .then((url) => setUrls((prev) => ({ ...prev, [doc.id]: url })))
+          .catch(() => undefined)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload document')
     } finally {
@@ -55,56 +70,30 @@ export function DocumentTab({ patient, onUpdated }: Props) {
     }
   }
 
-  async function handleRemove() {
-    if (!patient.documentPath) return
+  async function handleDelete(doc: PatientDocument) {
     try {
-      const oldPath = patient.documentPath
-      const updated = await updatePatient(patient.id, { documentPath: null })
-      onUpdated(updated)
-      await deletePatientDocumentFile(oldPath).catch(() => undefined)
+      await deletePatientDocument(doc.id)
+      await deletePatientDocumentFile(doc.storagePath).catch(() => undefined)
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove document')
+      setError(err instanceof Error ? err.message : 'Failed to delete document')
     }
   }
 
   function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault()
     setDragOver(false)
-    void handleFile(e.dataTransfer.files?.[0])
+    void handleFiles(e.dataTransfer.files)
   }
 
   return (
     <div>
       <p className="empty-state">
-        Attach the pre-filled chart/data-collection sheet for this patient — one photo or PDF, replacing
-        the previous one if you upload again.
+        Attach scanned charts, data-collection sheets, or any photo/PDF for this patient — upload as many as
+        you need.
       </p>
 
       {error && <p className="form-error">{error}</p>}
-
-      {patient.documentPath && (
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h2 className="dash-card-title">Current document</h2>
-            <button className="link-button" onClick={() => void handleRemove()}>
-              Remove
-            </button>
-          </div>
-          {loading ? (
-            <p>Loading…</p>
-          ) : url ? (
-            isImagePath(patient.documentPath) ? (
-              <a href={url} target="_blank" rel="noreferrer">
-                <img src={url} alt="Patient document" style={{ maxWidth: '100%', borderRadius: 10 }} />
-              </a>
-            ) : (
-              <a href={url} target="_blank" rel="noreferrer">
-                Open document
-              </a>
-            )
-          ) : null}
-        </div>
-      )}
 
       <div
         className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
@@ -120,13 +109,48 @@ export function DocumentTab({ patient, onUpdated }: Props) {
           ref={fileInputRef}
           type="file"
           accept="image/*,.pdf"
+          multiple
           hidden
-          onChange={(e) => void handleFile(e.target.files?.[0])}
+          onChange={(e) => void handleFiles(e.target.files)}
         />
         <span className="dropzone-icon">↑</span>
-        <strong>{uploading ? 'Uploading…' : patient.documentPath ? 'Replace with a new photo or PDF' : 'Drop image or PDF here'}</strong>
-        <span className="dropzone-hint">Choose file or use the camera</span>
+        <strong>{uploading ? 'Uploading…' : 'Drop images or PDFs here'}</strong>
+        <span className="dropzone-hint">Choose one or more files, or use the camera</span>
       </div>
+
+      {loading ? (
+        <p>Loading…</p>
+      ) : documents.length === 0 ? (
+        <p className="empty-state">No documents uploaded yet.</p>
+      ) : (
+        <ul className="document-grid">
+          {documents.map((doc) => (
+            <li key={doc.id} className="document-card">
+              <div className="document-card-preview">
+                {urls[doc.id] ? (
+                  isImagePath(doc.storagePath) ? (
+                    <a href={urls[doc.id]} target="_blank" rel="noreferrer">
+                      <img src={urls[doc.id]} alt={doc.filename ?? 'Document'} />
+                    </a>
+                  ) : (
+                    <a href={urls[doc.id]} target="_blank" rel="noreferrer" className="document-card-pdf">
+                      Open PDF
+                    </a>
+                  )
+                ) : (
+                  <span className="empty-state">Loading…</span>
+                )}
+              </div>
+              <div className="document-card-meta">
+                <span className="patient-meta">{toShamsi(doc.createdAt.slice(0, 10))}</span>
+                <button className="link-button" onClick={() => void handleDelete(doc)}>
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

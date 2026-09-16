@@ -46,7 +46,6 @@ create table public.patients (
     dialysis_status     text,
     dialysis_modality   text,
     transplant_status   text,
-    document_path       text, -- Storage object key (imaging bucket) for the one attached scanned chart/data-sheet photo or PDF
 
     -- assessment: history
     chief_complaint     text,
@@ -156,6 +155,20 @@ create table public.imaging_entries (
 );
 
 create index imaging_entries_patient_id_idx on public.imaging_entries (patient_id);
+
+-- General per-patient file attachments (e.g. a scanned pre-filled paper
+-- chart/data-collection sheet) -- separate from imaging_entries, which
+-- carries radiology-specific report/impression fields. A patient can have
+-- any number of these.
+create table public.patient_documents (
+    id           uuid primary key default gen_random_uuid(),
+    patient_id   uuid not null references public.patients (id) on delete cascade,
+    storage_path text not null,
+    filename     text,
+    created_at   timestamptz not null default now()
+);
+
+create index patient_documents_patient_id_idx on public.patient_documents (patient_id);
 
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
@@ -446,6 +459,7 @@ alter table public.lab_entries enable row level security;
 alter table public.progress_notes enable row level security;
 alter table public.medications enable row level security;
 alter table public.imaging_entries enable row level security;
+alter table public.patient_documents enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
@@ -491,6 +505,12 @@ create policy imaging_entries_owner_access on public.imaging_entries
     for all using (exists (
         select 1 from public.patients p
         where p.id = imaging_entries.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy patient_documents_owner_access on public.patient_documents
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = patient_documents.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders
