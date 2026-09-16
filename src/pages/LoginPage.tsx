@@ -31,6 +31,10 @@ export function LoginPage() {
 
   return (
     <div className="auth-card">
+      <div className="brand-signature">
+        <span className="signature-name">Ali Hesami</span>
+        <span className="signature-role">Pediatric Nephrology</span>
+      </div>
       <svg
         className="auth-icon"
         viewBox="0 0 64 64"
