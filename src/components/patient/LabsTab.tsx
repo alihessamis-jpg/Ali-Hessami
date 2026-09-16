@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
+import { COMMON_LAB_TESTS, LAB_CATEGORIES } from '../../lib/labPresets'
 import type { LabEntry } from '../../types/domain'
 
 interface Props {
@@ -63,10 +64,31 @@ export function LabsTab({ patientId }: Props) {
 
   return (
     <div>
+      <datalist id="lab-category-options">
+        {LAB_CATEGORIES.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      <datalist id="lab-test-options">
+        {COMMON_LAB_TESTS.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
-        <input placeholder="Category" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} />
-        <input placeholder="Test" value={draft.test} onChange={(e) => setDraft({ ...draft, test: e.target.value })} required />
+        <input
+          placeholder="Category"
+          list="lab-category-options"
+          value={draft.category}
+          onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+        />
+        <input
+          placeholder="Test"
+          list="lab-test-options"
+          value={draft.test}
+          onChange={(e) => setDraft({ ...draft, test: e.target.value })}
+          required
+        />
         <input placeholder="Value" type="number" step="any" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} />
         <input placeholder="Unit" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
         <input placeholder="Reference range" value={draft.ref} onChange={(e) => setDraft({ ...draft, ref: e.target.value })} />
