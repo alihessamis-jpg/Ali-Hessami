@@ -256,6 +256,15 @@ export function WarningIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function CaseLogIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M9 3.5h6a1 1 0 011 1v1.2h1.2a1.8 1.8 0 011.8 1.8v12a1.8 1.8 0 01-1.8 1.8H6.8A1.8 1.8 0 015 19.5v-12A1.8 1.8 0 016.8 5.7H8V4.5a1 1 0 011-1z" />
+      <path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" />
+    </Icon>
+  )
+}
+
 export function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
+import { CaseLogPage } from './pages/CaseLogPage'
 import { ReferencePage } from './pages/ReferencePage'
 import { CalculatorsPage } from './pages/CalculatorsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
@@ -31,6 +32,7 @@ export function App() {
           <Route path="/" element={protect(<DashboardPage />)} />
           <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />
+          <Route path="/case-log" element={protect(<CaseLogPage />)} />
           <Route path="/reference" element={protect(<ReferencePage />)} />
           <Route path="/calculators" element={protect(<CalculatorsPage />)} />
           <Route path="/checklists" element={protect(<ChecklistsPage />)} />

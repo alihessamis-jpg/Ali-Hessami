@@ -16,9 +16,11 @@ import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards } from '../lib/api/flashcards'
 import { listKnowledgeGaps } from '../lib/api/knowledgeGaps'
 import { listResearchProjects } from '../lib/api/research'
+import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/caseLog'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
+  CaseLogIcon,
   DashboardIcon,
   FlashcardsIcon,
   KnowledgeGapIcon,
@@ -119,6 +121,7 @@ export function DashboardPage() {
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
   const [egfrTrend, setEgfrTrend] = useState<EGFRTrendPoint[]>([])
+  const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -135,6 +138,7 @@ export function DashboardPage() {
       listKnowledgeGaps(),
       listResearchProjects(),
       listEGFRTrend(),
+      listCaseLogEntries(),
     ])
       .then(
         ([
@@ -147,6 +151,7 @@ export function DashboardPage() {
           gapRows,
           projectRows,
           trendRows,
+          caseLogRows,
         ]) => {
           setPatients(patientRows)
           setLabs(labRows)
@@ -157,6 +162,7 @@ export function DashboardPage() {
           setKnowledgeGaps(gapRows)
           setResearchProjects(projectRows)
           setEgfrTrend(trendRows)
+          setCaseLogEntries(caseLogRows)
         }
       )
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
@@ -205,6 +211,8 @@ export function DashboardPage() {
   const alerts = [...critical, ...warning, ...studyAlerts]
 
   const openGaps = knowledgeGaps.filter((g) => g.status !== 'resolved')
+  const currentMonth = today.slice(0, 7)
+  const caseLogThisMonth = caseLogEntries.filter((e) => e.date.slice(0, 7) === currentMonth).length
 
   return (
     <div>
@@ -368,6 +376,15 @@ export function DashboardPage() {
               </span>
               <span className="checklist-label">Active research projects</span>
               <span className="checklist-count">{researchProjects.length}</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/case-log" className="checklist-row">
+              <span className={`checklist-dot ${caseLogThisMonth > 0 ? 'checklist-dot--done' : ''}`}>
+                <CaseLogIcon />
+              </span>
+              <span className="checklist-label">Case log entries this month</span>
+              <span className="checklist-count">{caseLogThisMonth}</span>
             </Link>
           </li>
         </ul>

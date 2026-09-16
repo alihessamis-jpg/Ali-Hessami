@@ -304,6 +304,22 @@ export interface PersonalCase {
 
 export type PersonalCaseDraft = Omit<PersonalCase, 'id'>
 
+export type CaseLogRole = 'managed' | 'performed' | 'assisted' | 'observed' | 'consulted'
+
+export interface CaseLogEntry {
+  id: string
+  patientId?: string | null
+  date: string
+  category: string
+  diagnosis: string
+  role: CaseLogRole
+  procedure?: string | null
+  setting?: string | null
+  notes?: string | null
+}
+
+export type CaseLogEntryDraft = Omit<CaseLogEntry, 'id'>
+
 export interface ResearchProject {
   id: string
   name: string

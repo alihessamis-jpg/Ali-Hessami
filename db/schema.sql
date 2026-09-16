@@ -347,6 +347,28 @@ create table public.knowledge_gaps (
     status      text
 );
 
+-- Fellowship case log: tracks clinical exposure (diagnosis category, role,
+-- procedure) for board/certification case-mix requirements and for spotting
+-- underexposed categories to focus study on. patient_id is optional and set
+-- null (never cascade-deleted) so a case entry survives even if the linked
+-- patient chart is later removed -- the exposure itself already happened.
+create table public.case_log_entries (
+    id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null references auth.users (id) on delete cascade,
+    patient_id  uuid references public.patients (id) on delete set null,
+    date        date not null default current_date,
+    category    text not null,
+    diagnosis   text not null,
+    role        text not null, -- 'managed' | 'performed' | 'assisted' | 'observed' | 'consulted'
+    procedure   text,
+    setting     text, -- 'Inpatient' | 'Outpatient' | 'Consult' | 'ICU'
+    notes       text,
+    created_at  timestamptz not null default now()
+);
+
+create index case_log_entries_owner_id_idx on public.case_log_entries (owner_id);
+create index case_log_entries_date_idx on public.case_log_entries (date);
+
 -- De-identified, built from a patient encounter. source_patient_id is kept
 -- only for the owning clinician's own audit trail; cleared if the patient
 -- record is deleted, since the case must stand on its own once de-identified.
@@ -436,6 +458,7 @@ alter table public.reasoning_cases enable row level security;
 alter table public.lab_challenges enable row level security;
 alter table public.imaging_challenges enable row level security;
 alter table public.knowledge_gaps enable row level security;
+alter table public.case_log_entries enable row level security;
 alter table public.personal_cases enable row level security;
 alter table public.research_projects enable row level security;
 alter table public.research_fields enable row level security;
@@ -515,6 +538,9 @@ create policy imaging_challenges_owner_access on public.imaging_challenges
 
 create policy knowledge_gaps_self_access on public.knowledge_gaps
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy case_log_entries_owner_access on public.case_log_entries
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy personal_cases_self_access on public.personal_cases
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());

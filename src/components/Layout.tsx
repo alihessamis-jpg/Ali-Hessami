@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
   CalculatorIcon,
+  CaseLogIcon,
   ChecklistIcon,
   DashboardIcon,
   FormBuilderIcon,
@@ -16,6 +17,7 @@ import {
 const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon },
   { to: '/patients', label: 'Patients', icon: PatientsIcon },
+  { to: '/case-log', label: 'Case Log', icon: CaseLogIcon },
   { to: '/reference', label: 'Reference', icon: ReferenceIcon },
   { to: '/calculators', label: 'Calculators', icon: CalculatorIcon },
   { to: '/checklists', label: 'Checklists', icon: ChecklistIcon },
