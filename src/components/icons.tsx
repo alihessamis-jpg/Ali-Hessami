@@ -247,6 +247,15 @@ export function AnalyticsIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function WarningIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 4.2L3 19.5h18L12 4.2z" />
+      <path d="M12 10v4.2M12 17.2h.01" />
+    </Icon>
+  )
+}
+
 export function KidneyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" {...props}>

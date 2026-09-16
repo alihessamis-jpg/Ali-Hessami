@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listRecentAbnormalLabs, type AbnormalLab } from '../lib/api/dashboard'
+import { listPatientsOverview, listRecentAbnormalLabs, type AbnormalLab, type PatientGlance } from '../lib/api/dashboard'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards } from '../lib/api/flashcards'
 import { useAuth } from '../context/AuthContext'
-import { AcademyIcon, DashboardIcon, LabsIcon, RemindersIcon } from '../components/icons'
+import { AcademyIcon, DashboardIcon, PatientsIcon, WarningIcon } from '../components/icons'
 import type { AcademyTopic, Flashcard } from '../types/domain'
 
 function addDays(dateStr: string, days: number): string {
@@ -14,20 +14,82 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function reminderStatus(reminder: ActiveReminder, today: string, tomorrow: string): string | null {
+type Severity = 'critical' | 'warning' | 'info'
+
+interface AlertItem {
+  id: string
+  severity: Severity
+  title: string
+  detail: string
+  to: string
+}
+
+function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: string): AlertItem | null {
+  const detailSuffix = reminder.note ? ` — ${reminder.note}` : ''
   if (reminder.type === 'surgery') {
-    if (reminder.eventDate < today) return `Surgery date passed (${reminder.eventDate}) — check status`
-    if (reminder.eventDate === today) return 'Surgery today'
-    if (reminder.eventDate === tomorrow) return 'Surgery tomorrow — pre-op labs/coordination needed today'
+    if (reminder.eventDate < today) {
+      return {
+        id: reminder.id,
+        severity: 'critical',
+        title: `Surgery date passed — ${reminder.patientName}`,
+        detail: `${reminder.eventDate} · ${reminder.title}${detailSuffix}`,
+        to: `/patients/${reminder.patientId}`,
+      }
+    }
+    if (reminder.eventDate === today) {
+      return {
+        id: reminder.id,
+        severity: 'critical',
+        title: `Surgery today — ${reminder.patientName}`,
+        detail: `${reminder.title}${detailSuffix}`,
+        to: `/patients/${reminder.patientId}`,
+      }
+    }
+    if (reminder.eventDate === tomorrow) {
+      return {
+        id: reminder.id,
+        severity: 'warning',
+        title: `Surgery tomorrow — ${reminder.patientName}`,
+        detail: `Pre-op labs/coordination needed today · ${reminder.title}${detailSuffix}`,
+        to: `/patients/${reminder.patientId}`,
+      }
+    }
     return null
   }
-  if (reminder.eventDate < today) return `Overdue since ${reminder.eventDate}`
-  if (reminder.eventDate === today) return 'Due today'
+  if (reminder.eventDate < today) {
+    return {
+      id: reminder.id,
+      severity: 'critical',
+      title: `Overdue — ${reminder.patientName}`,
+      detail: `Since ${reminder.eventDate} · ${reminder.title}${detailSuffix}`,
+      to: `/patients/${reminder.patientId}`,
+    }
+  }
+  if (reminder.eventDate === today) {
+    return {
+      id: reminder.id,
+      severity: 'warning',
+      title: `Due today — ${reminder.patientName}`,
+      detail: `${reminder.title}${detailSuffix}`,
+      to: `/patients/${reminder.patientId}`,
+    }
+  }
   return null
+}
+
+function labToAlert(lab: AbnormalLab): AlertItem {
+  return {
+    id: lab.id,
+    severity: 'critical',
+    title: `${lab.test} abnormal — ${lab.patientName}`,
+    detail: `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'}) · ${lab.date}`,
+    to: `/patients/${lab.patientId}`,
+  }
 }
 
 export function DashboardPage() {
   const { session } = useAuth()
+  const [patients, setPatients] = useState<PatientGlance[]>([])
   const [labs, setLabs] = useState<AbnormalLab[]>([])
   const [reminders, setReminders] = useState<ActiveReminder[]>([])
   const [topics, setTopics] = useState<AcademyTopic[]>([])
@@ -40,13 +102,15 @@ export function DashboardPage() {
     if (!session) return
     setLoading(true)
     Promise.all([
+      listPatientsOverview(),
       listRecentAbnormalLabs(),
       listActiveReminders(),
       listAcademyTopics(),
       listAcademyProgress(session.user.id),
       listFlashcards(),
     ])
-      .then(([labRows, reminderRows, topicRows, progressRows, flashcardRows]) => {
+      .then(([patientRows, labRows, reminderRows, topicRows, progressRows, flashcardRows]) => {
+        setPatients(patientRows)
         setLabs(labRows)
         setReminders(reminderRows)
         setTopics(topicRows)
@@ -63,15 +127,40 @@ export function DashboardPage() {
   const today = new Date().toISOString().slice(0, 10)
   const tomorrow = addDays(today, 1)
 
-  const careAlerts = reminders
-    .map((r) => ({ reminder: r, status: reminderStatus(r, today, tomorrow) }))
-    .filter((x): x is { reminder: ActiveReminder; status: string } => x.status !== null)
+  const reminderAlerts = reminders
+    .map((r) => reminderToAlert(r, today, tomorrow))
+    .filter((a): a is AlertItem => a !== null)
+  const labAlerts = labs.map(labToAlert)
 
   const dueTopics = topics.filter((t) => {
     const next = topicProgress[t.id]
     return !next || next <= today
   })
   const dueFlashcards = flashcards.filter((c) => !c.nextReview || c.nextReview <= today)
+
+  const studyAlerts: AlertItem[] = []
+  if (dueTopics.length > 0) {
+    studyAlerts.push({
+      id: 'study-academy',
+      severity: 'info',
+      title: `${dueTopics.length} Academy topic${dueTopics.length === 1 ? '' : 's'} due for review`,
+      detail: 'Spaced-repetition schedule',
+      to: '/academy',
+    })
+  }
+  if (dueFlashcards.length > 0) {
+    studyAlerts.push({
+      id: 'study-flashcards',
+      severity: 'info',
+      title: `${dueFlashcards.length} flashcard${dueFlashcards.length === 1 ? '' : 's'} due for review`,
+      detail: 'Spaced-repetition schedule',
+      to: '/study',
+    })
+  }
+
+  const critical = [...labAlerts, ...reminderAlerts.filter((a) => a.severity === 'critical')]
+  const warning = reminderAlerts.filter((a) => a.severity === 'warning')
+  const alerts = [...critical, ...warning, ...studyAlerts]
 
   return (
     <div>
@@ -82,109 +171,89 @@ export function DashboardPage() {
         Dashboard
       </h1>
 
-      <section style={{ marginBottom: 28 }}>
-        <h2 className="section-title">
-          <RemindersIcon />
-          Care alerts
-        </h2>
-        {careAlerts.length === 0 ? (
-          <p className="empty-state">Nothing needs attention today.</p>
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">
+            <span className="icon-chip">
+              <PatientsIcon />
+            </span>
+            Current patients
+          </h2>
+          <Link to="/patients" className="link-button">
+            View all
+          </Link>
+        </div>
+        {patients.length === 0 ? (
+          <p className="empty-state">No patients yet.</p>
         ) : (
-          <ul className="note-timeline">
-            {careAlerts.map(({ reminder, status }) => (
-              <li key={reminder.id}>
-                <div className="note-header">
-                  <strong>{reminder.patientName}</strong>
-                  <span>{status}</span>
-                </div>
-                <p>
-                  {reminder.title}
-                  {reminder.note ? ` — ${reminder.note}` : ''}
-                </p>
-                <Link to={`/patients/${reminder.patientId}`} className="link-button">
-                  Open patient
+          <ul className="glance-list">
+            {patients.map((p) => (
+              <li key={p.id}>
+                <Link to={`/patients/${p.id}`} className="glance-row">
+                  <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                  <span className="glance-body">
+                    <span className="glance-name">{p.name}</span>
+                    <span className="glance-meta">
+                      {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
+                        'No details yet'}
+                    </span>
+                  </span>
+                  {(p.latestCreatinine || p.latestEGFR) && (
+                    <span className="glance-stats">
+                      {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
+                      {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </div>
 
-      <section style={{ marginBottom: 28 }}>
-        <h2 className="section-title">
-          <LabsIcon />
-          Abnormal labs (last 14 days)
-        </h2>
-        {labs.length === 0 ? (
-          <p className="empty-state">No abnormal labs in the last 14 days.</p>
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">
+            <span className="icon-chip">
+              <WarningIcon />
+            </span>
+            Needs attention
+          </h2>
+        </div>
+        {alerts.length === 0 ? (
+          <p className="empty-state">Nothing needs attention right now.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Date</th>
-                <th>Test</th>
-                <th>Value</th>
-                <th>Ref range</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {labs.map((lab) => (
-                <tr key={lab.id}>
-                  <td>{lab.patientName}</td>
-                  <td>{lab.date}</td>
-                  <td>{lab.test}</td>
-                  <td style={{ color: 'var(--danger)', fontWeight: 600 }}>
-                    {lab.value} {lab.unit}
-                  </td>
-                  <td>{lab.ref}</td>
-                  <td>
-                    <Link to={`/patients/${lab.patientId}`} className="link-button">
-                      Open patient
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="alert-feed">
+            {alerts.map((a) => (
+              <li key={a.id}>
+                <Link to={a.to} className={`alert-row alert-row--${a.severity}`}>
+                  <WarningIcon />
+                  <span>
+                    <span className="alert-title">{a.title}</span>
+                    <span className="alert-detail">{a.detail}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
+      </div>
 
-      <section>
-        <h2 className="section-title">
-          <AcademyIcon />
-          Study reviews due today
-        </h2>
-        {dueTopics.length === 0 && dueFlashcards.length === 0 ? (
-          <p className="empty-state">Nothing due for review today.</p>
-        ) : (
-          <div className="calc-strip">
-            <div>
-              <span className="calc-label">Academy topics due</span>
-              <span className="calc-value">{dueTopics.length}</span>
-            </div>
-            <div>
-              <span className="calc-label">Flashcards due</span>
-              <span className="calc-value">{dueFlashcards.length}</span>
-            </div>
-          </div>
-        )}
-        {(dueTopics.length > 0 || dueFlashcards.length > 0) && (
-          <div className="form-actions">
-            {dueTopics.length > 0 && (
-              <Link to="/academy" className="button-link">
-                Review Academy topics
-              </Link>
-            )}
-            {dueFlashcards.length > 0 && (
-              <Link to="/study" className="button-link">
-                Review flashcards
-              </Link>
-            )}
-          </div>
-        )}
-      </section>
+      {(dueTopics.length > 0 || dueFlashcards.length > 0) && (
+        <div className="form-actions">
+          {dueTopics.length > 0 && (
+            <Link to="/academy" className="button-link">
+              <AcademyIcon style={{ width: 16, height: 16, marginRight: 6, verticalAlign: '-3px' }} />
+              Review Academy topics
+            </Link>
+          )}
+          {dueFlashcards.length > 0 && (
+            <Link to="/study" className="button-link">
+              Review flashcards
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   )
 }
