@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ComponentType, type SVGProps } from 'react'
 import { StudyNotesPanel } from '../components/study/StudyNotesPanel'
 import { FlashcardsPanel } from '../components/study/FlashcardsPanel'
 import { ReasoningCasesPanel } from '../components/study/ReasoningCasesPanel'
@@ -6,17 +6,27 @@ import { LabChallengesPanel } from '../components/study/LabChallengesPanel'
 import { ImagingChallengesPanel } from '../components/study/ImagingChallengesPanel'
 import { KnowledgeGapsPanel } from '../components/study/KnowledgeGapsPanel'
 import { PersonalCasesPanel } from '../components/study/PersonalCasesPanel'
+import {
+  FlashcardsIcon,
+  ImagingIcon,
+  KnowledgeGapIcon,
+  LabsIcon,
+  NotesIcon,
+  PersonalCaseIcon,
+  ReasoningIcon,
+  StudyHubIcon,
+} from '../components/icons'
 
 type Tab = 'notes' | 'flashcards' | 'reasoning' | 'labChallenges' | 'imagingChallenges' | 'gaps' | 'cases'
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'notes', label: 'Study Notes' },
-  { id: 'flashcards', label: 'Flashcards' },
-  { id: 'reasoning', label: 'Reasoning Cases' },
-  { id: 'labChallenges', label: 'Lab Challenges' },
-  { id: 'imagingChallenges', label: 'Imaging Challenges' },
-  { id: 'gaps', label: 'Knowledge Gaps' },
-  { id: 'cases', label: 'Personal Cases' },
+const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
+  { id: 'notes', label: 'Study Notes', icon: NotesIcon },
+  { id: 'flashcards', label: 'Flashcards', icon: FlashcardsIcon },
+  { id: 'reasoning', label: 'Reasoning Cases', icon: ReasoningIcon },
+  { id: 'labChallenges', label: 'Lab Challenges', icon: LabsIcon },
+  { id: 'imagingChallenges', label: 'Imaging Challenges', icon: ImagingIcon },
+  { id: 'gaps', label: 'Knowledge Gaps', icon: KnowledgeGapIcon },
+  { id: 'cases', label: 'Personal Cases', icon: PersonalCaseIcon },
 ]
 
 export function StudyHubPage() {
@@ -24,13 +34,22 @@ export function StudyHubPage() {
 
   return (
     <div>
-      <h1>Study Hub</h1>
+      <h1 className="page-title">
+        <span className="page-title-icon">
+          <StudyHubIcon />
+        </span>
+        Study Hub
+      </h1>
       <nav className="tab-bar">
-        {TABS.map((t) => (
-          <button key={t.id} className={t.id === tab ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const TabIcon = t.icon
+          return (
+            <button key={t.id} className={t.id === tab ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
+              <TabIcon />
+              {t.label}
+            </button>
+          )
+        })}
       </nav>
       <div className="tab-panel">
         {tab === 'notes' && <StudyNotesPanel />}

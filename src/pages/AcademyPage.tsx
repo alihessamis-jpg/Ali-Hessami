@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { addAcademyTopic, listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { useAuth } from '../context/AuthContext'
+import { AcademyIcon } from '../components/icons'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
 
 export function AcademyPage() {
@@ -67,7 +68,12 @@ export function AcademyPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Academy</h1>
+          <h1 className="page-title">
+            <span className="page-title-icon">
+              <AcademyIcon />
+            </span>
+            Academy
+          </h1>
           <p className="empty-state" style={{ margin: 0 }}>
             {dueCount} of {topics.length} topics due for review. No content is pre-loaded — build your own
             topic library.

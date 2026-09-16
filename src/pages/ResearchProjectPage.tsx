@@ -5,15 +5,17 @@ import { OverviewTab } from '../components/research/OverviewTab'
 import { FormBuilderTab } from '../components/research/FormBuilderTab'
 import { DataTab } from '../components/research/DataTab'
 import { AnalyticsTab } from '../components/research/AnalyticsTab'
+import { AnalyticsIcon, DataIcon, FormBuilderIcon, OverviewIcon } from '../components/icons'
 import type { ResearchProject } from '../types/domain'
+import type { ComponentType, SVGProps } from 'react'
 
 type Tab = 'overview' | 'form' | 'data' | 'analytics'
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'form', label: 'Form Builder' },
-  { id: 'data', label: 'Data' },
-  { id: 'analytics', label: 'Analytics' },
+const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
+  { id: 'overview', label: 'Overview', icon: OverviewIcon },
+  { id: 'form', label: 'Form Builder', icon: FormBuilderIcon },
+  { id: 'data', label: 'Data', icon: DataIcon },
+  { id: 'analytics', label: 'Analytics', icon: AnalyticsIcon },
 ]
 
 export function ResearchProjectPage() {
@@ -44,11 +46,15 @@ export function ResearchProjectPage() {
       </div>
 
       <nav className="tab-bar">
-        {TABS.map((t) => (
-          <button key={t.id} className={t.id === tab ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const TabIcon = t.icon
+          return (
+            <button key={t.id} className={t.id === tab ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
+              <TabIcon />
+              {t.label}
+            </button>
+          )
+        })}
       </nav>
 
       <div className="tab-panel">

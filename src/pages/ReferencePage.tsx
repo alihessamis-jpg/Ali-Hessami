@@ -5,6 +5,7 @@ import {
   listDialysisReference,
 } from '../lib/api/dialysisReference'
 import { addDrugReference, deleteDrugReference, listDrugReference } from '../lib/api/drugReference'
+import { ReferenceIcon } from '../components/icons'
 import type { DialysisRefEntry, DrugRefEntry } from '../types/domain'
 
 type Tab = 'drug' | 'dialysis'
@@ -105,7 +106,12 @@ export function ReferencePage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Reference</h1>
+        <h1 className="page-title">
+          <span className="page-title-icon">
+            <ReferenceIcon />
+          </span>
+          Reference
+        </h1>
         <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'Add entry'}</button>
       </div>
 

@@ -8,18 +8,28 @@ import { NotesTab } from '../components/patient/NotesTab'
 import { MedicationsTab } from '../components/patient/MedicationsTab'
 import { ImagingTab } from '../components/patient/ImagingTab'
 import { RemindersTab } from '../components/patient/RemindersTab'
+import {
+  AssessmentIcon,
+  ImagingIcon,
+  LabsIcon,
+  MedicationsIcon,
+  NotesIcon,
+  RemindersIcon,
+  TrendsIcon,
+} from '../components/icons'
 import type { Patient } from '../types/domain'
+import type { ComponentType, SVGProps } from 'react'
 
 type Tab = 'assessment' | 'labs' | 'trends' | 'notes' | 'medications' | 'imaging' | 'reminders'
 
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'assessment', label: 'Assessment' },
-  { id: 'labs', label: 'Labs' },
-  { id: 'trends', label: 'Trends' },
-  { id: 'notes', label: 'Progress notes' },
-  { id: 'medications', label: 'Medications' },
-  { id: 'imaging', label: 'Imaging' },
-  { id: 'reminders', label: 'Reminders' },
+const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
+  { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
+  { id: 'labs', label: 'Labs', icon: LabsIcon },
+  { id: 'trends', label: 'Trends', icon: TrendsIcon },
+  { id: 'notes', label: 'Progress notes', icon: NotesIcon },
+  { id: 'medications', label: 'Medications', icon: MedicationsIcon },
+  { id: 'imaging', label: 'Imaging', icon: ImagingIcon },
+  { id: 'reminders', label: 'Reminders', icon: RemindersIcon },
 ]
 
 export function PatientDetailPage() {
@@ -57,15 +67,19 @@ export function PatientDetailPage() {
       </div>
 
       <nav className="tab-bar">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={t.id === tab ? 'tab active' : 'tab'}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const TabIcon = t.icon
+          return (
+            <button
+              key={t.id}
+              className={t.id === tab ? 'tab active' : 'tab'}
+              onClick={() => setTab(t.id)}
+            >
+              <TabIcon />
+              {t.label}
+            </button>
+          )
+        })}
       </nav>
 
       <div className="tab-panel">

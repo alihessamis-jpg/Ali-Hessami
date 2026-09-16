@@ -1,13 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #f4f6f8;
+  --bg: #eef4fc;
   --surface: #ffffff;
-  --border: #dde3ea;
-  --text: #1a2733;
-  --text-muted: #5b6b7a;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --danger: #b91c1c;
+  --surface-tint: #eaf2fe;
+  --border: #d7e5f7;
+  --text: #10233d;
+  --text-muted: #5c7291;
+  --accent: #1d64e0;
+  --accent-dark: #123a8a;
+  --accent-hover: #164fc0;
+  --accent-soft: #dce9fd;
+  --danger: #c0362c;
+  --shadow-sm: 0 1px 2px rgba(16, 35, 61, 0.05), 0 1px 6px rgba(16, 35, 61, 0.04);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
@@ -27,8 +31,9 @@ button {
   border: 1px solid var(--accent);
   background: var(--accent);
   color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 14px;
+  transition: background 0.15s ease;
 }
 
 button:hover {
@@ -57,10 +62,11 @@ button:disabled {
   border: 1px solid var(--accent);
   background: var(--accent);
   color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 14px;
   text-decoration: none;
   font-size: 0.9rem;
+  transition: background 0.15s ease;
 }
 
 .button-link:hover {
@@ -73,9 +79,17 @@ textarea {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: white;
   color: var(--text);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 label {
@@ -98,39 +112,59 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 14px 24px;
-  background: var(--surface);
+  padding: 12px 24px;
+  background: var(--surface-tint);
   border-bottom: 1px solid var(--border);
 }
 
 .main-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
 }
 
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.9rem;
-  padding: 6px 10px;
-  border-radius: 6px;
+  font-size: 0.87rem;
+  padding: 7px 11px;
+  border-radius: 8px;
+}
+
+.nav-link svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
 }
 
 .nav-link:hover {
-  background: var(--bg);
+  background: var(--surface);
+  color: var(--accent-dark);
 }
 
 .nav-link.active {
-  color: var(--accent);
+  color: var(--accent-dark);
   font-weight: 600;
+  background: var(--accent-soft);
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 700;
   font-size: 1.2rem;
-  color: var(--accent);
+  color: var(--accent-dark);
   text-decoration: none;
+}
+
+.brand svg {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
 }
 
 .header-actions {
@@ -159,6 +193,43 @@ label {
   margin-bottom: 16px;
 }
 
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+.page-title-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.page-title-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-dark);
+}
+
+.section-title svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
 .back-link {
   color: var(--text-muted);
   text-decoration: none;
@@ -170,9 +241,10 @@ label {
   margin: 80px auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 32px;
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .auth-subtitle {
@@ -246,9 +318,15 @@ label {
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   text-decoration: none;
   color: var(--text);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease;
+}
+
+.patient-list a:hover {
+  border-color: var(--accent);
 }
 
 .patient-name {
@@ -266,12 +344,16 @@ label {
 
 .tab-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
 }
 
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -281,21 +363,27 @@ label {
   margin-right: 20px;
 }
 
+.tab svg {
+  width: 16px;
+  height: 16px;
+}
+
 .tab:hover {
   background: none;
-  color: var(--text);
+  color: var(--accent-dark);
 }
 
 .tab.active {
-  color: var(--accent);
+  color: var(--accent-dark);
   border-bottom-color: var(--accent);
 }
 
 fieldset {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   margin-bottom: 16px;
   padding: 14px 16px;
+  background: var(--surface);
 }
 
 legend {
@@ -312,10 +400,11 @@ legend {
 
 .calc-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
-  background: var(--surface);
+  background: var(--surface-tint);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 16px;
 }
@@ -332,6 +421,7 @@ legend {
   display: block;
   font-size: 1.4rem;
   font-weight: 600;
+  color: var(--accent-dark);
 }
 
 .form-actions {
@@ -354,9 +444,10 @@ legend {
   align-items: flex-end;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 16px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 .soap-form {
@@ -374,8 +465,9 @@ legend {
   border-collapse: collapse;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .data-table th,
@@ -384,6 +476,14 @@ legend {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
+}
+
+.data-table th {
+  background: var(--surface-tint);
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .trend-picker {
@@ -401,8 +501,9 @@ legend {
 .note-timeline > li {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .note-header {

@@ -1,16 +1,27 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import {
+  AcademyIcon,
+  CalculatorIcon,
+  ChecklistIcon,
+  DashboardIcon,
+  KidneyIcon,
+  PatientsIcon,
+  ReferenceIcon,
+  ResearchIcon,
+  StudyHubIcon,
+} from './icons'
 
-const NAV_LINKS = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/patients', label: 'Patients' },
-  { to: '/reference', label: 'Reference' },
-  { to: '/calculators', label: 'Calculators' },
-  { to: '/checklists', label: 'Checklists' },
-  { to: '/academy', label: 'Academy' },
-  { to: '/study', label: 'Study Hub' },
-  { to: '/research', label: 'Research' },
+const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
+  { to: '/', label: 'Dashboard', icon: DashboardIcon },
+  { to: '/patients', label: 'Patients', icon: PatientsIcon },
+  { to: '/reference', label: 'Reference', icon: ReferenceIcon },
+  { to: '/calculators', label: 'Calculators', icon: CalculatorIcon },
+  { to: '/checklists', label: 'Checklists', icon: ChecklistIcon },
+  { to: '/academy', label: 'Academy', icon: AcademyIcon },
+  { to: '/study', label: 'Study Hub', icon: StudyHubIcon },
+  { to: '/research', label: 'Research', icon: ResearchIcon },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -21,19 +32,24 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="brand">
+          <KidneyIcon />
           Nephron
         </Link>
         {session && (
           <nav className="main-nav">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={location.pathname === link.to ? 'nav-link active' : 'nav-link'}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((link) => {
+              const LinkIcon = link.icon
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={location.pathname === link.to ? 'nav-link active' : 'nav-link'}
+                >
+                  <LinkIcon />
+                  {link.label}
+                </Link>
+              )
+            })}
           </nav>
         )}
         {session && (

@@ -9,6 +9,7 @@ import {
   setChecklistCompletion,
 } from '../lib/api/checklists'
 import { useAuth } from '../context/AuthContext'
+import { ChecklistIcon } from '../components/icons'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
 
 export function ChecklistsPage() {
@@ -90,7 +91,12 @@ export function ChecklistsPage() {
 
   return (
     <div>
-      <h1>Checklists</h1>
+      <h1 className="page-title">
+        <span className="page-title-icon">
+          <ChecklistIcon />
+        </span>
+        Checklists
+      </h1>
       <p className="empty-state">
         Completion state is per-clinician, not tied to a specific patient — same as the original app.
       </p>

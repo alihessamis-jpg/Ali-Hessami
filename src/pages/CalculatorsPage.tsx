@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { bmiCalc, bsaMosteller, maintenanceFluidPerDay, schwartzEGFR, totalDose } from '../lib/formulas'
+import { CalculatorIcon } from '../components/icons'
 
 export function CalculatorsPage() {
   const [height, setHeight] = useState('')
@@ -14,7 +15,12 @@ export function CalculatorsPage() {
 
   return (
     <div>
-      <h1>Calculators</h1>
+      <h1 className="page-title">
+        <span className="page-title-icon">
+          <CalculatorIcon />
+        </span>
+        Calculators
+      </h1>
       <p className="empty-state">
         Standard pediatric formulas. Always apply clinical judgement — these are reference aids, not a
         substitute for verifying against current guidelines.

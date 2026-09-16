@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { addResearchProject, listResearchProjects } from '../lib/api/research'
+import { ResearchIcon } from '../components/icons'
 import type { ResearchProject } from '../types/domain'
 
 export function ResearchProjectsPage() {
@@ -44,7 +45,12 @@ export function ResearchProjectsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Research & Thesis Center</h1>
+        <h1 className="page-title">
+          <span className="page-title-icon">
+            <ResearchIcon />
+          </span>
+          Research & Thesis Center
+        </h1>
         <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New project'}</button>
       </div>
 

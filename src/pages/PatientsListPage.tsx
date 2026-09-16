@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPatient, listPatients } from '../lib/api/patients'
+import { PatientsIcon } from '../components/icons'
 import type { Patient } from '../types/domain'
 
 export function PatientsListPage() {
@@ -43,7 +44,12 @@ export function PatientsListPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Patients</h1>
+        <h1 className="page-title">
+          <span className="page-title-icon">
+            <PatientsIcon />
+          </span>
+          Patients
+        </h1>
         <button onClick={() => setShowNewForm((v) => !v)}>
           {showNewForm ? 'Cancel' : 'New patient'}
         </button>

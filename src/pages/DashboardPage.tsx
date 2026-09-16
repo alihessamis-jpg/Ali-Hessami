@@ -5,6 +5,7 @@ import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards } from '../lib/api/flashcards'
 import { useAuth } from '../context/AuthContext'
+import { AcademyIcon, DashboardIcon, LabsIcon, RemindersIcon } from '../components/icons'
 import type { AcademyTopic, Flashcard } from '../types/domain'
 
 function addDays(dateStr: string, days: number): string {
@@ -74,10 +75,18 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1>Dashboard</h1>
+      <h1 className="page-title">
+        <span className="page-title-icon">
+          <DashboardIcon />
+        </span>
+        Dashboard
+      </h1>
 
       <section style={{ marginBottom: 28 }}>
-        <h2>Care alerts</h2>
+        <h2 className="section-title">
+          <RemindersIcon />
+          Care alerts
+        </h2>
         {careAlerts.length === 0 ? (
           <p className="empty-state">Nothing needs attention today.</p>
         ) : (
@@ -102,7 +111,10 @@ export function DashboardPage() {
       </section>
 
       <section style={{ marginBottom: 28 }}>
-        <h2>Abnormal labs (last 14 days)</h2>
+        <h2 className="section-title">
+          <LabsIcon />
+          Abnormal labs (last 14 days)
+        </h2>
         {labs.length === 0 ? (
           <p className="empty-state">No abnormal labs in the last 14 days.</p>
         ) : (
@@ -140,7 +152,10 @@ export function DashboardPage() {
       </section>
 
       <section>
-        <h2>Study reviews due today</h2>
+        <h2 className="section-title">
+          <AcademyIcon />
+          Study reviews due today
+        </h2>
         {dueTopics.length === 0 && dueFlashcards.length === 0 ? (
           <p className="empty-state">Nothing due for review today.</p>
         ) : (
