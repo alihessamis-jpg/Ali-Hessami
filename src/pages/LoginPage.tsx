@@ -31,6 +31,18 @@ export function LoginPage() {
 
   return (
     <div className="auth-card">
+      <svg
+        className="auth-icon"
+        viewBox="0 0 64 64"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M32 5c15 0 26 13 26 28S47 61 33 61c-8 0-15-4-19-11-2-4-1-8 3-10 5-3 5-9 0-12-4-2-5-6-3-10 4-7 11-13 18-13z" />
+      </svg>
       <h1>Nephron</h1>
       <p className="auth-subtitle">Pediatric nephrology workspace</p>
       <form onSubmit={(e) => void handleSubmit(e)}>
