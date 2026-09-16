@@ -8,8 +8,10 @@ import { NotesTab } from '../components/patient/NotesTab'
 import { MedicationsTab } from '../components/patient/MedicationsTab'
 import { ImagingTab } from '../components/patient/ImagingTab'
 import { RemindersTab } from '../components/patient/RemindersTab'
+import { DocumentTab } from '../components/patient/DocumentTab'
 import {
   AssessmentIcon,
+  DocumentIcon,
   ImagingIcon,
   LabsIcon,
   MedicationsIcon,
@@ -20,7 +22,7 @@ import {
 import type { Patient } from '../types/domain'
 import type { ComponentType, SVGProps } from 'react'
 
-type Tab = 'assessment' | 'labs' | 'trends' | 'notes' | 'medications' | 'imaging' | 'reminders'
+type Tab = 'assessment' | 'labs' | 'trends' | 'notes' | 'medications' | 'imaging' | 'reminders' | 'document'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
@@ -30,6 +32,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'medications', label: 'Medications', icon: MedicationsIcon },
   { id: 'imaging', label: 'Imaging', icon: ImagingIcon },
   { id: 'reminders', label: 'Reminders', icon: RemindersIcon },
+  { id: 'document', label: 'Document', icon: DocumentIcon },
 ]
 
 export function PatientDetailPage() {
@@ -118,6 +121,7 @@ export function PatientDetailPage() {
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}
+        {tab === 'document' && <DocumentTab patient={patient} onUpdated={setPatient} />}
       </div>
     </div>
   )

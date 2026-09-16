@@ -46,6 +46,7 @@ create table public.patients (
     dialysis_status     text,
     dialysis_modality   text,
     transplant_status   text,
+    document_path       text, -- Storage object key (imaging bucket) for the one attached scanned chart/data-sheet photo or PDF
 
     -- assessment: history
     chief_complaint     text,

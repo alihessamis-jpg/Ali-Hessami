@@ -23,6 +23,7 @@ export interface Patient {
   dialysisStatus?: string | null
   dialysisModality?: string | null
   transplantStatus?: string | null
+  documentPath?: string | null
 
   // Assessment: history
   chiefComplaint?: string | null

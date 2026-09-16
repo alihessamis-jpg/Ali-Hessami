@@ -22,6 +22,7 @@ interface PatientRow {
   dialysis_status: string | null
   dialysis_modality: string | null
   transplant_status: string | null
+  document_path: string | null
   chief_complaint: string | null
   hpi: string | null
   key_points: string | null
@@ -71,6 +72,7 @@ function toDomain(row: PatientRow): Patient {
     dialysisStatus: row.dialysis_status,
     dialysisModality: row.dialysis_modality,
     transplantStatus: row.transplant_status,
+    documentPath: row.document_path,
     chiefComplaint: row.chief_complaint,
     hpi: row.hpi,
     keyPoints: row.key_points,
@@ -120,6 +122,7 @@ function toRow(patient: Partial<Patient>): Partial<Omit<PatientRow, 'id'>> {
     dialysis_status: patient.dialysisStatus,
     dialysis_modality: patient.dialysisModality,
     transplant_status: patient.transplantStatus,
+    document_path: patient.documentPath,
     chief_complaint: patient.chiefComplaint,
     hpi: patient.hpi,
     key_points: patient.keyPoints,
