@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { Layout } from './components/Layout'
 import { LoginPage } from './pages/LoginPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
 import { ReferencePage } from './pages/ReferencePage'
@@ -26,7 +27,8 @@ export function App() {
       <Layout>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={protect(<PatientsListPage />)} />
+          <Route path="/" element={protect(<DashboardPage />)} />
+          <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />
           <Route path="/reference" element={protect(<ReferencePage />)} />
           <Route path="/calculators" element={protect(<CalculatorsPage />)} />

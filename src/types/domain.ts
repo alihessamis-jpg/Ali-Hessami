@@ -118,6 +118,20 @@ export interface ImagingEntry {
 
 export type ImagingEntryDraft = Omit<ImagingEntry, 'id'>
 
+export type ReminderType = 'follow_up' | 'surgery' | 'custom'
+
+export interface PatientReminder {
+  id: string
+  patientId: string
+  type: ReminderType
+  title: string
+  note?: string | null
+  eventDate: string
+  done: boolean
+}
+
+export type PatientReminderDraft = Omit<PatientReminder, 'id'>
+
 export interface DrugRefEntry {
   id: string
   medication: string

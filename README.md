@@ -10,8 +10,12 @@ how the prototype's data model maps to the Postgres schema.
 
 All four migration phases from the handoff brief are implemented:
 
+- **Dashboard** (the landing page) — surfaces abnormal labs from the last 14
+  days, care reminders due today (including a day-before nudge for upcoming
+  surgery dates), and Academy/flashcard reviews due today.
 - **Clinical core** — auth, Patients list, and a per-patient workspace with
-  Assessment, Labs, Trends, Progress Notes, Medications, and Imaging tabs.
+  Assessment, Labs, Trends, Progress Notes, Medications, Imaging, and
+  Reminders tabs.
 - **Reference + calculators** — a personal (per-clinician) drug/dialysis
   reference list, clinical checklists, and eGFR/BSA/BMI/fluid/dose
   calculators.

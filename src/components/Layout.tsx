@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const NAV_LINKS = [
-  { to: '/', label: 'Patients' },
+  { to: '/', label: 'Dashboard' },
+  { to: '/patients', label: 'Patients' },
   { to: '/reference', label: 'Reference' },
   { to: '/calculators', label: 'Calculators' },
   { to: '/checklists', label: 'Checklists' },

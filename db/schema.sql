@@ -156,6 +156,25 @@ create table public.imaging_entries (
 
 create index imaging_entries_patient_id_idx on public.imaging_entries (patient_id);
 
+-- Care reminders driving the Dashboard's alerts. `event_date` means different
+-- things per type: for 'follow_up'/'custom' it's the day the task is due; for
+-- 'surgery' it's the surgery date itself, and the dashboard alerts the day
+-- before (so pre-op work happens on time) rather than storing a separate
+-- "prep date" the clinician would have to compute by hand.
+create table public.patient_reminders (
+    id          uuid primary key default gen_random_uuid(),
+    patient_id  uuid not null references public.patients (id) on delete cascade,
+    type        text not null, -- 'follow_up' | 'surgery' | 'custom'
+    title       text not null,
+    note        text,
+    event_date  date not null,
+    done        boolean not null default false,
+    created_at  timestamptz not null default now()
+);
+
+create index patient_reminders_patient_id_idx on public.patient_reminders (patient_id);
+create index patient_reminders_event_date_idx on public.patient_reminders (event_date);
+
 -- ----------------------------------------------------------------------------
 -- Phase 2: reference + calculators
 --
@@ -403,6 +422,7 @@ alter table public.lab_entries enable row level security;
 alter table public.progress_notes enable row level security;
 alter table public.medications enable row level security;
 alter table public.imaging_entries enable row level security;
+alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
 alter table public.checklist_templates enable row level security;
@@ -446,6 +466,12 @@ create policy imaging_entries_owner_access on public.imaging_entries
     for all using (exists (
         select 1 from public.patients p
         where p.id = imaging_entries.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy patient_reminders_owner_access on public.patient_reminders
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = patient_reminders.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy drug_reference_owner_access on public.drug_reference

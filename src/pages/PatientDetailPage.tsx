@@ -7,9 +7,10 @@ import { TrendsTab } from '../components/patient/TrendsTab'
 import { NotesTab } from '../components/patient/NotesTab'
 import { MedicationsTab } from '../components/patient/MedicationsTab'
 import { ImagingTab } from '../components/patient/ImagingTab'
+import { RemindersTab } from '../components/patient/RemindersTab'
 import type { Patient } from '../types/domain'
 
-type Tab = 'assessment' | 'labs' | 'trends' | 'notes' | 'medications' | 'imaging'
+type Tab = 'assessment' | 'labs' | 'trends' | 'notes' | 'medications' | 'imaging' | 'reminders'
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'assessment', label: 'Assessment' },
@@ -18,6 +19,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'notes', label: 'Progress notes' },
   { id: 'medications', label: 'Medications' },
   { id: 'imaging', label: 'Imaging' },
+  { id: 'reminders', label: 'Reminders' },
 ]
 
 export function PatientDetailPage() {
@@ -44,7 +46,7 @@ export function PatientDetailPage() {
     <div>
       <div className="page-header">
         <div>
-          <Link to="/" className="back-link">
+          <Link to="/patients" className="back-link">
             ← Patients
           </Link>
           <h1>{patient.name}</h1>
@@ -73,6 +75,7 @@ export function PatientDetailPage() {
         {tab === 'notes' && <NotesTab patientId={id} />}
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
+        {tab === 'reminders' && <RemindersTab patientId={id} />}
       </div>
     </div>
   )
