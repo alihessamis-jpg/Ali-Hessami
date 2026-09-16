@@ -13,6 +13,7 @@ export const LAB_CATEGORIES = [
   'Lipids',
   'Liver',
   'Iron studies',
+  'Blood Gas',
 ]
 
 export const COMMON_LAB_TESTS = [
@@ -73,4 +74,11 @@ export const COMMON_LAB_TESTS = [
   'Iron',
   'TIBC',
   'Transferrin Saturation',
+  // Blood gas
+  'VBG - pH',
+  'VBG - pCO2',
+  'VBG - pO2',
+  'VBG - HCO3',
+  'VBG - Base Excess',
+  'Lactate',
 ]
