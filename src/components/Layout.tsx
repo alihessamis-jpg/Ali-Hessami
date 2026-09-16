@@ -6,6 +6,7 @@ import {
   CalculatorIcon,
   ChecklistIcon,
   DashboardIcon,
+  FormBuilderIcon,
   PatientsIcon,
   ReferenceIcon,
   ResearchIcon,
@@ -21,6 +22,7 @@ const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps
   { to: '/academy', label: 'Academy', icon: AcademyIcon },
   { to: '/study', label: 'Study Hub', icon: StudyHubIcon },
   { to: '/research', label: 'Research', icon: ResearchIcon },
+  { to: '/thesis-form', label: 'Thesis Form', icon: FormBuilderIcon },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
