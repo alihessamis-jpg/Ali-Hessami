@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addReminder, deleteReminder, listRemindersForPatient, setReminderDone } from '../../lib/api/reminders'
+import { toShamsi } from '../../lib/shamsi'
 import type { PatientReminder, ReminderType } from '../../types/domain'
 
 interface Props {
@@ -110,7 +111,7 @@ export function RemindersTab({ patientId }: Props) {
               <tr key={r.id} style={{ opacity: r.done ? 0.5 : 1 }}>
                 <td>{TYPE_LABELS[r.type]}</td>
                 <td>{r.title}</td>
-                <td>{r.eventDate}</td>
+                <td>{toShamsi(r.eventDate)}</td>
                 <td>{r.note}</td>
                 <td>
                   <input type="checkbox" checked={r.done} onChange={() => void toggleDone(r)} />

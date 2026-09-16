@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addKnowledgeGap, deleteKnowledgeGap, listKnowledgeGaps, updateKnowledgeGap } from '../../lib/api/knowledgeGaps'
+import { toShamsi } from '../../lib/shamsi'
 import type { KnowledgeGap } from '../../types/domain'
 
 export function KnowledgeGapsPanel() {
@@ -91,7 +92,7 @@ export function KnowledgeGapsPanel() {
                 <td>{g.topic}</td>
                 <td>{g.description}</td>
                 <td>{g.priority}</td>
-                <td>{g.date}</td>
+                <td>{toShamsi(g.date)}</td>
                 <td>
                   <button className="link-button" onClick={() => void toggleStatus(g)}>
                     {g.status}

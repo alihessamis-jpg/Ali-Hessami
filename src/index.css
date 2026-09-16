@@ -553,6 +553,27 @@ legend {
   margin-bottom: 20px;
 }
 
+.dash-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.dash-row-main {
+  flex: 2;
+  min-width: 280px;
+}
+
+.dash-row-side {
+  flex: 1;
+  min-width: 260px;
+}
+
+.dash-row-side .dash-card {
+  margin-bottom: 0;
+}
+
 .dash-card-header {
   display: flex;
   align-items: center;
@@ -880,6 +901,64 @@ legend {
   color: var(--text-muted);
   font-size: 0.8rem;
   flex: 1;
+}
+
+/* ---- Dashboard: Shamsi calendar widget ---- */
+
+.shamsi-cal-nav {
+  direction: rtl;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.shamsi-cal-nav button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.shamsi-cal-grid {
+  direction: rtl;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.shamsi-cal-weekday {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-bottom: 6px;
+}
+
+.shamsi-cal-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.shamsi-cal-day--empty {
+  visibility: hidden;
+}
+
+.shamsi-cal-day--today {
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
 }
 
 /* ---- Labs: category pills + abnormal highlighting ---- */

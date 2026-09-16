@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { ShamsiCalendarWidget } from '../components/ShamsiCalendarWidget'
+import { toShamsi } from '../lib/shamsi'
 import {
   listEGFRTrend,
   listPatientsOverview,
@@ -51,7 +53,7 @@ function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: stri
         id: reminder.id,
         severity: 'critical',
         title: `Surgery date passed — ${reminder.patientName}`,
-        detail: `${reminder.eventDate} · ${reminder.title}${detailSuffix}`,
+        detail: `${toShamsi(reminder.eventDate)} · ${reminder.title}${detailSuffix}`,
         to: `/patients/${reminder.patientId}`,
       }
     }
@@ -80,7 +82,7 @@ function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: stri
       id: reminder.id,
       severity: 'critical',
       title: `Overdue — ${reminder.patientName}`,
-      detail: `Since ${reminder.eventDate} · ${reminder.title}${detailSuffix}`,
+      detail: `Since ${toShamsi(reminder.eventDate)} · ${reminder.title}${detailSuffix}`,
       to: `/patients/${reminder.patientId}`,
     }
   }
@@ -101,7 +103,7 @@ function labToAlert(lab: AbnormalLab): AlertItem {
     id: lab.id,
     severity: 'critical',
     title: `${lab.test} abnormal — ${lab.patientName}`,
-    detail: `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'}) · ${lab.date}`,
+    detail: `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'}) · ${toShamsi(lab.date)}`,
     to: `/patients/${lab.patientId}`,
   }
 }
@@ -213,44 +215,50 @@ export function DashboardPage() {
         Dashboard
       </h1>
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">
-            <span className="icon-chip">
-              <PatientsIcon />
-            </span>
-            Current patients
-          </h2>
-          <Link to="/patients" className="link-button">
-            View all
-          </Link>
+      <div className="dash-row">
+        <div className="dash-card dash-row-main">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">
+              <span className="icon-chip">
+                <PatientsIcon />
+              </span>
+              Current patients
+            </h2>
+            <Link to="/patients" className="link-button">
+              View all
+            </Link>
+          </div>
+          {patients.length === 0 ? (
+            <p className="empty-state">No patients yet.</p>
+          ) : (
+            <ul className="glance-list">
+              {patients.map((p) => (
+                <li key={p.id}>
+                  <Link to={`/patients/${p.id}`} className="glance-row">
+                    <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                    <span className="glance-body">
+                      <span className="glance-name">{p.name}</span>
+                      <span className="glance-meta">
+                        {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
+                          'No details yet'}
+                      </span>
+                    </span>
+                    {(p.latestCreatinine || p.latestEGFR) && (
+                      <span className="glance-stats">
+                        {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
+                        {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        {patients.length === 0 ? (
-          <p className="empty-state">No patients yet.</p>
-        ) : (
-          <ul className="glance-list">
-            {patients.map((p) => (
-              <li key={p.id}>
-                <Link to={`/patients/${p.id}`} className="glance-row">
-                  <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                  <span className="glance-body">
-                    <span className="glance-name">{p.name}</span>
-                    <span className="glance-meta">
-                      {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
-                        'No details yet'}
-                    </span>
-                  </span>
-                  {(p.latestCreatinine || p.latestEGFR) && (
-                    <span className="glance-stats">
-                      {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
-                      {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+
+        <div className="dash-row-side">
+          <ShamsiCalendarWidget />
+        </div>
       </div>
 
       <div className="dash-card">
@@ -275,11 +283,11 @@ export function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(value: string) => toShamsi(value)} />
                 <YAxis tick={{ fontSize: 11 }} width={36} />
                 <Tooltip
                   formatter={(value: number) => [value.toFixed(1), 'Avg eGFR']}
-                  labelFormatter={(label) => label}
+                  labelFormatter={(label: string) => toShamsi(label)}
                 />
                 <Area type="monotone" dataKey="avgEGFR" stroke="var(--accent)" strokeWidth={2} fill="url(#egfrFill)" />
               </AreaChart>

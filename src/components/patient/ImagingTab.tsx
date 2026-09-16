@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { addImagingEntry, deleteImagingEntry, listImagingEntries } from '../../lib/api/imaging'
 import { getImagingSignedUrl, uploadImagingFile } from '../../lib/storage'
+import { toShamsi } from '../../lib/shamsi'
 import { useAuth } from '../../context/AuthContext'
 import type { ImagingEntry } from '../../types/domain'
 
@@ -153,7 +154,7 @@ export function ImagingTab({ patientId }: Props) {
           {entries.map((entry) => (
             <li key={entry.id}>
               <div className="note-header">
-                <strong>{entry.date}</strong>
+                <strong>{toShamsi(entry.date)}</strong>
                 <span>{entry.category}</span>
                 <button className="link-button" onClick={() => void handleDelete(entry.id)}>
                   Delete

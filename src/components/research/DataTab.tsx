@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addResearchRecord, deleteResearchRecord, listResearchFields, listResearchRecords } from '../../lib/api/research'
+import { toShamsi } from '../../lib/shamsi'
 import type { ResearchField, ResearchRecord } from '../../types/domain'
 
 interface Props {
@@ -132,7 +133,7 @@ export function DataTab({ projectId }: Props) {
           <tbody>
             {records.map((r) => (
               <tr key={r.id}>
-                <td>{r.date}</td>
+                <td>{toShamsi(r.date)}</td>
                 {fields.map((f) => (
                   <td key={f.id}>{String(r.values[f.id] ?? '')}</td>
                 ))}

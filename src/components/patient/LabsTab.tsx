@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
 import { isAbnormal } from '../../lib/labRange'
 import { COMMON_LAB_TESTS, LAB_CATEGORIES } from '../../lib/labPresets'
+import { toShamsi } from '../../lib/shamsi'
 import type { LabEntry } from '../../types/domain'
 
 interface Props {
@@ -167,7 +168,7 @@ export function LabsTab({ patientId }: Props) {
                 const abnormal = isAbnormal(e.value, e.ref)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
-                    <td>{e.date}</td>
+                    <td>{toShamsi(e.date)}</td>
                     <td>{e.category}</td>
                     <td>{e.test}</td>
                     <td className={abnormal ? 'value-abnormal' : ''}>{e.value ?? ''}</td>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deletePersonalCase, listPersonalCases } from '../../lib/api/personalCases'
+import { toShamsi } from '../../lib/shamsi'
 import type { PersonalCase } from '../../types/domain'
 
 export function PersonalCasesPanel() {
@@ -54,7 +55,7 @@ export function PersonalCasesPanel() {
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>
                   {c.title}
                 </strong>
-                <span>{c.createdDate}</span>
+                <span>{toShamsi(c.createdDate)}</span>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>

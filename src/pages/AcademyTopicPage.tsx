@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { listAcademyProgress, listAcademyTopics, saveAcademyProgress, updateAcademyTopic } from '../lib/api/academy'
 import { scheduleReview } from '../lib/srs'
+import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
 
@@ -84,7 +85,7 @@ export function AcademyTopicPage() {
       <div className="calc-strip">
         <div>
           <span className="calc-label">Next review</span>
-          <span className="calc-value">{progress.nextReview ?? '—'}</span>
+          <span className="calc-value">{progress.nextReview ? toShamsi(progress.nextReview) : '—'}</span>
         </div>
         <div>
           <span className="calc-label">Interval</span>

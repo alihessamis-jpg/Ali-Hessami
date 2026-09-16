@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addProgressNote, deleteProgressNote, listProgressNotes } from '../../lib/api/notes'
+import { toShamsi } from '../../lib/shamsi'
 import type { ProgressNote } from '../../types/domain'
 
 interface Props {
@@ -125,7 +126,7 @@ export function NotesTab({ patientId }: Props) {
           {notes.map((n) => (
             <li key={n.id}>
               <div className="note-header">
-                <strong>{n.date}</strong>
+                <strong>{toShamsi(n.date)}</strong>
                 <span>
                   {[n.weight != null ? `${n.weight} kg` : null, n.bp, n.uo].filter(Boolean).join(' · ')}
                 </span>

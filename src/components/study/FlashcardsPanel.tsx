@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addFlashcard, deleteFlashcard, listFlashcards, updateFlashcardSrs } from '../../lib/api/flashcards'
 import { scheduleReview } from '../../lib/srs'
+import { toShamsi } from '../../lib/shamsi'
 import type { Flashcard } from '../../types/domain'
 
 export function FlashcardsPanel() {
@@ -108,7 +109,7 @@ export function FlashcardsPanel() {
                 <td>{c.front}</td>
                 <td>{c.back}</td>
                 <td>{c.deck}</td>
-                <td>{c.nextReview ?? 'New'}</td>
+                <td>{c.nextReview ? toShamsi(c.nextReview) : 'New'}</td>
                 <td>
                   <button className="link-button" onClick={() => void handleDelete(c.id)}>
                     Delete

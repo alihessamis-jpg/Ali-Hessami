@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { listLabEntries } from '../../lib/api/labs'
+import { toShamsi } from '../../lib/shamsi'
 import type { LabEntry } from '../../types/domain'
 
 interface Props {
@@ -57,9 +58,9 @@ export function TrendsTab({ patientId }: Props) {
           <ResponsiveContainer>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="date" tickFormatter={(value: string) => toShamsi(value)} />
               <YAxis domain={['auto', 'auto']} />
-              <Tooltip />
+              <Tooltip labelFormatter={(label: string) => toShamsi(label)} />
               <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} dot />
             </LineChart>
           </ResponsiveContainer>
