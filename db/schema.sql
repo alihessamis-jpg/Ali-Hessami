@@ -157,11 +157,17 @@ create table public.imaging_entries (
 create index imaging_entries_patient_id_idx on public.imaging_entries (patient_id);
 
 -- ----------------------------------------------------------------------------
--- Phase 2: reference + calculators (shared, read-mostly)
+-- Phase 2: reference + calculators
+--
+-- Each clinician maintains their own reference list (owner_id-scoped) rather
+-- than a single shared/public table, so one user's edits can't silently
+-- change dosing information another clinician relies on. Calculators
+-- (eGFR/BSA/BMI/fluid/dose) are pure functions in the client, not tables.
 -- ----------------------------------------------------------------------------
 
 create table public.drug_reference (
     id              uuid primary key default gen_random_uuid(),
+    owner_id        uuid not null references auth.users (id) on delete cascade,
     medication      text not null,
     indication      text,
     normal_dose     text,
@@ -176,6 +182,7 @@ create table public.drug_reference (
 
 create table public.dialysis_reference (
     id              uuid primary key default gen_random_uuid(),
+    owner_id        uuid not null references auth.users (id) on delete cascade,
     medication      text not null,
     indication      text,
     pediatric_dose  text,
@@ -185,12 +192,44 @@ create table public.dialysis_reference (
     notes           text
 );
 
+-- Clinical checklists — templates are clinician-authored; completion state is
+-- per-clinician and NOT patient-specific, matching the prototype.
+create table public.checklist_templates (
+    id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null references auth.users (id) on delete cascade,
+    name        text not null,
+    description text
+);
+
+create table public.checklist_items (
+    id          uuid primary key default gen_random_uuid(),
+    template_id uuid not null references public.checklist_templates (id) on delete cascade,
+    item_index  integer not null,
+    label       text not null,
+    unique (template_id, item_index)
+);
+
+create table public.checklist_completions (
+    user_id     uuid not null references auth.users (id) on delete cascade,
+    item_id     uuid not null references public.checklist_items (id) on delete cascade,
+    checked     boolean not null default false,
+    updated_at  timestamptz not null default now(),
+    primary key (user_id, item_id)
+);
+
 -- ----------------------------------------------------------------------------
--- Phase 3: Academy + Study Hub — shared content split from per-user state
+-- Phase 3: Academy + Study Hub
+--
+-- The handoff brief describes Academy/case/challenge content as shared, but
+-- since this build has no seed content to share, every content table here is
+-- owner_id-scoped (authored by the clinician who created it) rather than a
+-- single public table, consistent with the reference tables above. Per-user
+-- SRS state stays split out from content either way, per the brief.
 -- ----------------------------------------------------------------------------
 
 create table public.academy_topics (
     id              uuid primary key default gen_random_uuid(),
+    owner_id        uuid not null references auth.users (id) on delete cascade,
     category        text,
     name            text not null,
     summary         text,
@@ -245,6 +284,7 @@ create table public.flashcards (
 
 create table public.reasoning_cases (
     id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null references auth.users (id) on delete cascade,
     title       text not null,
     age         numeric,
     sex         text,
@@ -260,21 +300,21 @@ create table public.reasoning_cases (
 
 create table public.lab_challenges (
     id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null references auth.users (id) on delete cascade,
     title       text not null,
     values      jsonb not null default '[]'::jsonb, -- [[test, value, unit], ...]
     prompt      text,
     discussion  text
 );
 
--- Mix of shared seed content (created_by null) and user-added (created_by set).
 create table public.imaging_challenges (
     id           uuid primary key default gen_random_uuid(),
+    owner_id     uuid not null references auth.users (id) on delete cascade,
     category     text,
     context      text,
     questions    text,
     discussion   text,
-    storage_path text,
-    created_by   uuid references auth.users (id) on delete set null
+    storage_path text
 );
 
 create table public.knowledge_gaps (
@@ -363,9 +403,18 @@ alter table public.lab_entries enable row level security;
 alter table public.progress_notes enable row level security;
 alter table public.medications enable row level security;
 alter table public.imaging_entries enable row level security;
+alter table public.drug_reference enable row level security;
+alter table public.dialysis_reference enable row level security;
+alter table public.checklist_templates enable row level security;
+alter table public.checklist_items enable row level security;
+alter table public.checklist_completions enable row level security;
+alter table public.academy_topics enable row level security;
 alter table public.academy_progress enable row level security;
 alter table public.study_notes enable row level security;
 alter table public.flashcards enable row level security;
+alter table public.reasoning_cases enable row level security;
+alter table public.lab_challenges enable row level security;
+alter table public.imaging_challenges enable row level security;
 alter table public.knowledge_gaps enable row level security;
 alter table public.personal_cases enable row level security;
 alter table public.research_projects enable row level security;
@@ -399,6 +448,27 @@ create policy imaging_entries_owner_access on public.imaging_entries
         where p.id = imaging_entries.patient_id and p.owner_id = auth.uid()
     ));
 
+create policy drug_reference_owner_access on public.drug_reference
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy dialysis_reference_owner_access on public.dialysis_reference
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy checklist_templates_owner_access on public.checklist_templates
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy checklist_items_owner_access on public.checklist_items
+    for all using (exists (
+        select 1 from public.checklist_templates t
+        where t.id = checklist_items.template_id and t.owner_id = auth.uid()
+    ));
+
+create policy checklist_completions_self_access on public.checklist_completions
+    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy academy_topics_owner_access on public.academy_topics
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
 create policy academy_progress_self_access on public.academy_progress
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
@@ -407,6 +477,15 @@ create policy study_notes_self_access on public.study_notes
 
 create policy flashcards_self_access on public.flashcards
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy reasoning_cases_owner_access on public.reasoning_cases
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy lab_challenges_owner_access on public.lab_challenges
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy imaging_challenges_owner_access on public.imaging_challenges
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy knowledge_gaps_self_access on public.knowledge_gaps
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -428,7 +507,3 @@ create policy research_records_owner_access on public.research_records
         select 1 from public.research_projects rp
         where rp.id = research_records.project_id and rp.owner_id = auth.uid()
     ));
-
--- Shared reference / content tables: no RLS enabled, world-readable via the
--- anon/authenticated role by default grants; write access is intentionally
--- left to migrations or a service-role seed script, not the client.

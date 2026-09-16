@@ -104,3 +104,240 @@ export interface Medication {
 }
 
 export type MedicationDraft = Omit<Medication, 'id'>
+
+export interface ImagingEntry {
+  id: string
+  patientId: string
+  category?: string | null
+  date?: string | null
+  notes?: string | null
+  report?: string | null
+  impression?: string | null
+  storagePath?: string | null
+}
+
+export type ImagingEntryDraft = Omit<ImagingEntry, 'id'>
+
+export interface DrugRefEntry {
+  id: string
+  medication: string
+  indication?: string | null
+  normalDose?: string | null
+  pediatricDose?: string | null
+  doseKg?: string | null
+  maxDose?: string | null
+  egfrRange?: string | null
+  adjustedDose?: string | null
+  frequency?: string | null
+  notes?: string | null
+}
+
+export type DrugRefEntryDraft = Omit<DrugRefEntry, 'id'>
+
+export interface DialysisRefEntry {
+  id: string
+  medication: string
+  indication?: string | null
+  pediatricDose?: string | null
+  route?: string | null
+  frequency?: string | null
+  maxDose?: string | null
+  notes?: string | null
+}
+
+export type DialysisRefEntryDraft = Omit<DialysisRefEntry, 'id'>
+
+export interface ChecklistTemplate {
+  id: string
+  name: string
+  description?: string | null
+}
+
+export type ChecklistTemplateDraft = Omit<ChecklistTemplate, 'id'>
+
+export interface ChecklistItem {
+  id: string
+  templateId: string
+  itemIndex: number
+  label: string
+}
+
+export interface ChecklistCompletion {
+  itemId: string
+  checked: boolean
+}
+
+export interface AcademyTopic {
+  id: string
+  category?: string | null
+  name: string
+  summary?: string | null
+  keyPoints: string[]
+  presentation?: string | null
+  reasoning?: string | null
+  tests?: string | null
+  interpretation?: string | null
+  imaging?: string | null
+  treatment?: string | null
+  redFlags?: string | null
+  pearls?: string | null
+  selfTest?: string | null
+  caseStem?: string | null
+  caseQuestions: string[]
+  caseDiscussion?: string | null
+}
+
+export type AcademyTopicDraft = Omit<AcademyTopic, 'id'>
+
+export interface ReviewHistoryEntry {
+  date: string
+  rating: 'easy' | 'moderate' | 'difficult'
+}
+
+export interface SrsState {
+  intervalIndex: number
+  lastReviewed: string | null
+  nextReview: string | null
+  reviewHistory: ReviewHistoryEntry[]
+}
+
+export interface AcademyProgress extends SrsState {
+  topicId: string
+}
+
+export interface StudyNote {
+  id: string
+  title?: string | null
+  content?: string | null
+}
+
+export type StudyNoteDraft = Omit<StudyNote, 'id'>
+
+export interface Flashcard extends SrsState {
+  id: string
+  front: string
+  back: string
+  deck?: string | null
+}
+
+export type FlashcardDraft = Omit<Flashcard, 'id' | keyof SrsState>
+
+export interface ReasoningCase {
+  id: string
+  title: string
+  age?: number | null
+  sex?: string | null
+  chief?: string | null
+  history?: string | null
+  vitals?: string | null
+  exam?: string | null
+  labs?: string | null
+  imaging?: string | null
+  questions: string[]
+  discussion?: string | null
+}
+
+export type ReasoningCaseDraft = Omit<ReasoningCase, 'id'>
+
+export interface LabChallenge {
+  id: string
+  title: string
+  values: Array<[string, string, string]>
+  prompt?: string | null
+  discussion?: string | null
+}
+
+export type LabChallengeDraft = Omit<LabChallenge, 'id'>
+
+export interface ImagingChallenge {
+  id: string
+  category?: string | null
+  context?: string | null
+  questions?: string | null
+  discussion?: string | null
+  storagePath?: string | null
+}
+
+export type ImagingChallengeDraft = Omit<ImagingChallenge, 'id'>
+
+export interface KnowledgeGap {
+  id: string
+  topic: string
+  description?: string | null
+  date: string
+  priority?: string | null
+  reviewDate?: string | null
+  status?: string | null
+}
+
+export type KnowledgeGapDraft = Omit<KnowledgeGap, 'id'>
+
+export interface PersonalCase {
+  id: string
+  sourcePatientId?: string | null
+  title: string
+  createdDate: string
+  diagnosisContext?: string | null
+  presentation?: string | null
+  findings?: string | null
+  labPattern?: string | null
+  imaging?: string | null
+  workingDx?: string | null
+  pearls?: string | null
+  whatLearned?: string | null
+  questionsForFurtherStudy?: string | null
+}
+
+export type PersonalCaseDraft = Omit<PersonalCase, 'id'>
+
+export interface ResearchProject {
+  id: string
+  name: string
+  createdDate: string
+  overview?: string | null
+  researchQuestion?: string | null
+  objectives?: string | null
+  studyDesign?: string | null
+  inclusion?: string | null
+  exclusion?: string | null
+  notes?: string | null
+  literature?: string | null
+  progress?: string | null
+}
+
+export type ResearchProjectDraft = Omit<ResearchProject, 'id'>
+
+export type ResearchFieldType =
+  | 'Text'
+  | 'Number'
+  | 'Date'
+  | 'Checkbox'
+  | 'Radio'
+  | 'Dropdown'
+  | 'Multiple Choice'
+  | 'Laboratory'
+  | 'Calculated Field'
+  | 'Image Upload'
+  | 'File Upload'
+
+export interface ResearchField {
+  id: string
+  projectId: string
+  label: string
+  type: ResearchFieldType
+  required: boolean
+  options?: string[] | null
+  formula?: string | null
+  orderIndex: number
+}
+
+export type ResearchFieldDraft = Omit<ResearchField, 'id'>
+
+export interface ResearchRecord {
+  id: string
+  projectId: string
+  date: string
+  values: Record<string, unknown>
+}
+
+export type ResearchRecordDraft = Omit<ResearchRecord, 'id'>
