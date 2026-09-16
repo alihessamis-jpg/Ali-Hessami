@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { KidneyIcon } from '../components/icons'
 
 export function LoginPage() {
   const { session, signIn, signUp } = useAuth()
@@ -36,7 +35,7 @@ export function LoginPage() {
         <span className="signature-name">Ali Hesami</span>
         <span className="signature-role">Pediatric Nephrology</span>
       </div>
-      <KidneyIcon className="auth-icon" aria-hidden="true" />
+      <img src="/kidneys-logo.png" alt="" className="auth-icon" aria-hidden="true" />
       <h1>Nephron</h1>
       <p className="auth-subtitle">Pediatric nephrology workspace</p>
       <form onSubmit={(e) => void handleSubmit(e)}>

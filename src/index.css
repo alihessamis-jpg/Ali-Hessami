@@ -161,10 +161,12 @@ label {
   text-decoration: none;
 }
 
-.brand svg {
-  width: 26px;
-  height: 26px;
+.brand svg,
+.brand img {
+  width: 30px;
+  height: 30px;
   color: var(--accent);
+  object-fit: contain;
 }
 
 .header-actions {
@@ -253,9 +255,9 @@ label {
 }
 
 .auth-icon {
-  width: 56px;
-  height: 56px;
-  color: var(--accent);
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
   margin-bottom: 4px;
 }
 

@@ -6,7 +6,6 @@ import {
   CalculatorIcon,
   ChecklistIcon,
   DashboardIcon,
-  KidneyIcon,
   PatientsIcon,
   ReferenceIcon,
   ResearchIcon,
@@ -32,7 +31,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="brand">
-          <KidneyIcon />
+          <img src="/kidneys-logo.png" alt="" />
           Nephron
         </Link>
         {session && (
