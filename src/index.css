@@ -877,3 +877,68 @@ legend {
 .button-secondary:hover {
   background: var(--surface-tint);
 }
+
+/* ---- Dashboard: learning & research checklist widget ---- */
+
+.checklist-widget {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checklist-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s ease;
+}
+
+.checklist-row:hover {
+  background: var(--surface-tint);
+}
+
+.checklist-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-tint);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.checklist-dot svg {
+  width: 15px;
+  height: 15px;
+}
+
+.checklist-dot--due {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.checklist-dot--done {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.checklist-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.checklist-count {
+  font-weight: 700;
+  color: var(--text);
+  min-width: 20px;
+  text-align: right;
+}
