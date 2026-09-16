@@ -568,7 +568,7 @@ legend {
   font-size: 1.05rem;
 }
 
-.dash-card-title .icon-chip {
+.icon-chip {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -580,7 +580,7 @@ legend {
   flex-shrink: 0;
 }
 
-.dash-card-title .icon-chip svg {
+.icon-chip svg {
   width: 17px;
   height: 17px;
 }
@@ -782,6 +782,106 @@ legend {
   color: var(--accent-dark);
 }
 
+.status-badge--renal-no {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge--renal-review {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.status-badge--renal-yes {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ---- Imaging: drag-and-drop upload zone ---- */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--surface-tint);
+  color: var(--text);
+  padding: 28px 16px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.dropzone:hover,
+.dropzone--active {
+  background: var(--accent-soft);
+  border-color: var(--accent-dark);
+}
+
+.dropzone-icon {
+  font-size: 1.4rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.dropzone-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ---- Academy: topic cards ---- */
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.topic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.topic-card:hover {
+  border-color: var(--accent);
+}
+
+.topic-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topic-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.topic-card-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.topic-card-sections {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  flex: 1;
+}
+
 /* ---- Labs: category pills + abnormal highlighting ---- */
 
 .category-pills {
@@ -941,4 +1041,58 @@ legend {
   color: var(--text);
   min-width: 20px;
   text-align: right;
+}
+
+/* ---- Calculators: card grid with result tiles ---- */
+
+.calc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.calc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calc-card-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.calc-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.calc-result-tile {
+  margin-top: auto;
+  background: var(--accent-dark);
+  color: white;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.calc-result-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.calc-result-unit {
+  font-size: 0.8rem;
+  opacity: 0.85;
 }

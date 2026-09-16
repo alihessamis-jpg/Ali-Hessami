@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import { addImagingEntry, deleteImagingEntry, listImagingEntries } from '../../lib/api/imaging'
 import { getImagingSignedUrl, uploadImagingFile } from '../../lib/storage'
 import { useAuth } from '../../context/AuthContext'
@@ -19,6 +19,15 @@ export function ImagingTab({ patientId }: Props) {
   const [draft, setDraft] = useState(emptyDraft)
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setDragOver(false)
+    const dropped = e.dataTransfer.files?.[0]
+    if (dropped) setFile(dropped)
+  }
 
   useEffect(() => {
     refresh()
@@ -93,10 +102,27 @@ export function ImagingTab({ patientId }: Props) {
             Date
             <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
           </label>
-          <label>
-            Image / file
-            <input type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </label>
+        </div>
+        <div
+          className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            hidden
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <span className="dropzone-icon">↑</span>
+          <strong>{file ? file.name : 'Drop image or PDF here'}</strong>
+          <span className="dropzone-hint">{file ? 'Ready to upload' : 'Choose file or use the camera'}</span>
         </div>
         <label>
           Notes

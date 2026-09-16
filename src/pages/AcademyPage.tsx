@@ -64,6 +64,21 @@ export function AcademyPage() {
     return !p || !p.nextReview || p.nextReview <= today
   }).length
 
+  function sectionSummary(t: AcademyTopic): string {
+    const sections: Array<[string, unknown]> = [
+      ['Summary', t.summary],
+      ['key points', t.keyPoints.length > 0 ? t.keyPoints : null],
+      ['tests', t.tests],
+      ['approach', t.reasoning],
+      ['treatment', t.treatment],
+      ['red flags', t.redFlags],
+      ['pearls', t.pearls],
+      ['self-test', t.selfTest],
+    ]
+    const filled = sections.filter(([, value]) => !!value).map(([label]) => label)
+    return filled.length > 0 ? filled.join(' · ') : 'No content yet'
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -96,22 +111,26 @@ export function AcademyPage() {
       ) : topics.length === 0 ? (
         <p className="empty-state">No topics yet.</p>
       ) : (
-        <ul className="patient-list">
+        <div className="topic-grid">
           {topics.map((t) => {
             const p = progress[t.id]
             const due = !p || !p.nextReview || p.nextReview <= today
             return (
-              <li key={t.id}>
-                <Link to={`/academy/${t.id}`}>
-                  <span className="patient-name">{t.name}</span>
-                  <span className="patient-meta">
-                    {t.category ?? 'Uncategorized'} · {due ? 'Due for review' : `Next review ${p?.nextReview}`}
+              <Link key={t.id} to={`/academy/${t.id}`} className="topic-card">
+                <div className="topic-card-header">
+                  <span className="icon-chip">
+                    <AcademyIcon />
                   </span>
-                </Link>
-              </li>
+                  {due && <span className="status-badge status-badge--dialysis">Due for review</span>}
+                </div>
+                <h3 className="topic-card-title">{t.name}</h3>
+                <p className="topic-card-meta">{t.category ?? 'Uncategorized'}</p>
+                <p className="topic-card-sections">{sectionSummary(t)}</p>
+                <span className="link-button">Open topic →</span>
+              </Link>
             )
           })}
-        </ul>
+        </div>
       )}
     </div>
   )

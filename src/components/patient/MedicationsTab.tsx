@@ -6,7 +6,16 @@ interface Props {
   patientId: string
 }
 
-const emptyDraft = { name: '', dose: '', route: '', freq: '', indication: '', renalAdj: '', notes: '' }
+const emptyDraft = { name: '', dose: '', doseKg: '', route: '', freq: '', indication: '', renalAdj: '', notes: '' }
+
+function renalAdjTone(value: string | null | undefined): 'yes' | 'review' | 'no' | null {
+  if (!value) return null
+  const v = value.toLowerCase()
+  if (v.includes('review') || v.includes('caution') || v.includes('monitor')) return 'review'
+  if (v.includes('no')) return 'no'
+  if (v.includes('yes')) return 'yes'
+  return null
+}
 
 export function MedicationsTab({ patientId }: Props) {
   const [meds, setMeds] = useState<Medication[]>([])
@@ -37,7 +46,7 @@ export function MedicationsTab({ patientId }: Props) {
         patientId,
         name: draft.name.trim(),
         dose: draft.dose || null,
-        doseKg: null,
+        doseKg: draft.doseKg === '' ? null : Number(draft.doseKg),
         route: draft.route || null,
         freq: draft.freq || null,
         start: new Date().toISOString().slice(0, 10),
@@ -82,6 +91,13 @@ export function MedicationsTab({ patientId }: Props) {
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <input placeholder="Medication" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
         <input placeholder="Dose" value={draft.dose} onChange={(e) => setDraft({ ...draft, dose: e.target.value })} />
+        <input
+          placeholder="Dose (mg/kg)"
+          type="number"
+          step="any"
+          value={draft.doseKg}
+          onChange={(e) => setDraft({ ...draft, doseKg: e.target.value })}
+        />
         <input placeholder="Route" value={draft.route} onChange={(e) => setDraft({ ...draft, route: e.target.value })} />
         <input placeholder="Frequency" value={draft.freq} onChange={(e) => setDraft({ ...draft, freq: e.target.value })} />
         <input placeholder="Indication" value={draft.indication} onChange={(e) => setDraft({ ...draft, indication: e.target.value })} />
@@ -102,6 +118,7 @@ export function MedicationsTab({ patientId }: Props) {
             <tr>
               <th>Medication</th>
               <th>Dose</th>
+              <th>mg/kg</th>
               <th>Route</th>
               <th>Freq</th>
               <th>Indication</th>
@@ -111,14 +128,24 @@ export function MedicationsTab({ patientId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {meds.map((m) => (
+            {meds.map((m) => {
+              const tone = renalAdjTone(m.renalAdj)
+              return (
               <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
                 <td>{m.name}</td>
                 <td>{m.dose}</td>
+                <td>{m.doseKg != null ? `${m.doseKg} mg/kg` : ''}</td>
                 <td>{m.route}</td>
                 <td>{m.freq}</td>
                 <td>{m.indication}</td>
-                <td>{m.renalAdj}</td>
+                <td>
+                  {m.renalAdj &&
+                    (tone ? (
+                      <span className={`status-badge status-badge--renal-${tone}`}>{m.renalAdj}</span>
+                    ) : (
+                      m.renalAdj
+                    ))}
+                </td>
                 <td>
                   <button className="link-button" onClick={() => void toggleActive(m)}>
                     {m.active ? 'Active' : 'Stopped'}
@@ -130,7 +157,8 @@ export function MedicationsTab({ patientId }: Props) {
                   </button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       )}
