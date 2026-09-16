@@ -961,6 +961,38 @@ legend {
   font-weight: 700;
 }
 
+/* ---- Academy topic: study links ---- */
+
+.study-link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.study-link-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-tint);
+}
+
+.study-link {
+  color: var(--accent-dark);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.study-link:hover {
+  text-decoration: underline;
+}
+
 /* ---- Labs: category pills + abnormal highlighting ---- */
 
 .category-pills {

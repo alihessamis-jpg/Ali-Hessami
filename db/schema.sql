@@ -253,6 +253,7 @@ create table public.academy_topics (
     name            text not null,
     summary         text,
     key_points      jsonb not null default '[]'::jsonb,
+    study_links     jsonb not null default '[]'::jsonb, -- [{ label, url }] -- external references (UpToDate, NotebookLM, etc.)
     presentation    text,
     reasoning       text,
     tests           text,

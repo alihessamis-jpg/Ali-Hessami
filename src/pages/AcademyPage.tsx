@@ -36,6 +36,7 @@ export function AcademyPage() {
         name: name.trim(),
         summary: null,
         keyPoints: [],
+        studyLinks: [],
         presentation: null,
         reasoning: null,
         tests: null,

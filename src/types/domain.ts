@@ -181,12 +181,18 @@ export interface ChecklistCompletion {
   checked: boolean
 }
 
+export interface StudyLink {
+  label: string
+  url: string
+}
+
 export interface AcademyTopic {
   id: string
   category?: string | null
   name: string
   summary?: string | null
   keyPoints: string[]
+  studyLinks: StudyLink[]
   presentation?: string | null
   reasoning?: string | null
   tests?: string | null

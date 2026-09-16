@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { AcademyProgress, AcademyTopic, AcademyTopicDraft, SrsState } from '../../types/domain'
+import type { AcademyProgress, AcademyTopic, AcademyTopicDraft, SrsState, StudyLink } from '../../types/domain'
 
 interface TopicRow {
   id: string
@@ -7,6 +7,7 @@ interface TopicRow {
   name: string
   summary: string | null
   key_points: string[]
+  study_links: StudyLink[] | null
   presentation: string | null
   reasoning: string | null
   tests: string | null
@@ -36,6 +37,7 @@ function topicToDomain(row: TopicRow): AcademyTopic {
     name: row.name,
     summary: row.summary,
     keyPoints: row.key_points ?? [],
+    studyLinks: row.study_links ?? [],
     presentation: row.presentation,
     reasoning: row.reasoning,
     tests: row.tests,
@@ -57,6 +59,7 @@ function topicToRow(draft: Partial<AcademyTopic>) {
     name: draft.name,
     summary: draft.summary,
     key_points: draft.keyPoints,
+    study_links: draft.studyLinks,
     presentation: draft.presentation,
     reasoning: draft.reasoning,
     tests: draft.tests,

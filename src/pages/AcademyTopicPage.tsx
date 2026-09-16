@@ -4,7 +4,7 @@ import { listAcademyProgress, listAcademyTopics, saveAcademyProgress, updateAcad
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
-import type { AcademyProgress, AcademyTopic } from '../types/domain'
+import type { AcademyProgress, AcademyTopic, StudyLink } from '../types/domain'
 
 const SECTIONS: Array<{ key: keyof AcademyTopic; label: string }> = [
   { key: 'summary', label: 'Summary' },
@@ -31,6 +31,8 @@ export function AcademyTopicPage() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<AcademyTopic | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [linkLabel, setLinkLabel] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
 
   useEffect(() => {
     if (!id || !session) return
@@ -64,6 +66,27 @@ export function AcademyTopicPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save review')
     }
+  }
+
+  async function persistLinks(next: StudyLink[]) {
+    if (!id || !topic) return
+    try {
+      const updated = await updateAcademyTopic(id, { studyLinks: next })
+      setTopic(updated)
+      setDraft((d) => (d ? { ...d, studyLinks: next } : d))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save study links')
+    }
+  }
+
+  function addLink(label: string, url: string) {
+    if (!topic || !url.trim()) return
+    void persistLinks([...topic.studyLinks, { label: label.trim() || url.trim(), url: url.trim() }])
+  }
+
+  function removeLink(index: number) {
+    if (!topic) return
+    void persistLinks(topic.studyLinks.filter((_, i) => i !== index))
   }
 
   if (!id) return null
@@ -101,6 +124,61 @@ export function AcademyTopicPage() {
         <button onClick={() => void handleReview('difficult')}>Difficult</button>
         <button onClick={() => void handleReview('moderate')}>Moderate</button>
         <button onClick={() => void handleReview('easy')}>Easy</button>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Study links</h2>
+        </div>
+        {topic.studyLinks.length === 0 ? (
+          <p className="empty-state">
+            No links yet — save a reference from UpToDate, NotebookLM, or a Claude conversation about this topic.
+          </p>
+        ) : (
+          <ul className="study-link-list">
+            {topic.studyLinks.map((l, i) => (
+              <li key={i}>
+                <a href={l.url} target="_blank" rel="noreferrer" className="study-link">
+                  {l.label}
+                </a>
+                <button className="link-button" onClick={() => removeLink(i)}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="form-actions" style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() =>
+              addLink(
+                `UpToDate: ${topic.name}`,
+                `https://www.uptodate.com/contents/search?search=${encodeURIComponent(topic.name)}`
+              )
+            }
+          >
+            + UpToDate search
+          </button>
+          <button type="button" className="button-secondary" onClick={() => addLink('NotebookLM', 'https://notebooklm.google.com/')}>
+            + NotebookLM
+          </button>
+        </div>
+        <form
+          className="inline-form"
+          style={{ marginTop: 10 }}
+          onSubmit={(e) => {
+            e.preventDefault()
+            addLink(linkLabel, linkUrl)
+            setLinkLabel('')
+            setLinkUrl('')
+          }}
+        >
+          <input placeholder="Label (e.g. Claude summary)" value={linkLabel} onChange={(e) => setLinkLabel(e.target.value)} />
+          <input placeholder="URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+          <button type="submit">Add link</button>
+        </form>
       </div>
 
       {editing ? (
