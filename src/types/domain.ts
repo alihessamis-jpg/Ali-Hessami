@@ -373,6 +373,19 @@ export interface NephroticEvent {
 
 export type NephroticEventDraft = Omit<NephroticEvent, 'id'>
 
+export interface GrowthEntry {
+  id: string
+  patientId: string
+  date: string
+  heightCm?: number | null
+  weightKg?: number | null
+  headCircCm?: number | null
+  bpSystolic?: number | null
+  bpDiastolic?: number | null
+}
+
+export type GrowthEntryDraft = Omit<GrowthEntry, 'id'>
+
 export interface ReadingItem {
   id: string
   title: string

@@ -206,6 +206,23 @@ create table public.nephrotic_events (
 
 create index nephrotic_events_patient_id_idx on public.nephrotic_events (patient_id);
 
+-- Longitudinal growth/vitals measurements (height, weight, head
+-- circumference, blood pressure). Percentiles are computed client-side from
+-- WHO/CDC reference data + the patient's dob/sex, not stored here.
+create table public.growth_entries (
+    id             uuid primary key default gen_random_uuid(),
+    patient_id     uuid not null references public.patients (id) on delete cascade,
+    date           date not null,
+    height_cm      numeric,
+    weight_kg      numeric,
+    head_circ_cm   numeric,
+    bp_systolic    numeric,
+    bp_diastolic   numeric,
+    created_at     timestamptz not null default now()
+);
+
+create index growth_entries_patient_id_idx on public.growth_entries (patient_id, date desc);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -515,6 +532,7 @@ alter table public.imaging_entries enable row level security;
 alter table public.patient_documents enable row level security;
 alter table public.urine_output_entries enable row level security;
 alter table public.nephrotic_events enable row level security;
+alter table public.growth_entries enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
@@ -579,6 +597,12 @@ create policy nephrotic_events_owner_access on public.nephrotic_events
     for all using (exists (
         select 1 from public.patients p
         where p.id = nephrotic_events.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy growth_entries_owner_access on public.growth_entries
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = growth_entries.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders

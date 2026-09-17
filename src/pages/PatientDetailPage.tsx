@@ -11,10 +11,12 @@ import { RemindersTab } from '../components/patient/RemindersTab'
 import { DocumentTab } from '../components/patient/DocumentTab'
 import { UrineOutputTab } from '../components/patient/UrineOutputTab'
 import { NephroticSyndromeTab } from '../components/patient/NephroticSyndromeTab'
+import { GrowthTab } from '../components/patient/GrowthTab'
 import {
   AssessmentIcon,
   DocumentIcon,
   DropletIcon,
+  GrowthIcon,
   ImagingIcon,
   KidneyIcon,
   LabsIcon,
@@ -37,10 +39,12 @@ type Tab =
   | 'document'
   | 'urineOutput'
   | 'nephroticSyndrome'
+  | 'growth'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
   { id: 'labs', label: 'Labs', icon: LabsIcon },
+  { id: 'growth', label: 'Growth & BP', icon: GrowthIcon },
   { id: 'trends', label: 'Trends', icon: TrendsIcon },
   { id: 'notes', label: 'Progress notes', icon: NotesIcon },
   { id: 'medications', label: 'Medications', icon: MedicationsIcon },
@@ -132,6 +136,7 @@ export function PatientDetailPage() {
       <div className="tab-panel">
         {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
         {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
+        {tab === 'growth' && <GrowthTab patientId={id} patient={patient} />}
         {tab === 'trends' && <TrendsTab patientId={id} />}
         {tab === 'notes' && <NotesTab patientId={id} />}
         {tab === 'medications' && <MedicationsTab patientId={id} />}

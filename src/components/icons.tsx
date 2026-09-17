@@ -265,6 +265,16 @@ export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function GrowthIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4v16h16" />
+      <path d="M8 16c1.5-4 3-6 4.5-6s2 3 3.5 3 2.5-4.5 4-7" />
+      <circle cx="20" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    </Icon>
+  )
+}
+
 export function DropletIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
