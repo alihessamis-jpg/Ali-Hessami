@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
-import { correctedCalcium } from '../../lib/formulas'
+import { correctedCalcium, transferrinSaturation } from '../../lib/formulas'
 import { isAbnormal } from '../../lib/labRange'
 import {
   COLLECTION_METHODS,
@@ -140,6 +140,14 @@ export function LabsTab({ patientId }: Props) {
     const map = new Map<string, number>()
     for (const e of entries) {
       if (e.test === 'Albumin' && e.value != null) map.set(e.date, e.value)
+    }
+    return map
+  }, [entries])
+
+  const tibcByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const e of entries) {
+      if (e.test === 'TIBC' && e.value != null) map.set(e.date, e.value)
     }
     return map
   }, [entries])
@@ -368,10 +376,15 @@ export function LabsTab({ patientId }: Props) {
             </thead>
             <tbody>
               {visibleEntries.map((e) => {
+                const tsat =
+                  e.test === 'Iron' && e.value != null && tibcByDate.has(e.date)
+                    ? transferrinSaturation(e.value, tibcByDate.get(e.date)!)
+                    : null
                 const abnormal =
                   isAbnormal(e.value, e.ref) ||
                   (!!e.valueText && e.valueText !== 'Negative') ||
-                  (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism))
+                  (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
+                  (tsat != null && tsat < 20)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>
@@ -411,6 +424,11 @@ export function LabsTab({ patientId }: Props) {
                                 Corrected: {correctedCalcium(e.value, albuminByDate.get(e.date)!).toFixed(2)} mg/dL
                               </div>
                             )}
+                          {tsat != null && (
+                            <div className={tsat < 20 ? 'value-abnormal' : 'patient-meta'}>
+                              TSAT: {tsat.toFixed(1)}%{tsat < 20 ? ' — consider iron' : ''}
+                            </div>
+                          )}
                         </>
                       )}
                     </td>

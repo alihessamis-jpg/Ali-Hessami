@@ -28,3 +28,9 @@ export function totalDose(weightKg: number, mgPerKg: number): number {
 export function correctedCalcium(measuredCaMgDl: number, albuminGDl: number): number {
   return measuredCaMgDl + 0.8 * (4.0 - albuminGDl)
 }
+
+// Transferrin saturation (TSAT) — in CKD, <20% indicates iron deficiency
+// and typically prompts iron repletion.
+export function transferrinSaturation(serumIronUgDl: number, tibcUgDl: number): number {
+  return (serumIronUgDl / tibcUgDl) * 100
+}

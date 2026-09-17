@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { bmiCalc, bsaMosteller, correctedCalcium, maintenanceFluidPerDay, schwartzEGFR, totalDose } from '../lib/formulas'
+import {
+  bmiCalc,
+  bsaMosteller,
+  correctedCalcium,
+  maintenanceFluidPerDay,
+  schwartzEGFR,
+  totalDose,
+  transferrinSaturation,
+} from '../lib/formulas'
 import { CalculatorIcon } from '../components/icons'
 
 export function CalculatorsPage() {
@@ -9,6 +17,8 @@ export function CalculatorsPage() {
   const [mgPerKg, setMgPerKg] = useState('')
   const [calcium, setCalcium] = useState('')
   const [albumin, setAlbumin] = useState('')
+  const [iron, setIron] = useState('')
+  const [tibc, setTibc] = useState('')
 
   const h = Number(height)
   const w = Number(weight)
@@ -16,6 +26,9 @@ export function CalculatorsPage() {
   const dose = Number(mgPerKg)
   const ca = Number(calcium)
   const alb = Number(albumin)
+  const fe = Number(iron)
+  const tibcVal = Number(tibc)
+  const tsat = fe && tibcVal ? transferrinSaturation(fe, tibcVal) : null
 
   return (
     <div>
@@ -106,6 +119,24 @@ export function CalculatorsPage() {
           <div className="calc-result-tile">
             <span className="calc-result-value">{ca && alb ? correctedCalcium(ca, alb).toFixed(2) : '—'}</span>
             <span className="calc-result-unit">mg/dL (ref albumin 4.0 g/dL)</span>
+          </div>
+        </div>
+
+        <div className="calc-card">
+          <h2 className="calc-card-title">Transferrin saturation (TSAT)</h2>
+          <label>
+            Serum iron (µg/dL)
+            <input type="number" value={iron} onChange={(e) => setIron(e.target.value)} />
+          </label>
+          <label>
+            TIBC (µg/dL)
+            <input type="number" value={tibc} onChange={(e) => setTibc(e.target.value)} />
+          </label>
+          <div className={`calc-result-tile ${tsat != null && tsat < 20 ? 'calc-result-tile--warning' : ''}`}>
+            <span className="calc-result-value">{tsat != null ? tsat.toFixed(1) : '—'}</span>
+            <span className="calc-result-unit">
+              % {tsat != null && tsat < 20 ? '— below 20%: consider iron repletion' : ''}
+            </span>
           </div>
         </div>
 

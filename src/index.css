@@ -1311,3 +1311,7 @@ legend {
   font-size: 0.8rem;
   opacity: 0.85;
 }
+
+.calc-result-tile--warning {
+  background: var(--danger);
+}
