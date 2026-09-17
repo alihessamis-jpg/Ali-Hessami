@@ -6,15 +6,15 @@ import {
   COLLECTION_METHODS,
   COMMON_LAB_TESTS,
   CULTURE_TESTS,
-  DIPSTICK_OPTIONS,
-  DIPSTICK_TESTS,
   isPositiveCulture,
   LAB_CATEGORIES,
   LAB_CATEGORY_TESTS,
   SUSCEPTIBILITY_RESULTS,
+  textValueOptions,
 } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
 import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from '../../lib/proteinuria'
+import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
 
 interface Props {
@@ -91,7 +91,7 @@ export function LabsTab({ patientId, patient }: Props) {
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
     if (!draft.test.trim() || !draft.date) return
-    const isDipstick = DIPSTICK_TESTS.has(draft.test)
+    const isTextValue = textValueOptions(draft.test) != null
     const isCulture = CULTURE_TESTS.has(draft.test)
     if (isCulture && !micro.organism.trim()) return
     setSubmitting(true)
@@ -102,8 +102,8 @@ export function LabsTab({ patientId, patient }: Props) {
         date: draft.date,
         category: draft.category || null,
         test: draft.test.trim(),
-        value: isDipstick || isCulture || draft.value === '' ? null : Number(draft.value),
-        valueText: isDipstick ? draft.valueText || null : null,
+        value: isTextValue || isCulture || draft.value === '' ? null : Number(draft.value),
+        valueText: isTextValue ? draft.valueText || null : null,
         microDetails: isCulture
           ? {
               organism: micro.organism.trim(),
@@ -188,6 +188,8 @@ export function LabsTab({ patientId, patient }: Props) {
     return { label: 'Proteinuria: normal', cls: 'normal' as ProteinuriaClass }
   }, [entries])
 
+  const nephriticWorkup = useMemo(() => assessNephriticWorkup(entries), [entries])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -196,6 +198,7 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const testsForCategory = draft.category ? LAB_CATEGORY_TESTS[draft.category] ?? [] : []
   const isCulture = CULTURE_TESTS.has(draft.test)
+  const draftTextOptions = textValueOptions(draft.test)
 
   return (
     <div>
@@ -211,6 +214,44 @@ export function LabsTab({ patientId, patient }: Props) {
         <div className={`aki-banner ${proteinuriaStatus.cls !== 'normal' ? 'aki-banner--warning' : ''}`}>
           <strong>{proteinuriaStatus.label}</strong>
           <span className="patient-meta">Based on Urine Protein/Creatinine Ratio entries</span>
+        </div>
+      )}
+      {nephriticWorkup && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Nephritic syndrome workup</h2>
+          </div>
+          <p className="patient-meta">
+            Hematuria detected ({nephriticWorkup.hematuriaSource}: {nephriticWorkup.hematuriaDisplay}). Nephritic
+            syndrome is defined by hematuria + hypertension — confirm BP
+            {patient.vsBP ? ` (recorded: ${patient.vsBP})` : ''} is elevated for age.
+          </p>
+          <ul className="study-link-list">
+            <li>
+              {nephriticWorkup.dysmorphicRbc
+                ? `Dysmorphic RBC checked: ${nephriticWorkup.dysmorphicRbc.valueText ?? nephriticWorkup.dysmorphicRbc.value}`
+                : 'Confirm glomerular origin — check urine dysmorphic RBC / RBC casts'}
+            </li>
+            <li className={nephriticWorkup.psgnLikely ? 'value-abnormal' : undefined}>
+              {nephriticWorkup.aso || nephriticWorkup.c3
+                ? `ASO ${nephriticWorkup.aso?.value ?? '—'}, C3 ${nephriticWorkup.c3?.value ?? '—'}${
+                    nephriticWorkup.psgnLikely ? ' — pattern consistent with PSGN' : ''
+                  }`
+                : 'Suspect PSGN? Check ASO + C3 — low C3 with high ASO is diagnostic'}
+            </li>
+            <li className={nephriticWorkup.lupusLikely ? 'value-abnormal' : undefined}>
+              {nephriticWorkup.ana || nephriticWorkup.antiDsDna || nephriticWorkup.c4
+                ? `ANA ${nephriticWorkup.ana?.valueText ?? '—'}, Anti-dsDNA ${nephriticWorkup.antiDsDna?.valueText ?? '—'}, C4 ${
+                    nephriticWorkup.c4?.value ?? '—'
+                  }${nephriticWorkup.lupusLikely ? ' — consider lupus nephritis' : ''}`
+                : 'If complement stays low beyond 8 weeks, or lupus features: check complement (C3/C4), ANA, Anti-dsDNA'}
+            </li>
+            <li>
+              {nephriticWorkup.pAnca || nephriticWorkup.cAnca
+                ? `P-ANCA ${nephriticWorkup.pAnca?.valueText ?? '—'}, C-ANCA ${nephriticWorkup.cAnca?.valueText ?? '—'}`
+                : 'If complement is normal, or systemic/vasculitic features: check P-ANCA, C-ANCA'}
+            </li>
+          </ul>
         </div>
       )}
       <datalist id="lab-test-options">
@@ -266,10 +307,10 @@ export function LabsTab({ patientId, patient }: Props) {
             />
           )}
           {!isCulture &&
-            (DIPSTICK_TESTS.has(draft.test) ? (
+            (draftTextOptions ? (
               <select value={draft.valueText} onChange={(e) => setDraft({ ...draft, valueText: e.target.value })}>
                 <option value="">Value</option>
-                {DIPSTICK_OPTIONS.map((o) => (
+                {draftTextOptions.map((o) => (
                   <option key={o} value={o}>
                     {o}
                   </option>

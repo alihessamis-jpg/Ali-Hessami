@@ -26,9 +26,10 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
     'Urine Sodium',
     'Urine Creatinine',
     'Urine Urea Nitrogen',
+    'Urine Dysmorphic RBC',
   ],
-  Immunology: ['C3', 'C4', 'ANA', 'ANCA', 'Anti-dsDNA'],
-  'Infectious/Viral': ['CMV PCR (Quantitative)', 'CMV IgG', 'CMV IgM', 'EBV PCR (Quantitative)'],
+  Immunology: ['C3', 'C4', 'ANA', 'ANCA', 'Anti-dsDNA', 'P-ANCA (MPO)', 'C-ANCA (PR3)'],
+  'Infectious/Viral': ['CMV PCR (Quantitative)', 'CMV IgG', 'CMV IgM', 'EBV PCR (Quantitative)', 'ASO'],
   Microbiology: ['Blood Culture', 'Urine Culture'],
   'Peritoneal Fluid': ['PD Fluid Cell Count', 'PD Fluid Segments (%)', 'PD Fluid Gram Stain', 'PD Fluid Culture'],
   CSF: ['CSF WBC', 'CSF RBC', 'CSF Segments (%)', 'CSF Lymphocytes (%)', 'CSF Protein', 'CSF Glucose', 'CSF Gram Stain', 'CSF Culture'],
@@ -54,6 +55,19 @@ export const DIPSTICK_TESTS = new Set([
 ])
 
 export const DIPSTICK_OPTIONS = ['Negative', 'Trace', '+1', '+2', '+3', '+4']
+
+// Serologies reported as qualitative results rather than a number.
+export const QUALITATIVE_TESTS = new Set(['ANA', 'Anti-dsDNA', 'ANCA', 'P-ANCA (MPO)', 'C-ANCA (PR3)'])
+
+export const QUALITATIVE_OPTIONS = ['Negative', 'Positive']
+
+// Any test whose Value field should be a text picker (dipstick grade or
+// qualitative result) rather than a number input.
+export function textValueOptions(test: string): string[] | null {
+  if (DIPSTICK_TESTS.has(test)) return DIPSTICK_OPTIONS
+  if (QUALITATIVE_TESTS.has(test)) return QUALITATIVE_OPTIONS
+  return null
+}
 
 // Culture tests get a structured organism/colony-count/susceptibility form
 // instead of a plain value field.
