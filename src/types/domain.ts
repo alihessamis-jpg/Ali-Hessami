@@ -360,6 +360,19 @@ export interface UrineOutputEntry {
 
 export type UrineOutputEntryDraft = Omit<UrineOutputEntry, 'id'>
 
+export type NephroticEventType = 'diagnosis' | 'relapse' | 'remission' | 'no_response_4wk'
+
+export interface NephroticEvent {
+  id: string
+  patientId: string
+  date: string
+  eventType: NephroticEventType
+  duringTaper: boolean
+  notes?: string | null
+}
+
+export type NephroticEventDraft = Omit<NephroticEvent, 'id'>
+
 export interface ResearchProject {
   id: string
   name: string

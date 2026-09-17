@@ -14,6 +14,7 @@ import {
   SUSCEPTIBILITY_RESULTS,
 } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
+import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from '../../lib/proteinuria'
 import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
 
 interface Props {
@@ -163,6 +164,30 @@ export function LabsTab({ patientId, patient }: Props) {
     return kdigoStage(patient.baselineCr, latestCreatinine.value, !!patient.dialysisStatus)
   }, [patient.baselineCr, patient.dialysisStatus, latestCreatinine])
 
+  const firstMorningUpcByDate = useMemo(() => mapByDate(entries, 'Urine Pro/Cr - First Morning'), [entries])
+
+  const proteinuriaStatus = useMemo(() => {
+    const upcEntries = entries.filter((e) => e.test === 'Urine Protein/Creatinine Ratio' && e.value != null)
+    if (upcEntries.length === 0) return null
+    const sorted = [...upcEntries].sort((a, b) => a.date.localeCompare(b.date))
+    const latest = sorted[sorted.length - 1]
+    const latestClass = classifyUpcRatio(latest.value!)
+    if (latestClass === 'nephrotic-range') {
+      return { label: 'Nephrotic-range proteinuria', cls: latestClass as ProteinuriaClass }
+    }
+    const nonNormalDates = sorted.filter((e) => classifyUpcRatio(e.value!) !== 'normal').map((e) => e.date)
+    if (nonNormalDates.length >= 2) {
+      const spanDays =
+        (new Date(nonNormalDates[nonNormalDates.length - 1]).getTime() - new Date(nonNormalDates[0]).getTime()) /
+        (1000 * 60 * 60 * 24)
+      if (spanDays >= 7) return { label: 'Persistent proteinuria', cls: 'abnormal' as ProteinuriaClass }
+    }
+    if (latestClass === 'abnormal') {
+      return { label: 'Isolated abnormal proteinuria — recheck to confirm persistence', cls: latestClass }
+    }
+    return { label: 'Proteinuria: normal', cls: 'normal' as ProteinuriaClass }
+  }, [entries])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -180,6 +205,12 @@ export function LabsTab({ patientId, patient }: Props) {
           <span className="patient-meta">
             Baseline {patient.baselineCr} → {latestCreatinine.value} mg/dL ({toShamsi(latestCreatinine.date)})
           </span>
+        </div>
+      )}
+      {proteinuriaStatus && (
+        <div className={`aki-banner ${proteinuriaStatus.cls !== 'normal' ? 'aki-banner--warning' : ''}`}>
+          <strong>{proteinuriaStatus.label}</strong>
+          <span className="patient-meta">Based on Urine Protein/Creatinine Ratio entries</span>
         </div>
       )}
       <datalist id="lab-test-options">
@@ -415,11 +446,18 @@ export function LabsTab({ patientId, patient }: Props) {
                   urineCreatinineByDate.has(e.date)
                     ? feUrea(e.value, creatinineByDate.get(e.date)!, bunByDate.get(e.date)!, urineCreatinineByDate.get(e.date)!)
                     : null
+                const upcClass =
+                  e.test === 'Urine Protein/Creatinine Ratio' && e.value != null ? classifyUpcRatio(e.value) : null
+                const orthostatic =
+                  e.test === 'Urine Pro/Cr - Random' && e.value != null && firstMorningUpcByDate.has(e.date)
+                    ? firstMorningUpcByDate.get(e.date)! < 0.2 && e.value >= 0.2
+                    : null
                 const abnormal =
                   isAbnormal(e.value, e.ref) ||
                   (!!e.valueText && e.valueText !== 'Negative') ||
                   (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
-                  (tsat != null && tsat < 20)
+                  (tsat != null && tsat < 20) ||
+                  (upcClass != null && upcClass !== 'normal')
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>
@@ -473,6 +511,18 @@ export function LabsTab({ patientId, patient }: Props) {
                             <div className="patient-meta">
                               FeUrea: {feUreaVal.toFixed(1)}% (
                               {feUreaVal < 35 ? 'prerenal' : feUreaVal > 50 ? 'intrinsic' : 'indeterminate'})
+                            </div>
+                          )}
+                          {upcClass != null && (
+                            <div className={upcClass !== 'normal' ? 'value-abnormal' : 'patient-meta'}>
+                              {PROTEINURIA_CLASS_LABEL[upcClass]}
+                            </div>
+                          )}
+                          {orthostatic != null && (
+                            <div className="patient-meta">
+                              {orthostatic
+                                ? 'First-morning normal, random elevated — orthostatic pattern'
+                                : 'First-morning also elevated — not orthostatic'}
                             </div>
                           )}
                         </>

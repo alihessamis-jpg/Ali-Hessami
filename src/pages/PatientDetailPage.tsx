@@ -10,11 +10,13 @@ import { ImagingTab } from '../components/patient/ImagingTab'
 import { RemindersTab } from '../components/patient/RemindersTab'
 import { DocumentTab } from '../components/patient/DocumentTab'
 import { UrineOutputTab } from '../components/patient/UrineOutputTab'
+import { NephroticSyndromeTab } from '../components/patient/NephroticSyndromeTab'
 import {
   AssessmentIcon,
   DocumentIcon,
   DropletIcon,
   ImagingIcon,
+  KidneyIcon,
   LabsIcon,
   MedicationsIcon,
   NotesIcon,
@@ -34,6 +36,7 @@ type Tab =
   | 'reminders'
   | 'document'
   | 'urineOutput'
+  | 'nephroticSyndrome'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
@@ -43,6 +46,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'medications', label: 'Medications', icon: MedicationsIcon },
   { id: 'imaging', label: 'Imaging', icon: ImagingIcon },
   { id: 'urineOutput', label: 'Urine Output', icon: DropletIcon },
+  { id: 'nephroticSyndrome', label: 'Nephrotic Syndrome', icon: KidneyIcon },
   { id: 'reminders', label: 'Reminders', icon: RemindersIcon },
   { id: 'document', label: 'Document', icon: DocumentIcon },
 ]
@@ -133,6 +137,7 @@ export function PatientDetailPage() {
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
+        {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}
         {tab === 'document' && <DocumentTab patientId={id} />}
       </div>

@@ -20,6 +20,8 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
     'Urine Casts',
     'Urine Crystals',
     'Urine Protein/Creatinine Ratio',
+    'Urine Pro/Cr - First Morning',
+    'Urine Pro/Cr - Random',
     'Urine Microalbumin',
     'Urine Sodium',
     'Urine Creatinine',

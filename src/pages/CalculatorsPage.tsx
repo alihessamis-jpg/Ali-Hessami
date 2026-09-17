@@ -12,6 +12,16 @@ import {
   transferrinSaturation,
 } from '../lib/formulas'
 import { CalculatorIcon } from '../components/icons'
+import { DIPSTICK_OPTIONS } from '../lib/labPresets'
+import {
+  classifyDipstickProtein,
+  classifyProteinRate,
+  classifyUpcRatio,
+  DIPSTICK_PROTEIN_EQUIVALENTS,
+  PROTEINURIA_CLASS_LABEL,
+  urineProteinRateMgM2Hr,
+  type ProteinuriaClass,
+} from '../lib/proteinuria'
 
 export function CalculatorsPage() {
   const [height, setHeight] = useState('')
@@ -31,6 +41,11 @@ export function CalculatorsPage() {
   const [pCr, setPCr] = useState('')
   const [uUrea, setUUrea] = useState('')
   const [pUrea, setPUrea] = useState('')
+  const [proteinuriaMethod, setProteinuriaMethod] = useState<'dipstick' | '24h' | 'upc'>('upc')
+  const [dipstickGrade, setDipstickGrade] = useState('')
+  const [protein24h, setProtein24h] = useState('')
+  const [proteinBsa, setProteinBsa] = useState('')
+  const [upcRatio, setUpcRatio] = useState('')
 
   const h = Number(height)
   const w = Number(weight)
@@ -52,6 +67,20 @@ export function CalculatorsPage() {
   const uUreaVal = Number(uUrea)
   const pUreaVal = Number(pUrea)
   const feUreaVal = uUreaVal && pUreaVal && uCrVal && pCrVal ? feUrea(uUreaVal, pCrVal, pUreaVal, uCrVal) : null
+
+  const protein24hVal = Number(protein24h)
+  const proteinBsaVal = Number(proteinBsa)
+  const proteinRate = protein24hVal && proteinBsaVal ? urineProteinRateMgM2Hr(protein24hVal, proteinBsaVal) : null
+  const upcRatioVal = Number(upcRatio)
+
+  let proteinuriaResult: { text: string; cls: ProteinuriaClass | null } = { text: '—', cls: null }
+  if (proteinuriaMethod === 'dipstick' && dipstickGrade) {
+    proteinuriaResult = { text: DIPSTICK_PROTEIN_EQUIVALENTS[dipstickGrade], cls: classifyDipstickProtein(dipstickGrade) }
+  } else if (proteinuriaMethod === '24h' && proteinRate != null) {
+    proteinuriaResult = { text: `${proteinRate.toFixed(1)} mg/m²/hr`, cls: classifyProteinRate(proteinRate) }
+  } else if (proteinuriaMethod === 'upc' && upcRatioVal) {
+    proteinuriaResult = { text: `${upcRatioVal.toFixed(2)} mg/mg`, cls: classifyUpcRatio(upcRatioVal) }
+  }
 
   return (
     <div>
@@ -229,6 +258,58 @@ export function CalculatorsPage() {
             <span className="calc-result-value">{feUreaVal != null ? feUreaVal.toFixed(1) : '—'}</span>
             <span className="calc-result-unit">
               % ({feUreaVal != null ? (feUreaVal < 35 ? 'suggests prerenal' : feUreaVal > 50 ? 'suggests intrinsic' : 'indeterminate') : 'useful when on diuretics'})
+            </span>
+          </div>
+        </div>
+
+        <div className="calc-card">
+          <h2 className="calc-card-title">Proteinuria interpretation</h2>
+          <label>
+            Collection method
+            <select value={proteinuriaMethod} onChange={(e) => setProteinuriaMethod(e.target.value as typeof proteinuriaMethod)}>
+              <option value="upc">Spot urine protein/creatinine ratio</option>
+              <option value="24h">24-hour urine collection</option>
+              <option value="dipstick">Dipstick (qualitative)</option>
+            </select>
+          </label>
+          {proteinuriaMethod === 'upc' && (
+            <label>
+              UPC ratio (mg/mg)
+              <input type="number" step="any" value={upcRatio} onChange={(e) => setUpcRatio(e.target.value)} />
+            </label>
+          )}
+          {proteinuriaMethod === '24h' && (
+            <>
+              <label>
+                Total protein (mg/24h)
+                <input type="number" step="any" value={protein24h} onChange={(e) => setProtein24h(e.target.value)} />
+              </label>
+              <label>
+                BSA (m²)
+                <input type="number" step="any" value={proteinBsa} onChange={(e) => setProteinBsa(e.target.value)} />
+              </label>
+            </>
+          )}
+          {proteinuriaMethod === 'dipstick' && (
+            <label>
+              Dipstick grade
+              <select value={dipstickGrade} onChange={(e) => setDipstickGrade(e.target.value)}>
+                <option value="">Select</option>
+                {DIPSTICK_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div
+            className={`calc-result-tile ${proteinuriaResult.cls && proteinuriaResult.cls !== 'normal' ? 'calc-result-tile--warning' : ''}`}
+          >
+            <span className="calc-result-value">{proteinuriaResult.cls ? PROTEINURIA_CLASS_LABEL[proteinuriaResult.cls] : '—'}</span>
+            <span className="calc-result-unit">
+              {proteinuriaResult.text}
+              {proteinuriaMethod === 'dipstick' ? ' — confirm with a quantitative test' : ''}
             </span>
           </div>
         </div>

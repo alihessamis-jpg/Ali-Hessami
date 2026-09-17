@@ -188,6 +188,24 @@ create table public.urine_output_entries (
 
 create index urine_output_entries_patient_id_idx on public.urine_output_entries (patient_id);
 
+-- Nephrotic syndrome course events (diagnosis / relapse / remission / no
+-- response after 4 weeks of daily steroids), used to derive whether the
+-- patient is steroid-sensitive, steroid-dependent, frequently relapsing,
+-- or steroid-resistant. during_taper marks a relapse that happened during
+-- steroid therapy or within 2 weeks of stopping it (steroid-dependent
+-- criterion) -- irrelevant for other event types.
+create table public.nephrotic_events (
+    id            uuid primary key default gen_random_uuid(),
+    patient_id    uuid not null references public.patients (id) on delete cascade,
+    date          date not null,
+    event_type    text not null, -- 'diagnosis' | 'relapse' | 'remission' | 'no_response_4wk'
+    during_taper  boolean not null default false,
+    notes         text,
+    created_at    timestamptz not null default now()
+);
+
+create index nephrotic_events_patient_id_idx on public.nephrotic_events (patient_id);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -479,6 +497,7 @@ alter table public.medications enable row level security;
 alter table public.imaging_entries enable row level security;
 alter table public.patient_documents enable row level security;
 alter table public.urine_output_entries enable row level security;
+alter table public.nephrotic_events enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
@@ -536,6 +555,12 @@ create policy urine_output_entries_owner_access on public.urine_output_entries
     for all using (exists (
         select 1 from public.patients p
         where p.id = urine_output_entries.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy nephrotic_events_owner_access on public.nephrotic_events
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = nephrotic_events.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders
