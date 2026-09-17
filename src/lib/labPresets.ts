@@ -24,6 +24,9 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
   ],
   Immunology: ['C3', 'C4', 'ANA', 'ANCA', 'Anti-dsDNA'],
   'Infectious/Viral': ['CMV PCR (Quantitative)', 'CMV IgG', 'CMV IgM', 'EBV PCR (Quantitative)'],
+  Microbiology: ['Blood Culture', 'Urine Culture'],
+  'Peritoneal Fluid': ['PD Fluid Cell Count', 'PD Fluid Segments (%)', 'PD Fluid Gram Stain', 'PD Fluid Culture'],
+  CSF: ['CSF WBC', 'CSF RBC', 'CSF Segments (%)', 'CSF Lymphocytes (%)', 'CSF Protein', 'CSF Glucose', 'CSF Gram Stain', 'CSF Culture'],
   'Endocrine/Bone': ['PTH', '25-OH Vitamin D', 'Alkaline Phosphatase'],
   Lipids: ['Total Cholesterol', 'Triglycerides'],
   Liver: ['ALT', 'AST'],
@@ -46,3 +49,23 @@ export const DIPSTICK_TESTS = new Set([
 ])
 
 export const DIPSTICK_OPTIONS = ['Negative', 'Trace', '+1', '+2', '+3', '+4']
+
+// Culture tests get a structured organism/colony-count/susceptibility form
+// instead of a plain value field.
+export const CULTURE_TESTS = new Set(['Blood Culture', 'Urine Culture', 'PD Fluid Culture', 'CSF Culture'])
+
+export const COLLECTION_METHODS = [
+  'Clean catch',
+  'Catheter',
+  'Suprapubic',
+  'Midstream',
+  'Peripheral venipuncture',
+  'Central line',
+  'Other',
+]
+
+export const SUSCEPTIBILITY_RESULTS: Array<'S' | 'I' | 'R'> = ['S', 'I', 'R']
+
+export function isPositiveCulture(organism: string): boolean {
+  return !/no growth|negative|no organism/i.test(organism)
+}

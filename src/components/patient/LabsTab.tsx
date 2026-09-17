@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
 import { isAbnormal } from '../../lib/labRange'
-import { COMMON_LAB_TESTS, DIPSTICK_OPTIONS, DIPSTICK_TESTS, LAB_CATEGORIES, LAB_CATEGORY_TESTS } from '../../lib/labPresets'
+import {
+  COLLECTION_METHODS,
+  COMMON_LAB_TESTS,
+  CULTURE_TESTS,
+  DIPSTICK_OPTIONS,
+  DIPSTICK_TESTS,
+  isPositiveCulture,
+  LAB_CATEGORIES,
+  LAB_CATEGORY_TESTS,
+  SUSCEPTIBILITY_RESULTS,
+} from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
-import type { LabEntry } from '../../types/domain'
+import type { LabEntry, MicroSusceptibility } from '../../types/domain'
 
 interface Props {
   patientId: string
@@ -22,11 +32,20 @@ const emptyDraft = {
   comment: '',
 }
 
+const emptyMicro = {
+  organism: '',
+  colonyCount: '',
+  collectionMethod: '',
+  onAntibiotics: false,
+  susceptibilities: [{ antibiotic: '', result: 'S' as const }] as MicroSusceptibility[],
+}
+
 export function LabsTab({ patientId }: Props) {
   const [entries, setEntries] = useState<LabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
+  const [micro, setMicro] = useState(emptyMicro)
   const [customTest, setCustomTest] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
@@ -43,10 +62,27 @@ export function LabsTab({ patientId }: Props) {
       .finally(() => setLoading(false))
   }
 
+  function updateSusceptibility(index: number, patch: Partial<MicroSusceptibility>) {
+    setMicro((m) => ({
+      ...m,
+      susceptibilities: m.susceptibilities.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+    }))
+  }
+
+  function addSusceptibilityRow() {
+    setMicro((m) => ({ ...m, susceptibilities: [...m.susceptibilities, { antibiotic: '', result: 'S' }] }))
+  }
+
+  function removeSusceptibilityRow(index: number) {
+    setMicro((m) => ({ ...m, susceptibilities: m.susceptibilities.filter((_, i) => i !== index) }))
+  }
+
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
     if (!draft.test.trim() || !draft.date) return
     const isDipstick = DIPSTICK_TESTS.has(draft.test)
+    const isCulture = CULTURE_TESTS.has(draft.test)
+    if (isCulture && !micro.organism.trim()) return
     setSubmitting(true)
     setError(null)
     try {
@@ -55,14 +91,26 @@ export function LabsTab({ patientId }: Props) {
         date: draft.date,
         category: draft.category || null,
         test: draft.test.trim(),
-        value: isDipstick || draft.value === '' ? null : Number(draft.value),
+        value: isDipstick || isCulture || draft.value === '' ? null : Number(draft.value),
         valueText: isDipstick ? draft.valueText || null : null,
+        microDetails: isCulture
+          ? {
+              organism: micro.organism.trim(),
+              colonyCount: micro.colonyCount || null,
+              collectionMethod: micro.collectionMethod || null,
+              onAntibiotics: micro.onAntibiotics,
+              susceptibilities: micro.susceptibilities
+                .filter((s) => s.antibiotic.trim())
+                .map((s) => ({ antibiotic: s.antibiotic.trim(), result: s.result })),
+            }
+          : null,
         unit: draft.unit || null,
         ref: draft.ref || null,
         comment: draft.comment || null,
       })
       setEntries((prev) => [entry, ...prev])
       setDraft({ ...emptyDraft, date: draft.date, category: draft.category })
+      setMicro(emptyMicro)
       setCustomTest(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add lab entry')
@@ -94,6 +142,7 @@ export function LabsTab({ patientId }: Props) {
   }, [entries, activeCategory])
 
   const testsForCategory = draft.category ? LAB_CATEGORY_TESTS[draft.category] ?? [] : []
+  const isCulture = CULTURE_TESTS.has(draft.test)
 
   return (
     <div>
@@ -102,76 +151,161 @@ export function LabsTab({ patientId }: Props) {
           <option key={t} value={t} />
         ))}
       </datalist>
-      <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
-        <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
-        <select
-          value={draft.category}
-          onChange={(e) => {
-            setDraft({ ...draft, category: e.target.value, test: '' })
-            setCustomTest(false)
-          }}
-        >
-          <option value="">All categories</option>
-          {LAB_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        {draft.category && !customTest ? (
+      <form onSubmit={(e) => void handleAdd(e)}>
+        <div className="lab-form">
+          <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
           <select
-            value={draft.test}
+            value={draft.category}
             onChange={(e) => {
-              if (e.target.value === CUSTOM_TEST) {
-                setCustomTest(true)
-                setDraft({ ...draft, test: '' })
-              } else {
-                setDraft({ ...draft, test: e.target.value })
-              }
+              setDraft({ ...draft, category: e.target.value, test: '' })
+              setCustomTest(false)
             }}
-            required
           >
-            <option value="">Select test</option>
-            {testsForCategory.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-            <option value={CUSTOM_TEST}>Other (type manually)…</option>
-          </select>
-        ) : (
-          <input
-            placeholder="Test"
-            list="lab-test-options"
-            value={draft.test}
-            onChange={(e) => setDraft({ ...draft, test: e.target.value })}
-            required
-          />
-        )}
-        {DIPSTICK_TESTS.has(draft.test) ? (
-          <select value={draft.valueText} onChange={(e) => setDraft({ ...draft, valueText: e.target.value })}>
-            <option value="">Value</option>
-            {DIPSTICK_OPTIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
+            <option value="">All categories</option>
+            {LAB_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
-        ) : (
-          <input
-            placeholder="Value"
-            type="number"
-            step="any"
-            value={draft.value}
-            onChange={(e) => setDraft({ ...draft, value: e.target.value })}
-          />
+          {draft.category && !customTest ? (
+            <select
+              value={draft.test}
+              onChange={(e) => {
+                if (e.target.value === CUSTOM_TEST) {
+                  setCustomTest(true)
+                  setDraft({ ...draft, test: '' })
+                } else {
+                  setDraft({ ...draft, test: e.target.value })
+                }
+              }}
+              required
+            >
+              <option value="">Select test</option>
+              {testsForCategory.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+              <option value={CUSTOM_TEST}>Other (type manually)…</option>
+            </select>
+          ) : (
+            <input
+              placeholder="Test"
+              list="lab-test-options"
+              value={draft.test}
+              onChange={(e) => setDraft({ ...draft, test: e.target.value })}
+              required
+            />
+          )}
+          {!isCulture &&
+            (DIPSTICK_TESTS.has(draft.test) ? (
+              <select value={draft.valueText} onChange={(e) => setDraft({ ...draft, valueText: e.target.value })}>
+                <option value="">Value</option>
+                {DIPSTICK_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                placeholder="Value"
+                type="number"
+                step="any"
+                value={draft.value}
+                onChange={(e) => setDraft({ ...draft, value: e.target.value })}
+              />
+            ))}
+          {!isCulture && (
+            <input placeholder="Unit" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
+          )}
+          {!isCulture && (
+            <input placeholder="Reference range" value={draft.ref} onChange={(e) => setDraft({ ...draft, ref: e.target.value })} />
+          )}
+          <input placeholder="Comment" value={draft.comment} onChange={(e) => setDraft({ ...draft, comment: e.target.value })} />
+          {!isCulture && (
+            <button type="submit" disabled={submitting}>
+              Add
+            </button>
+          )}
+        </div>
+
+        {isCulture && (
+          <fieldset className="micro-fieldset">
+            <legend>Culture result</legend>
+            <div className="field-grid">
+              <label>
+                Organism
+                <input
+                  value={micro.organism}
+                  onChange={(e) => setMicro({ ...micro, organism: e.target.value })}
+                  placeholder="e.g. E. coli, or 'No growth'"
+                  required
+                />
+              </label>
+              <label>
+                Colony count
+                <input
+                  value={micro.colonyCount}
+                  onChange={(e) => setMicro({ ...micro, colonyCount: e.target.value })}
+                  placeholder="e.g. >100,000 CFU/mL"
+                />
+              </label>
+              <label>
+                Collection method
+                <select value={micro.collectionMethod} onChange={(e) => setMicro({ ...micro, collectionMethod: e.target.value })}>
+                  <option value="">—</option>
+                  {COLLECTION_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={micro.onAntibiotics}
+                onChange={(e) => setMicro({ ...micro, onAntibiotics: e.target.checked })}
+              />
+              On antibiotics at time of collection
+            </label>
+
+            <div className="susceptibility-list">
+              <span className="calc-label">Antibiotic susceptibilities</span>
+              {micro.susceptibilities.map((s, i) => (
+                <div key={i} className="susceptibility-row">
+                  <input
+                    placeholder="Antibiotic"
+                    value={s.antibiotic}
+                    onChange={(e) => updateSusceptibility(i, { antibiotic: e.target.value })}
+                  />
+                  <select value={s.result} onChange={(e) => updateSusceptibility(i, { result: e.target.value as MicroSusceptibility['result'] })}>
+                    {SUSCEPTIBILITY_RESULTS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className="link-button" onClick={() => removeSusceptibilityRow(i)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="button-secondary" onClick={addSusceptibilityRow}>
+                + Add antibiotic
+              </button>
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" disabled={submitting}>
+                Add culture result
+              </button>
+            </div>
+          </fieldset>
         )}
-        <input placeholder="Unit" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
-        <input placeholder="Reference range" value={draft.ref} onChange={(e) => setDraft({ ...draft, ref: e.target.value })} />
-        <input placeholder="Comment" value={draft.comment} onChange={(e) => setDraft({ ...draft, comment: e.target.value })} />
-        <button type="submit" disabled={submitting}>
-          Add
-        </button>
       </form>
 
       {error && <p className="form-error">{error}</p>}
@@ -225,13 +359,43 @@ export function LabsTab({ patientId }: Props) {
             </thead>
             <tbody>
               {visibleEntries.map((e) => {
-                const abnormal = isAbnormal(e.value, e.ref) || (!!e.valueText && e.valueText !== 'Negative')
+                const abnormal =
+                  isAbnormal(e.value, e.ref) ||
+                  (!!e.valueText && e.valueText !== 'Negative') ||
+                  (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism))
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>
                     <td>{e.category}</td>
                     <td>{e.test}</td>
-                    <td className={abnormal ? 'value-abnormal' : ''}>{e.valueText ?? e.value ?? ''}</td>
+                    <td className={abnormal ? 'value-abnormal' : ''}>
+                      {e.microDetails ? (
+                        <div className="micro-summary">
+                          <strong>{e.microDetails.organism}</strong>
+                          {e.microDetails.colonyCount && <div className="patient-meta">{e.microDetails.colonyCount}</div>}
+                          {e.microDetails.collectionMethod && (
+                            <div className="patient-meta">{e.microDetails.collectionMethod}</div>
+                          )}
+                          {e.microDetails.onAntibiotics && <div className="patient-meta">On antibiotics at collection</div>}
+                          {e.microDetails.susceptibilities.length > 0 && (
+                            <div className="micro-susceptibilities">
+                              {e.microDetails.susceptibilities.map((s, i) => (
+                                <span
+                                  key={i}
+                                  className={`status-badge status-badge--renal-${
+                                    s.result === 'S' ? 'no' : s.result === 'I' ? 'review' : 'yes'
+                                  }`}
+                                >
+                                  {s.antibiotic} {s.result}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        e.valueText ?? e.value ?? ''
+                      )}
+                    </td>
                     <td>{e.unit}</td>
                     <td>{e.ref}</td>
                     <td>{e.comment}</td>

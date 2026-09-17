@@ -1,6 +1,8 @@
 import { supabase } from '../supabaseClient'
 import { isAbnormal } from '../labRange'
+import { isPositiveCulture } from '../labPresets'
 import { schwartzEGFR } from '../formulas'
+import type { MicroDetails } from '../../types/domain'
 
 export interface AbnormalLab {
   id: string
@@ -10,6 +12,7 @@ export interface AbnormalLab {
   test: string
   value: number | null
   valueText: string | null
+  organism: string | null
   unit: string | null
   ref: string | null
 }
@@ -21,6 +24,7 @@ interface LabRow {
   test: string
   value: number | null
   value_text: string | null
+  micro_details: MicroDetails | null
   unit: string | null
   ref: string | null
   patients: { name: string } | null
@@ -32,13 +36,18 @@ export async function listRecentAbnormalLabs(sinceDays = 14): Promise<AbnormalLa
 
   const { data, error } = await supabase
     .from('lab_entries')
-    .select('id, patient_id, date, test, value, value_text, unit, ref, patients(name)')
+    .select('id, patient_id, date, test, value, value_text, micro_details, unit, ref, patients(name)')
     .gte('date', since.toISOString().slice(0, 10))
     .order('date', { ascending: false })
   if (error) throw error
 
   return (data as unknown as LabRow[])
-    .filter((row) => isAbnormal(row.value, row.ref) || (!!row.value_text && row.value_text !== 'Negative'))
+    .filter(
+      (row) =>
+        isAbnormal(row.value, row.ref) ||
+        (!!row.value_text && row.value_text !== 'Negative') ||
+        (!!row.micro_details?.organism && isPositiveCulture(row.micro_details.organism))
+    )
     .map((row) => ({
       id: row.id,
       patientId: row.patient_id,
@@ -47,6 +56,7 @@ export async function listRecentAbnormalLabs(sinceDays = 14): Promise<AbnormalLa
       test: row.test,
       value: row.value,
       valueText: row.value_text,
+      organism: row.micro_details?.organism ?? null,
       unit: row.unit,
       ref: row.ref,
     }))

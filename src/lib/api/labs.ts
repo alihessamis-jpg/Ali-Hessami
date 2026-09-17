@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { LabEntry, LabEntryDraft } from '../../types/domain'
+import type { LabEntry, LabEntryDraft, MicroDetails } from '../../types/domain'
 
 interface LabEntryRow {
   id: string
@@ -9,6 +9,7 @@ interface LabEntryRow {
   test: string
   value: number | null
   value_text: string | null
+  micro_details: MicroDetails | null
   unit: string | null
   ref: string | null
   comment: string | null
@@ -23,6 +24,7 @@ function toDomain(row: LabEntryRow): LabEntry {
     test: row.test,
     value: row.value,
     valueText: row.value_text,
+    microDetails: row.micro_details,
     unit: row.unit,
     ref: row.ref,
     comment: row.comment,
@@ -49,6 +51,7 @@ export async function addLabEntry(draft: LabEntryDraft): Promise<LabEntry> {
       test: draft.test,
       value: draft.value,
       value_text: draft.valueText,
+      micro_details: draft.microDetails,
       unit: draft.unit,
       ref: draft.ref,
       comment: draft.comment,

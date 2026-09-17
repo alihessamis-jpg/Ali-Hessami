@@ -95,6 +95,7 @@ create table public.lab_entries (
     test        text not null,
     value       numeric,
     value_text  text, -- semi-quantitative dipstick results (Negative/Trace/+1.."+4") that don't fit `value`
+    micro_details jsonb, -- culture results: { organism, colonyCount, collectionMethod, onAntibiotics, susceptibilities: [{antibiotic, result}] }
     unit        text,
     ref         text,
     comment     text,

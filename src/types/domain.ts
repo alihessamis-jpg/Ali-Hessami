@@ -58,6 +58,19 @@ export interface Patient {
 
 export type PatientDraft = Omit<Patient, 'id'>
 
+export interface MicroSusceptibility {
+  antibiotic: string
+  result: 'S' | 'I' | 'R'
+}
+
+export interface MicroDetails {
+  organism: string
+  colonyCount?: string | null
+  collectionMethod?: string | null
+  onAntibiotics?: boolean | null
+  susceptibilities: MicroSusceptibility[]
+}
+
 export interface LabEntry {
   id: string
   patientId: string
@@ -66,6 +79,7 @@ export interface LabEntry {
   test: string
   value?: number | null
   valueText?: string | null
+  microDetails?: MicroDetails | null
   unit?: string | null
   ref?: string | null
   comment?: string | null

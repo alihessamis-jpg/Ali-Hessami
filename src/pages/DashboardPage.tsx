@@ -97,7 +97,7 @@ function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: stri
 }
 
 function labToAlert(lab: AbnormalLab): AlertItem {
-  const result = lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
+  const result = lab.organism ?? lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
   return {
     id: lab.id,
     severity: 'critical',

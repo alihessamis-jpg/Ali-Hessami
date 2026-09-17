@@ -998,6 +998,56 @@ legend {
   text-decoration: underline;
 }
 
+/* ---- Labs: microbiology culture form ---- */
+
+.micro-fieldset {
+  margin-top: 12px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.susceptibility-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.susceptibility-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.susceptibility-row input {
+  flex: 1;
+}
+
+.micro-summary {
+  min-width: 160px;
+}
+
+.micro-susceptibilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.micro-susceptibilities .status-badge {
+  margin-right: 0;
+}
+
 /* ---- Patient detail: document attachments ---- */
 
 .document-grid {
