@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ShamsiCalendarWidget } from '../components/ShamsiCalendarWidget'
 import { toShamsi } from '../lib/shamsi'
 import {
-  listEGFRTrend,
-  listPatientsOverview,
+  listPatientsByIds,
   listRecentAbnormalLabs,
   type AbnormalLab,
-  type EGFRTrendPoint,
   type PatientGlance,
 } from '../lib/api/dashboard'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
@@ -26,7 +23,6 @@ import {
   KnowledgeGapIcon,
   PatientsIcon,
   ResearchIcon,
-  TrendsIcon,
   WarningIcon,
 } from '../components/icons'
 import type { AcademyTopic, Flashcard, KnowledgeGap, ResearchProject } from '../types/domain'
@@ -120,7 +116,6 @@ export function DashboardPage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
-  const [egfrTrend, setEgfrTrend] = useState<EGFRTrendPoint[]>([])
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -129,7 +124,6 @@ export function DashboardPage() {
     if (!session) return
     setLoading(true)
     Promise.all([
-      listPatientsOverview(),
       listRecentAbnormalLabs(),
       listActiveReminders(),
       listAcademyTopics(),
@@ -137,34 +131,27 @@ export function DashboardPage() {
       listFlashcards(),
       listKnowledgeGaps(),
       listResearchProjects(),
-      listEGFRTrend(),
       listCaseLogEntries(),
     ])
-      .then(
-        ([
-          patientRows,
-          labRows,
-          reminderRows,
-          topicRows,
-          progressRows,
-          flashcardRows,
-          gapRows,
-          projectRows,
-          trendRows,
-          caseLogRows,
-        ]) => {
-          setPatients(patientRows)
-          setLabs(labRows)
-          setReminders(reminderRows)
-          setTopics(topicRows)
-          setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
-          setFlashcards(flashcardRows)
-          setKnowledgeGaps(gapRows)
-          setResearchProjects(projectRows)
-          setEgfrTrend(trendRows)
-          setCaseLogEntries(caseLogRows)
-        }
-      )
+      .then(async ([labRows, reminderRows, topicRows, progressRows, flashcardRows, gapRows, projectRows, caseLogRows]) => {
+        setLabs(labRows)
+        setReminders(reminderRows)
+        setTopics(topicRows)
+        setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
+        setFlashcards(flashcardRows)
+        setKnowledgeGaps(gapRows)
+        setResearchProjects(projectRows)
+        setCaseLogEntries(caseLogRows)
+
+        const today = new Date().toISOString().slice(0, 10)
+        const tomorrow = addDays(today, 1)
+        const activeReminders = reminderRows.filter((r) => reminderToAlert(r, today, tomorrow) !== null)
+        const attentionIds = Array.from(
+          new Set([...labRows.map((l) => l.patientId), ...activeReminders.map((r) => r.patientId)])
+        )
+        const patientRows = await listPatientsByIds(attentionIds)
+        setPatients(patientRows)
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false))
   }, [session])
@@ -214,6 +201,22 @@ export function DashboardPage() {
   const currentMonth = today.slice(0, 7)
   const caseLogThisMonth = caseLogEntries.filter((e) => e.date.slice(0, 7) === currentMonth).length
 
+  const patientSeverity = new Map<string, 'critical' | 'warning'>()
+  for (const l of labs) patientSeverity.set(l.patientId, 'critical')
+  for (const r of reminders) {
+    const alert = reminderToAlert(r, today, tomorrow)
+    if (!alert || alert.severity === 'info') continue
+    if (patientSeverity.get(r.patientId) !== 'critical') {
+      patientSeverity.set(r.patientId, alert.severity)
+    }
+  }
+  const sortedPatients = [...patients].sort((a, b) => {
+    const rank = { critical: 0, warning: 1 } as const
+    const sa = rank[patientSeverity.get(a.id) ?? 'warning']
+    const sb = rank[patientSeverity.get(b.id) ?? 'warning']
+    return sa !== sb ? sa - sb : a.name.localeCompare(b.name)
+  })
+
   return (
     <div>
       <h1 className="page-title">
@@ -230,36 +233,46 @@ export function DashboardPage() {
               <span className="icon-chip">
                 <PatientsIcon />
               </span>
-              Current patients
+              Patients needing follow-up
             </h2>
             <Link to="/patients" className="link-button">
               View all
             </Link>
           </div>
-          {patients.length === 0 ? (
-            <p className="empty-state">No patients yet.</p>
+          {sortedPatients.length === 0 ? (
+            <p className="empty-state">No patients currently need follow-up.</p>
           ) : (
             <ul className="glance-list">
-              {patients.map((p) => (
-                <li key={p.id}>
-                  <Link to={`/patients/${p.id}`} className="glance-row">
-                    <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                    <span className="glance-body">
-                      <span className="glance-name">{p.name}</span>
-                      <span className="glance-meta">
-                        {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
-                          'No details yet'}
+              {sortedPatients.map((p) => {
+                const severity = patientSeverity.get(p.id)
+                return (
+                  <li key={p.id}>
+                    <Link to={`/patients/${p.id}`} className="glance-row">
+                      <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                      <span className="glance-body">
+                        <span className="glance-name">
+                          {p.name}
+                          {severity && (
+                            <span className={`status-badge status-badge--renal-${severity === 'critical' ? 'yes' : 'review'}`}>
+                              {severity === 'critical' ? 'Critical' : 'Follow-up'}
+                            </span>
+                          )}
+                        </span>
+                        <span className="glance-meta">
+                          {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
+                            'No details yet'}
+                        </span>
                       </span>
-                    </span>
-                    {(p.latestCreatinine || p.latestEGFR) && (
-                      <span className="glance-stats">
-                        {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
-                        {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              ))}
+                      {(p.latestCreatinine || p.latestEGFR) && (
+                        <span className="glance-stats">
+                          {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
+                          {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -267,41 +280,6 @@ export function DashboardPage() {
         <div className="dash-row-side">
           <ShamsiCalendarWidget />
         </div>
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">
-            <span className="icon-chip">
-              <TrendsIcon />
-            </span>
-            Renal function snapshot
-          </h2>
-        </div>
-        {egfrTrend.length < 2 ? (
-          <p className="empty-state">Add creatinine + height for patients to see an eGFR trend here.</p>
-        ) : (
-          <div style={{ width: '100%', height: 220 }}>
-            <ResponsiveContainer>
-              <AreaChart data={egfrTrend}>
-                <defs>
-                  <linearGradient id="egfrFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(value: string) => toShamsi(value)} />
-                <YAxis tick={{ fontSize: 11 }} width={36} />
-                <Tooltip
-                  formatter={(value: number) => [value.toFixed(1), 'Avg eGFR']}
-                  labelFormatter={(label: string) => toShamsi(label)}
-                />
-                <Area type="monotone" dataKey="avgEGFR" stroke="var(--accent)" strokeWidth={2} fill="url(#egfrFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
       </div>
 
       <div className="dash-card">

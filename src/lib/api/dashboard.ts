@@ -74,15 +74,7 @@ interface CreatinineRow {
   value: number | null
 }
 
-export async function listPatientsOverview(limit = 6): Promise<PatientGlance[]> {
-  const { data: patientRows, error: patientsError } = await supabase
-    .from('patients')
-    .select('id, name, age, bed, diagnosis, height')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (patientsError) throw patientsError
-
-  const patients = patientRows as PatientOverviewRow[]
+async function buildPatientGlances(patients: PatientOverviewRow[]): Promise<PatientGlance[]> {
   if (patients.length === 0) return []
 
   const { data: labRows, error: labsError } = await supabase
@@ -119,54 +111,14 @@ export async function listPatientsOverview(limit = 6): Promise<PatientGlance[]> 
   })
 }
 
-export interface EGFRTrendPoint {
-  date: string
-  avgEGFR: number
-  patientCount: number
-}
-
-interface HeightRow {
-  id: string
-  height: number | null
-}
-
-export async function listEGFRTrend(sinceDays = 90): Promise<EGFRTrendPoint[]> {
-  const since = new Date()
-  since.setDate(since.getDate() - sinceDays)
-
+// Used by the Dashboard to show only the patients behind an active alert
+// (abnormal lab, overdue/due reminder) instead of the whole panel.
+export async function listPatientsByIds(ids: string[]): Promise<PatientGlance[]> {
+  if (ids.length === 0) return []
   const { data: patientRows, error: patientsError } = await supabase
     .from('patients')
-    .select('id, height')
+    .select('id, name, age, bed, diagnosis, height')
+    .in('id', ids)
   if (patientsError) throw patientsError
-
-  const heightByPatient = new Map<string, number>()
-  for (const p of patientRows as HeightRow[]) {
-    if (p.height) heightByPatient.set(p.id, p.height)
-  }
-  if (heightByPatient.size === 0) return []
-
-  const { data: labRows, error: labsError } = await supabase
-    .from('lab_entries')
-    .select('patient_id, date, value')
-    .eq('test', 'Creatinine')
-    .gte('date', since.toISOString().slice(0, 10))
-    .in('patient_id', Array.from(heightByPatient.keys()))
-  if (labsError) throw labsError
-
-  const byDate = new Map<string, number[]>()
-  for (const row of labRows as CreatinineRow[]) {
-    const height = heightByPatient.get(row.patient_id)
-    if (!height || row.value == null) continue
-    const list = byDate.get(row.date) ?? []
-    list.push(schwartzEGFR(height, row.value))
-    byDate.set(row.date, list)
-  }
-
-  return Array.from(byDate.entries())
-    .map(([date, values]) => ({
-      date,
-      avgEGFR: values.reduce((a, b) => a + b, 0) / values.length,
-      patientCount: values.length,
-    }))
-    .sort((a, b) => (a.date < b.date ? -1 : 1))
+  return buildPatientGlances(patientRows as PatientOverviewRow[])
 }

@@ -655,6 +655,11 @@ legend {
   color: var(--text);
 }
 
+.glance-name .status-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .glance-meta {
   font-size: 0.82rem;
   color: var(--text-muted);
