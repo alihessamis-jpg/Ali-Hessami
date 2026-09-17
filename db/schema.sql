@@ -352,6 +352,23 @@ create table public.flashcards (
     created_at      timestamptz not null default now()
 );
 
+-- Fixed-interval spaced review of things read (papers, chapters, guidelines)
+-- -- distinct from academy_progress/flashcards' adaptive SRS. Each item gets
+-- reminded at 3/7/14/30/90 days after reading, independent of the others.
+create table public.reading_items (
+    id               uuid primary key default gen_random_uuid(),
+    user_id          uuid not null references auth.users (id) on delete cascade,
+    title            text not null,
+    source           text,
+    date_read        date not null default current_date,
+    review_3d_done   boolean not null default false,
+    review_7d_done   boolean not null default false,
+    review_14d_done  boolean not null default false,
+    review_30d_done  boolean not null default false,
+    review_90d_done  boolean not null default false,
+    created_at       timestamptz not null default now()
+);
+
 create table public.reasoning_cases (
     id          uuid primary key default gen_random_uuid(),
     owner_id    uuid not null references auth.users (id) on delete cascade,
@@ -508,6 +525,7 @@ alter table public.academy_topics enable row level security;
 alter table public.academy_progress enable row level security;
 alter table public.study_notes enable row level security;
 alter table public.flashcards enable row level security;
+alter table public.reading_items enable row level security;
 alter table public.reasoning_cases enable row level security;
 alter table public.lab_challenges enable row level security;
 alter table public.imaging_challenges enable row level security;
@@ -597,6 +615,9 @@ create policy study_notes_self_access on public.study_notes
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy flashcards_self_access on public.flashcards
+    for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy reading_items_self_access on public.reading_items
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy reasoning_cases_owner_access on public.reasoning_cases

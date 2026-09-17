@@ -17,9 +17,12 @@ import { listFlashcards } from '../lib/api/flashcards'
 import { listKnowledgeGaps } from '../lib/api/knowledgeGaps'
 import { listResearchProjects } from '../lib/api/research'
 import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/caseLog'
+import { listReadingItems } from '../lib/api/readingItems'
+import { listDueCheckpoints } from '../lib/readingReview'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
+  CalendarIcon,
   CaseLogIcon,
   DashboardIcon,
   FlashcardsIcon,
@@ -28,7 +31,7 @@ import {
   ResearchIcon,
   WarningIcon,
 } from '../components/icons'
-import type { AcademyTopic, Flashcard, KnowledgeGap, ResearchProject } from '../types/domain'
+import type { AcademyTopic, Flashcard, KnowledgeGap, ReadingItem, ResearchProject } from '../types/domain'
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
@@ -132,6 +135,7 @@ export function DashboardPage() {
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [uropathyWatches, setUropathyWatches] = useState<UropathyWatch[]>([])
+  const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,6 +152,7 @@ export function DashboardPage() {
       listResearchProjects(),
       listCaseLogEntries(),
       listObstructiveUropathyWatches(),
+      listReadingItems(),
     ])
       .then(
         async ([
@@ -160,6 +165,7 @@ export function DashboardPage() {
           projectRows,
           caseLogRows,
           watchRows,
+          readingRows,
         ]) => {
           setLabs(labRows)
           setReminders(reminderRows)
@@ -170,6 +176,7 @@ export function DashboardPage() {
           setResearchProjects(projectRows)
           setCaseLogEntries(caseLogRows)
           setUropathyWatches(watchRows)
+          setReadingItems(readingRows)
 
           const today = new Date().toISOString().slice(0, 10)
           const tomorrow = addDays(today, 1)
@@ -205,6 +212,7 @@ export function DashboardPage() {
     return !next || next <= today
   })
   const dueFlashcards = flashcards.filter((c) => !c.nextReview || c.nextReview <= today)
+  const dueReadingCheckpoints = listDueCheckpoints(readingItems, today)
 
   const studyAlerts: AlertItem[] = []
   if (dueTopics.length > 0) {
@@ -222,6 +230,15 @@ export function DashboardPage() {
       severity: 'info',
       title: `${dueFlashcards.length} flashcard${dueFlashcards.length === 1 ? '' : 's'} due for review`,
       detail: 'Spaced-repetition schedule',
+      to: '/study',
+    })
+  }
+  if (dueReadingCheckpoints.length > 0) {
+    studyAlerts.push({
+      id: 'study-reading',
+      severity: 'info',
+      title: `${dueReadingCheckpoints.length} reading review${dueReadingCheckpoints.length === 1 ? '' : 's'} due`,
+      detail: 'Fixed 3d/1wk/14d/1mo/3mo schedule',
       to: '/study',
     })
   }
@@ -374,6 +391,15 @@ export function DashboardPage() {
               </span>
               <span className="checklist-label">Flashcards due for review</span>
               <span className="checklist-count">{dueFlashcards.length}</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/study" className="checklist-row">
+              <span className={`checklist-dot ${dueReadingCheckpoints.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
+                <CalendarIcon />
+              </span>
+              <span className="checklist-label">Reading reviews due</span>
+              <span className="checklist-count">{dueReadingCheckpoints.length}</span>
             </Link>
           </li>
           <li>

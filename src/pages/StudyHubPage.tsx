@@ -6,7 +6,9 @@ import { LabChallengesPanel } from '../components/study/LabChallengesPanel'
 import { ImagingChallengesPanel } from '../components/study/ImagingChallengesPanel'
 import { KnowledgeGapsPanel } from '../components/study/KnowledgeGapsPanel'
 import { PersonalCasesPanel } from '../components/study/PersonalCasesPanel'
+import { ReadingReviewPanel } from '../components/study/ReadingReviewPanel'
 import {
+  CalendarIcon,
   FlashcardsIcon,
   ImagingIcon,
   KnowledgeGapIcon,
@@ -17,7 +19,7 @@ import {
   StudyHubIcon,
 } from '../components/icons'
 
-type Tab = 'notes' | 'flashcards' | 'reasoning' | 'labChallenges' | 'imagingChallenges' | 'gaps' | 'cases'
+type Tab = 'notes' | 'flashcards' | 'reasoning' | 'labChallenges' | 'imagingChallenges' | 'gaps' | 'cases' | 'reading'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'notes', label: 'Study Notes', icon: NotesIcon },
@@ -27,6 +29,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'imagingChallenges', label: 'Imaging Challenges', icon: ImagingIcon },
   { id: 'gaps', label: 'Knowledge Gaps', icon: KnowledgeGapIcon },
   { id: 'cases', label: 'Personal Cases', icon: PersonalCaseIcon },
+  { id: 'reading', label: 'Reading Reviews', icon: CalendarIcon },
 ]
 
 export function StudyHubPage() {
@@ -59,6 +62,7 @@ export function StudyHubPage() {
         {tab === 'imagingChallenges' && <ImagingChallengesPanel />}
         {tab === 'gaps' && <KnowledgeGapsPanel />}
         {tab === 'cases' && <PersonalCasesPanel />}
+        {tab === 'reading' && <ReadingReviewPanel />}
       </div>
     </div>
   )

@@ -1339,3 +1339,48 @@ legend {
   color: var(--danger);
   opacity: 0.85;
 }
+
+/* ---- Study Hub: reading review list ---- */
+
+.reading-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.checkpoint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.checkpoint-chip {
+  background: var(--surface-tint);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
+.checkpoint-chip:hover {
+  border-color: var(--accent);
+}
+
+.checkpoint-chip--due {
+  background: var(--warning-soft);
+  border-color: var(--warning);
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.checkpoint-chip--done {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  opacity: 0.75;
+}

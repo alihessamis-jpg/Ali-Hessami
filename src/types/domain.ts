@@ -373,6 +373,22 @@ export interface NephroticEvent {
 
 export type NephroticEventDraft = Omit<NephroticEvent, 'id'>
 
+export interface ReadingItem {
+  id: string
+  title: string
+  source?: string | null
+  dateRead: string
+  review3dDone: boolean
+  review7dDone: boolean
+  review14dDone: boolean
+  review30dDone: boolean
+  review90dDone: boolean
+}
+
+export type ReadingItemDraft = Omit<ReadingItem, 'id'>
+
+export type ReviewCheckpointKey = 'review3dDone' | 'review7dDone' | 'review14dDone' | 'review30dDone' | 'review90dDone'
+
 export interface ResearchProject {
   id: string
   name: string
