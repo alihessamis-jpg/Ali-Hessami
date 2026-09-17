@@ -65,6 +65,7 @@ export interface LabEntry {
   category?: string | null
   test: string
   value?: number | null
+  valueText?: string | null
   unit?: string | null
   ref?: string | null
   comment?: string | null

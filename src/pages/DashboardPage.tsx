@@ -97,11 +97,12 @@ function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: stri
 }
 
 function labToAlert(lab: AbnormalLab): AlertItem {
+  const result = lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
   return {
     id: lab.id,
     severity: 'critical',
     title: `${lab.test} abnormal — ${lab.patientName}`,
-    detail: `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'}) · ${toShamsi(lab.date)}`,
+    detail: `${result} · ${toShamsi(lab.date)}`,
     to: `/patients/${lab.patientId}`,
   }
 }

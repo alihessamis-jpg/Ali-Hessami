@@ -9,6 +9,7 @@ export interface AbnormalLab {
   date: string
   test: string
   value: number | null
+  valueText: string | null
   unit: string | null
   ref: string | null
 }
@@ -19,6 +20,7 @@ interface LabRow {
   date: string
   test: string
   value: number | null
+  value_text: string | null
   unit: string | null
   ref: string | null
   patients: { name: string } | null
@@ -30,13 +32,13 @@ export async function listRecentAbnormalLabs(sinceDays = 14): Promise<AbnormalLa
 
   const { data, error } = await supabase
     .from('lab_entries')
-    .select('id, patient_id, date, test, value, unit, ref, patients(name)')
+    .select('id, patient_id, date, test, value, value_text, unit, ref, patients(name)')
     .gte('date', since.toISOString().slice(0, 10))
     .order('date', { ascending: false })
   if (error) throw error
 
   return (data as unknown as LabRow[])
-    .filter((row) => isAbnormal(row.value, row.ref))
+    .filter((row) => isAbnormal(row.value, row.ref) || (!!row.value_text && row.value_text !== 'Negative'))
     .map((row) => ({
       id: row.id,
       patientId: row.patient_id,
@@ -44,6 +46,7 @@ export async function listRecentAbnormalLabs(sinceDays = 14): Promise<AbnormalLa
       date: row.date,
       test: row.test,
       value: row.value,
+      valueText: row.value_text,
       unit: row.unit,
       ref: row.ref,
     }))

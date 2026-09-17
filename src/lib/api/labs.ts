@@ -8,6 +8,7 @@ interface LabEntryRow {
   category: string | null
   test: string
   value: number | null
+  value_text: string | null
   unit: string | null
   ref: string | null
   comment: string | null
@@ -21,6 +22,7 @@ function toDomain(row: LabEntryRow): LabEntry {
     category: row.category,
     test: row.test,
     value: row.value,
+    valueText: row.value_text,
     unit: row.unit,
     ref: row.ref,
     comment: row.comment,
@@ -46,6 +48,7 @@ export async function addLabEntry(draft: LabEntryDraft): Promise<LabEntry> {
       category: draft.category,
       test: draft.test,
       value: draft.value,
+      value_text: draft.valueText,
       unit: draft.unit,
       ref: draft.ref,
       comment: draft.comment,
