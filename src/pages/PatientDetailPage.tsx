@@ -115,7 +115,7 @@ export function PatientDetailPage() {
 
       <div className="tab-panel">
         {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
-        {tab === 'labs' && <LabsTab patientId={id} />}
+        {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
         {tab === 'trends' && <TrendsTab patientId={id} />}
         {tab === 'notes' && <NotesTab patientId={id} />}
         {tab === 'medications' && <MedicationsTab patientId={id} />}

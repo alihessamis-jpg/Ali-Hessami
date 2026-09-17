@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
-import { correctedCalcium, transferrinSaturation } from '../../lib/formulas'
+import { correctedCalcium, feNa, feUrea, kdigoStage, transferrinSaturation } from '../../lib/formulas'
 import { isAbnormal } from '../../lib/labRange'
 import {
   COLLECTION_METHODS,
@@ -14,10 +14,19 @@ import {
   SUSCEPTIBILITY_RESULTS,
 } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
-import type { LabEntry, MicroSusceptibility } from '../../types/domain'
+import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
 
 interface Props {
   patientId: string
+  patient: Patient
+}
+
+function mapByDate(entries: LabEntry[], testName: string): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const e of entries) {
+    if (e.test === testName && e.value != null) map.set(e.date, e.value)
+  }
+  return map
 }
 
 const CUSTOM_TEST = '__custom__'
@@ -41,7 +50,7 @@ const emptyMicro = {
   susceptibilities: [{ antibiotic: '', result: 'S' as const }] as MicroSusceptibility[],
 }
 
-export function LabsTab({ patientId }: Props) {
+export function LabsTab({ patientId, patient }: Props) {
   const [entries, setEntries] = useState<LabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -136,21 +145,23 @@ export function LabsTab({ patientId }: Props) {
 
   const uncategorizedCount = useMemo(() => entries.some((e) => !e.category), [entries])
 
-  const albuminByDate = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const e of entries) {
-      if (e.test === 'Albumin' && e.value != null) map.set(e.date, e.value)
-    }
-    return map
+  const albuminByDate = useMemo(() => mapByDate(entries, 'Albumin'), [entries])
+  const tibcByDate = useMemo(() => mapByDate(entries, 'TIBC'), [entries])
+  const sodiumByDate = useMemo(() => mapByDate(entries, 'Sodium'), [entries])
+  const creatinineByDate = useMemo(() => mapByDate(entries, 'Creatinine'), [entries])
+  const urineCreatinineByDate = useMemo(() => mapByDate(entries, 'Urine Creatinine'), [entries])
+  const bunByDate = useMemo(() => mapByDate(entries, 'BUN'), [entries])
+
+  const latestCreatinine = useMemo(() => {
+    const crEntries = entries.filter((e) => e.test === 'Creatinine' && e.value != null)
+    if (crEntries.length === 0) return null
+    return crEntries.reduce((latest, e) => (e.date > latest.date ? e : latest))
   }, [entries])
 
-  const tibcByDate = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const e of entries) {
-      if (e.test === 'TIBC' && e.value != null) map.set(e.date, e.value)
-    }
-    return map
-  }, [entries])
+  const akiStage = useMemo(() => {
+    if (!patient.baselineCr || latestCreatinine?.value == null) return null
+    return kdigoStage(patient.baselineCr, latestCreatinine.value, !!patient.dialysisStatus)
+  }, [patient.baselineCr, patient.dialysisStatus, latestCreatinine])
 
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
@@ -163,6 +174,14 @@ export function LabsTab({ patientId }: Props) {
 
   return (
     <div>
+      {patient.baselineCr && latestCreatinine?.value != null && (
+        <div className={`aki-banner ${akiStage ? 'aki-banner--warning' : ''}`}>
+          <strong>{akiStage ? `AKI Stage ${akiStage} (KDIGO)` : 'No AKI by creatinine criteria'}</strong>
+          <span className="patient-meta">
+            Baseline {patient.baselineCr} → {latestCreatinine.value} mg/dL ({toShamsi(latestCreatinine.date)})
+          </span>
+        </div>
+      )}
       <datalist id="lab-test-options">
         {COMMON_LAB_TESTS.map((t) => (
           <option key={t} value={t} />
@@ -380,6 +399,22 @@ export function LabsTab({ patientId }: Props) {
                   e.test === 'Iron' && e.value != null && tibcByDate.has(e.date)
                     ? transferrinSaturation(e.value, tibcByDate.get(e.date)!)
                     : null
+                const feNaVal =
+                  e.test === 'Urine Sodium' &&
+                  e.value != null &&
+                  sodiumByDate.has(e.date) &&
+                  creatinineByDate.has(e.date) &&
+                  urineCreatinineByDate.has(e.date)
+                    ? feNa(e.value, creatinineByDate.get(e.date)!, sodiumByDate.get(e.date)!, urineCreatinineByDate.get(e.date)!)
+                    : null
+                const feUreaVal =
+                  e.test === 'Urine Urea Nitrogen' &&
+                  e.value != null &&
+                  bunByDate.has(e.date) &&
+                  creatinineByDate.has(e.date) &&
+                  urineCreatinineByDate.has(e.date)
+                    ? feUrea(e.value, creatinineByDate.get(e.date)!, bunByDate.get(e.date)!, urineCreatinineByDate.get(e.date)!)
+                    : null
                 const abnormal =
                   isAbnormal(e.value, e.ref) ||
                   (!!e.valueText && e.valueText !== 'Negative') ||
@@ -427,6 +462,17 @@ export function LabsTab({ patientId }: Props) {
                           {tsat != null && (
                             <div className={tsat < 20 ? 'value-abnormal' : 'patient-meta'}>
                               TSAT: {tsat.toFixed(1)}%{tsat < 20 ? ' — consider iron' : ''}
+                            </div>
+                          )}
+                          {feNaVal != null && (
+                            <div className="patient-meta">
+                              FeNa: {feNaVal.toFixed(2)}% ({feNaVal < 1 ? 'prerenal' : feNaVal > 2 ? 'intrinsic' : 'indeterminate'})
+                            </div>
+                          )}
+                          {feUreaVal != null && (
+                            <div className="patient-meta">
+                              FeUrea: {feUreaVal.toFixed(1)}% (
+                              {feUreaVal < 35 ? 'prerenal' : feUreaVal > 50 ? 'intrinsic' : 'indeterminate'})
                             </div>
                           )}
                         </>

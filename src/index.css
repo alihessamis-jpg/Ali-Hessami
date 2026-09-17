@@ -1315,3 +1315,27 @@ legend {
 .calc-result-tile--warning {
   background: var(--danger);
 }
+
+/* ---- Labs: AKI status banner ---- */
+
+.aki-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface-tint);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.aki-banner--warning {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.aki-banner--warning .patient-meta {
+  color: var(--danger);
+  opacity: 0.85;
+}

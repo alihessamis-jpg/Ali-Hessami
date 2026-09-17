@@ -34,3 +34,30 @@ export function correctedCalcium(measuredCaMgDl: number, albuminGDl: number): nu
 export function transferrinSaturation(serumIronUgDl: number, tibcUgDl: number): number {
   return (serumIronUgDl / tibcUgDl) * 100
 }
+
+export type KdigoStage = 1 | 2 | 3
+
+// KDIGO AKI staging from serum creatinine only (ratio-to-baseline and
+// absolute-rise criteria). Urine-output criteria aren't included since the
+// app doesn't track hourly urine output.
+export function kdigoStage(baselineCrMgDl: number, currentCrMgDl: number, onRRT = false): KdigoStage | null {
+  if (onRRT) return 3
+  const ratio = currentCrMgDl / baselineCrMgDl
+  const rise = currentCrMgDl - baselineCrMgDl
+  if (ratio >= 3 || currentCrMgDl >= 4.0) return 3
+  if (ratio >= 2) return 2
+  if (ratio >= 1.5 || rise >= 0.3) return 1
+  return null
+}
+
+// Fractional excretion of sodium (%) — helps distinguish prerenal from
+// intrinsic AKI. <1% suggests prerenal, >2% suggests intrinsic (ATN).
+export function feNa(urineNaMEqL: number, plasmaCrMgDl: number, plasmaNaMEqL: number, urineCrMgDl: number): number {
+  return ((urineNaMEqL * plasmaCrMgDl) / (plasmaNaMEqL * urineCrMgDl)) * 100
+}
+
+// Fractional excretion of urea (%) — more reliable than FeNa when the
+// patient is on diuretics. <35% suggests prerenal, >50% suggests intrinsic.
+export function feUrea(urineUreaMgDl: number, plasmaCrMgDl: number, plasmaUreaMgDl: number, urineCrMgDl: number): number {
+  return ((urineUreaMgDl * plasmaCrMgDl) / (plasmaUreaMgDl * urineCrMgDl)) * 100
+}
