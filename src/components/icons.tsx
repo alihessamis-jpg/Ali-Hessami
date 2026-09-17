@@ -256,6 +256,15 @@ export function WarningIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3.5v11.5M7.5 10.5l4.5 4.5 4.5-4.5" />
+      <path d="M4.5 17v2a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5v-2" />
+    </Icon>
+  )
+}
+
 export function DropletIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

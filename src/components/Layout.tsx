@@ -7,6 +7,7 @@ import {
   CaseLogIcon,
   ChecklistIcon,
   DashboardIcon,
+  DownloadIcon,
   FormBuilderIcon,
   PatientsIcon,
   ReferenceIcon,
@@ -25,6 +26,7 @@ const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps
   { to: '/study', label: 'Study Hub', icon: StudyHubIcon },
   { to: '/research', label: 'Research', icon: ResearchIcon },
   { to: '/thesis-form', label: 'Thesis Form', icon: FormBuilderIcon },
+  { to: '/export', label: 'Export', icon: DownloadIcon },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {

@@ -18,6 +18,7 @@ import { NewPersonalCasePage } from './pages/NewPersonalCasePage'
 import { ResearchProjectsPage } from './pages/ResearchProjectsPage'
 import { ResearchProjectPage } from './pages/ResearchProjectPage'
 import { ThesisFormPage } from './pages/ThesisFormPage'
+import { ExportPage } from './pages/ExportPage'
 
 function protect(element: ReactElement) {
   return <RequireAuth>{element}</RequireAuth>
@@ -43,6 +44,7 @@ export function App() {
           <Route path="/research" element={protect(<ResearchProjectsPage />)} />
           <Route path="/research/:id" element={protect(<ResearchProjectPage />)} />
           <Route path="/thesis-form" element={protect(<ThesisFormPage />)} />
+          <Route path="/export" element={protect(<ExportPage />)} />
         </Routes>
       </Layout>
     </AuthProvider>
