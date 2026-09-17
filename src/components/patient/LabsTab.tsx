@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
+import { correctedCalcium } from '../../lib/formulas'
 import { isAbnormal } from '../../lib/labRange'
 import {
   COLLECTION_METHODS,
@@ -134,6 +135,14 @@ export function LabsTab({ patientId }: Props) {
   }, [entries])
 
   const uncategorizedCount = useMemo(() => entries.some((e) => !e.category), [entries])
+
+  const albuminByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const e of entries) {
+      if (e.test === 'Albumin' && e.value != null) map.set(e.date, e.value)
+    }
+    return map
+  }, [entries])
 
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
@@ -393,7 +402,16 @@ export function LabsTab({ patientId }: Props) {
                           )}
                         </div>
                       ) : (
-                        e.valueText ?? e.value ?? ''
+                        <>
+                          {e.valueText ?? e.value ?? ''}
+                          {e.test === 'Calcium' &&
+                            e.value != null &&
+                            albuminByDate.has(e.date) && (
+                              <div className="patient-meta">
+                                Corrected: {correctedCalcium(e.value, albuminByDate.get(e.date)!).toFixed(2)} mg/dL
+                              </div>
+                            )}
+                        </>
                       )}
                     </td>
                     <td>{e.unit}</td>

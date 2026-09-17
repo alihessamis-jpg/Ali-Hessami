@@ -22,3 +22,9 @@ export function maintenanceFluidPerDay(weightKg: number): number {
 export function totalDose(weightKg: number, mgPerKg: number): number {
   return weightKg * mgPerKg
 }
+
+// Payne correction — accounts for calcium bound to albumin, using a normal
+// albumin reference of 4.0 g/dL.
+export function correctedCalcium(measuredCaMgDl: number, albuminGDl: number): number {
+  return measuredCaMgDl + 0.8 * (4.0 - albuminGDl)
+}
