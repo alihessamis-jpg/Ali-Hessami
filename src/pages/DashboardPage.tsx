@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom'
 import { ShamsiCalendarWidget } from '../components/ShamsiCalendarWidget'
 import { toShamsi } from '../lib/shamsi'
 import {
+  listObstructiveUropathyWatches,
   listPatientsByIds,
   listRecentAbnormalLabs,
   type AbnormalLab,
   type PatientGlance,
+  type UropathyWatch,
 } from '../lib/api/dashboard'
+import { POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/formulas'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards } from '../lib/api/flashcards'
@@ -96,6 +99,16 @@ function reminderToAlert(reminder: ActiveReminder, today: string, tomorrow: stri
   return null
 }
 
+function uropathyWatchToAlert(watch: UropathyWatch): AlertItem {
+  return {
+    id: `uropathy-${watch.patientId}-${watch.surgeryDate}`,
+    severity: 'warning',
+    title: `Post-obstructive diuresis watch — ${watch.patientName}`,
+    detail: `Surgery ${toShamsi(watch.surgeryDate)} — watch urine output; switch to replacement fluids if polyuria (>${POLYURIA_THRESHOLD_ML_KG_HR} mL/kg/hr)`,
+    to: `/patients/${watch.patientId}`,
+  }
+}
+
 function labToAlert(lab: AbnormalLab): AlertItem {
   const result = lab.organism ?? lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
   return {
@@ -118,6 +131,7 @@ export function DashboardPage() {
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
+  const [uropathyWatches, setUropathyWatches] = useState<UropathyWatch[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -133,26 +147,44 @@ export function DashboardPage() {
       listKnowledgeGaps(),
       listResearchProjects(),
       listCaseLogEntries(),
+      listObstructiveUropathyWatches(),
     ])
-      .then(async ([labRows, reminderRows, topicRows, progressRows, flashcardRows, gapRows, projectRows, caseLogRows]) => {
-        setLabs(labRows)
-        setReminders(reminderRows)
-        setTopics(topicRows)
-        setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
-        setFlashcards(flashcardRows)
-        setKnowledgeGaps(gapRows)
-        setResearchProjects(projectRows)
-        setCaseLogEntries(caseLogRows)
+      .then(
+        async ([
+          labRows,
+          reminderRows,
+          topicRows,
+          progressRows,
+          flashcardRows,
+          gapRows,
+          projectRows,
+          caseLogRows,
+          watchRows,
+        ]) => {
+          setLabs(labRows)
+          setReminders(reminderRows)
+          setTopics(topicRows)
+          setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
+          setFlashcards(flashcardRows)
+          setKnowledgeGaps(gapRows)
+          setResearchProjects(projectRows)
+          setCaseLogEntries(caseLogRows)
+          setUropathyWatches(watchRows)
 
-        const today = new Date().toISOString().slice(0, 10)
-        const tomorrow = addDays(today, 1)
-        const activeReminders = reminderRows.filter((r) => reminderToAlert(r, today, tomorrow) !== null)
-        const attentionIds = Array.from(
-          new Set([...labRows.map((l) => l.patientId), ...activeReminders.map((r) => r.patientId)])
-        )
-        const patientRows = await listPatientsByIds(attentionIds)
-        setPatients(patientRows)
-      })
+          const today = new Date().toISOString().slice(0, 10)
+          const tomorrow = addDays(today, 1)
+          const activeReminders = reminderRows.filter((r) => reminderToAlert(r, today, tomorrow) !== null)
+          const attentionIds = Array.from(
+            new Set([
+              ...labRows.map((l) => l.patientId),
+              ...activeReminders.map((r) => r.patientId),
+              ...watchRows.map((w) => w.patientId),
+            ])
+          )
+          const patientRows = await listPatientsByIds(attentionIds)
+          setPatients(patientRows)
+        }
+      )
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false))
   }, [session])
@@ -194,8 +226,10 @@ export function DashboardPage() {
     })
   }
 
+  const uropathyAlerts = uropathyWatches.map(uropathyWatchToAlert)
+
   const critical = [...labAlerts, ...reminderAlerts.filter((a) => a.severity === 'critical')]
-  const warning = reminderAlerts.filter((a) => a.severity === 'warning')
+  const warning = [...reminderAlerts.filter((a) => a.severity === 'warning'), ...uropathyAlerts]
   const alerts = [...critical, ...warning, ...studyAlerts]
 
   const openGaps = knowledgeGaps.filter((g) => g.status !== 'resolved')
@@ -210,6 +244,9 @@ export function DashboardPage() {
     if (patientSeverity.get(r.patientId) !== 'critical') {
       patientSeverity.set(r.patientId, alert.severity)
     }
+  }
+  for (const w of uropathyWatches) {
+    if (!patientSeverity.has(w.patientId)) patientSeverity.set(w.patientId, 'warning')
   }
   const sortedPatients = [...patients].sort((a, b) => {
     const rank = { critical: 0, warning: 1 } as const

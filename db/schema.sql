@@ -172,6 +172,22 @@ create table public.patient_documents (
 
 create index patient_documents_patient_id_idx on public.patient_documents (patient_id);
 
+-- Urine output entries, logged per interval (e.g. hourly) so a rate in
+-- mL/kg/hr can be computed against the patient's weight -- used to catch
+-- oliguria and, especially after relieving an obstruction (e.g. post-PUV
+-- surgery), post-obstructive polyuria.
+create table public.urine_output_entries (
+    id              uuid primary key default gen_random_uuid(),
+    patient_id      uuid not null references public.patients (id) on delete cascade,
+    recorded_at     timestamptz not null default now(),
+    volume_ml       numeric not null,
+    duration_hours  numeric not null default 1,
+    notes           text,
+    created_at      timestamptz not null default now()
+);
+
+create index urine_output_entries_patient_id_idx on public.urine_output_entries (patient_id);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -462,6 +478,7 @@ alter table public.progress_notes enable row level security;
 alter table public.medications enable row level security;
 alter table public.imaging_entries enable row level security;
 alter table public.patient_documents enable row level security;
+alter table public.urine_output_entries enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
@@ -513,6 +530,12 @@ create policy patient_documents_owner_access on public.patient_documents
     for all using (exists (
         select 1 from public.patients p
         where p.id = patient_documents.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy urine_output_entries_owner_access on public.urine_output_entries
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = urine_output_entries.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders

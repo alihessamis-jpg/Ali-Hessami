@@ -349,6 +349,17 @@ export interface PatientDocument {
   createdAt: string
 }
 
+export interface UrineOutputEntry {
+  id: string
+  patientId: string
+  recordedAt: string
+  volumeMl: number
+  durationHours: number
+  notes?: string | null
+}
+
+export type UrineOutputEntryDraft = Omit<UrineOutputEntry, 'id'>
+
 export interface ResearchProject {
   id: string
   name: string

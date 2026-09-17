@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 import { isAbnormal } from '../labRange'
 import { isPositiveCulture } from '../labPresets'
+import { hasObstructiveUropathy } from '../clinicalFlags'
 import { schwartzEGFR } from '../formulas'
 import type { MicroDetails } from '../../types/domain'
 
@@ -134,4 +135,43 @@ export async function listPatientsByIds(ids: string[]): Promise<PatientGlance[]>
     .in('id', ids)
   if (patientsError) throw patientsError
   return buildPatientGlances(patientRows as PatientOverviewRow[])
+}
+
+export interface UropathyWatch {
+  patientId: string
+  patientName: string
+  surgeryDate: string
+}
+
+interface SurgeryReminderRow {
+  patient_id: string
+  event_date: string
+  patients: { name: string; diagnosis: string | null; underlying_disease: string | null } | null
+}
+
+// Patients with obstructive uropathy (e.g. PUV) whose obstruction was
+// surgically relieved in the last week — flagged so the fellow watches for
+// post-obstructive polyuria and switches to replacement IV fluids if it
+// develops, regardless of whether the surgery reminder was marked done.
+export async function listObstructiveUropathyWatches(): Promise<UropathyWatch[]> {
+  const today = new Date().toISOString().slice(0, 10)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { data, error } = await supabase
+    .from('patient_reminders')
+    .select('patient_id, event_date, patients(name, diagnosis, underlying_disease)')
+    .eq('type', 'surgery')
+    .gte('event_date', sevenDaysAgo)
+    .lte('event_date', today)
+  if (error) throw error
+
+  return (data as unknown as SurgeryReminderRow[])
+    .filter((row) =>
+      hasObstructiveUropathy({ diagnosis: row.patients?.diagnosis, underlyingDisease: row.patients?.underlying_disease })
+    )
+    .map((row) => ({
+      patientId: row.patient_id,
+      patientName: row.patients?.name ?? 'Unknown',
+      surgeryDate: row.event_date,
+    }))
 }

@@ -61,3 +61,13 @@ export function feNa(urineNaMEqL: number, plasmaCrMgDl: number, plasmaNaMEqL: nu
 export function feUrea(urineUreaMgDl: number, plasmaCrMgDl: number, plasmaUreaMgDl: number, urineCrMgDl: number): number {
   return ((urineUreaMgDl * plasmaCrMgDl) / (plasmaUreaMgDl * urineCrMgDl)) * 100
 }
+
+export const OLIGURIA_THRESHOLD_ML_KG_HR = 0.5
+
+// Threshold commonly used to flag clinically significant post-obstructive
+// diuresis (e.g. after relieving PUV) that may need IV fluid replacement.
+export const POLYURIA_THRESHOLD_ML_KG_HR = 4
+
+export function urineOutputRate(volumeMl: number, durationHours: number, weightKg: number): number {
+  return volumeMl / durationHours / weightKg
+}
