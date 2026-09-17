@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
 import { isAbnormal } from '../../lib/labRange'
-import { COMMON_LAB_TESTS, LAB_CATEGORIES } from '../../lib/labPresets'
+import { COMMON_LAB_TESTS, LAB_CATEGORIES, LAB_CATEGORY_TESTS } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
 import type { LabEntry } from '../../types/domain'
 
 interface Props {
   patientId: string
 }
+
+const CUSTOM_TEST = '__custom__'
 
 const emptyDraft = { date: new Date().toISOString().slice(0, 10), category: '', test: '', value: '', unit: '', ref: '', comment: '' }
 
@@ -16,6 +18,7 @@ export function LabsTab({ patientId }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
+  const [customTest, setCustomTest] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
 
@@ -48,7 +51,8 @@ export function LabsTab({ patientId }: Props) {
         comment: draft.comment || null,
       })
       setEntries((prev) => [entry, ...prev])
-      setDraft({ ...emptyDraft, date: draft.date })
+      setDraft({ ...emptyDraft, date: draft.date, category: draft.category })
+      setCustomTest(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add lab entry')
     } finally {
@@ -78,13 +82,10 @@ export function LabsTab({ patientId }: Props) {
     return entries.filter((e) => e.category === activeCategory)
   }, [entries, activeCategory])
 
+  const testsForCategory = draft.category ? LAB_CATEGORY_TESTS[draft.category] ?? [] : []
+
   return (
     <div>
-      <datalist id="lab-category-options">
-        {LAB_CATEGORIES.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
       <datalist id="lab-test-options">
         {COMMON_LAB_TESTS.map((t) => (
           <option key={t} value={t} />
@@ -92,19 +93,50 @@ export function LabsTab({ patientId }: Props) {
       </datalist>
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
-        <input
-          placeholder="Category"
-          list="lab-category-options"
+        <select
           value={draft.category}
-          onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-        />
-        <input
-          placeholder="Test"
-          list="lab-test-options"
-          value={draft.test}
-          onChange={(e) => setDraft({ ...draft, test: e.target.value })}
-          required
-        />
+          onChange={(e) => {
+            setDraft({ ...draft, category: e.target.value, test: '' })
+            setCustomTest(false)
+          }}
+        >
+          <option value="">All categories</option>
+          {LAB_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        {draft.category && !customTest ? (
+          <select
+            value={draft.test}
+            onChange={(e) => {
+              if (e.target.value === CUSTOM_TEST) {
+                setCustomTest(true)
+                setDraft({ ...draft, test: '' })
+              } else {
+                setDraft({ ...draft, test: e.target.value })
+              }
+            }}
+            required
+          >
+            <option value="">Select test</option>
+            {testsForCategory.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+            <option value={CUSTOM_TEST}>Other (type manually)…</option>
+          </select>
+        ) : (
+          <input
+            placeholder="Test"
+            list="lab-test-options"
+            value={draft.test}
+            onChange={(e) => setDraft({ ...draft, test: e.target.value })}
+            required
+          />
+        )}
         <input placeholder="Value" type="number" step="any" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} />
         <input placeholder="Unit" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
         <input placeholder="Reference range" value={draft.ref} onChange={(e) => setDraft({ ...draft, ref: e.target.value })} />
