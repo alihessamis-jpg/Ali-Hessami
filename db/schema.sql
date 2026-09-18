@@ -291,6 +291,7 @@ create table public.checklist_items (
     id          uuid primary key default gen_random_uuid(),
     template_id uuid not null references public.checklist_templates (id) on delete cascade,
     item_index  integer not null,
+    section     text, -- optional group header (e.g. "Before infusion"); null renders with no header
     label       text not null,
     unique (template_id, item_index)
 );

@@ -11,6 +11,7 @@ interface ItemRow {
   id: string
   template_id: string
   item_index: number
+  section: string | null
   label: string
 }
 
@@ -19,7 +20,7 @@ function templateToDomain(row: TemplateRow): ChecklistTemplate {
 }
 
 function itemToDomain(row: ItemRow): ChecklistItem {
-  return { id: row.id, templateId: row.template_id, itemIndex: row.item_index, label: row.label }
+  return { id: row.id, templateId: row.template_id, itemIndex: row.item_index, section: row.section, label: row.label }
 }
 
 export async function listChecklistTemplates(): Promise<ChecklistTemplate[]> {
@@ -57,10 +58,15 @@ export async function listChecklistItems(templateId: string): Promise<ChecklistI
   return (data as ItemRow[]).map(itemToDomain)
 }
 
-export async function addChecklistItem(templateId: string, label: string, itemIndex: number): Promise<ChecklistItem> {
+export async function addChecklistItem(
+  templateId: string,
+  label: string,
+  itemIndex: number,
+  section: string | null = null
+): Promise<ChecklistItem> {
   const { data, error } = await supabase
     .from('checklist_items')
-    .insert({ template_id: templateId, label, item_index: itemIndex })
+    .insert({ template_id: templateId, label, item_index: itemIndex, section })
     .select()
     .single()
   if (error) throw error

@@ -20,6 +20,7 @@ export function ChecklistsPage() {
   const [completions, setCompletions] = useState<Record<string, boolean>>({})
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newItemLabel, setNewItemLabel] = useState('')
+  const [newItemSection, setNewItemSection] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export function ChecklistsPage() {
     e.preventDefault()
     if (!selectedId || !newItemLabel.trim()) return
     try {
-      const item = await addChecklistItem(selectedId, newItemLabel.trim(), items.length)
+      const item = await addChecklistItem(selectedId, newItemLabel.trim(), items.length, newItemSection.trim() || null)
       setItems((prev) => [...prev, item])
       setNewItemLabel('')
     } catch (err) {
@@ -138,20 +139,33 @@ export function ChecklistsPage() {
                 </button>
               </div>
               <ul className="patient-list">
-                {items.map((item) => (
-                  <li key={item.id}>
-                    <label style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <input
-                        type="checkbox"
-                        checked={completions[item.id] ?? false}
-                        onChange={() => void toggleItem(item.id)}
-                      />
-                      {item.label}
-                    </label>
-                  </li>
-                ))}
+                {items.map((item, i) => {
+                  const showHeader = item.section && item.section !== items[i - 1]?.section
+                  return (
+                    <li key={item.id}>
+                      {showHeader && (
+                        <div className="dash-card-title" style={{ marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}>
+                          {item.section}
+                        </div>
+                      )}
+                      <label style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={completions[item.id] ?? false}
+                          onChange={() => void toggleItem(item.id)}
+                        />
+                        {item.label}
+                      </label>
+                    </li>
+                  )
+                })}
               </ul>
               <form className="inline-form" onSubmit={(e) => void handleAddItem(e)}>
+                <input
+                  placeholder="Section (optional)"
+                  value={newItemSection}
+                  onChange={(e) => setNewItemSection(e.target.value)}
+                />
                 <input
                   placeholder="New item"
                   value={newItemLabel}

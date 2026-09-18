@@ -188,6 +188,7 @@ export interface ChecklistItem {
   id: string
   templateId: string
   itemIndex: number
+  section?: string | null
   label: string
 }
 
