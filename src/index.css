@@ -28,6 +28,27 @@ body {
   color: var(--text);
 }
 
+/* The UI shell is English/LTR, but most clinical content is typed in
+   Persian and often mixes in English words/abbreviations (e.g. "PTH",
+   "mEq/kg"). Without this, the browser resolves bidi runs assuming an
+   LTR paragraph base direction, which scrambles word order the moment
+   a Latin/number run appears inside Persian text. unicode-bidi:
+   plaintext makes each of these elements resolve its own base
+   direction from its first strong character instead, so a
+   Persian-first block reorders correctly and an English-first one is
+   unaffected. */
+p,
+li,
+td,
+th,
+label,
+textarea,
+blockquote,
+input[type='text'],
+input[type='search'] {
+  unicode-bidi: plaintext;
+}
+
 button {
   font: inherit;
   cursor: pointer;
