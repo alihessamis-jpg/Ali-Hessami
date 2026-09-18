@@ -295,6 +295,19 @@ export function AcademyTopicPage() {
         <button onClick={() => void handleReview('easy')}>Easy</button>
       </div>
 
+      {topic.keyPoints.length > 0 && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Key points</h2>
+          </div>
+          <ul className="study-link-list">
+            {topic.keyPoints.map((k, i) => (
+              <li key={i}>{k}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="dash-card">
         <div className="dash-card-header">
           <h2 className="dash-card-title">Study links</h2>
@@ -514,6 +527,13 @@ export function AcademyTopicPage() {
 
       {editing ? (
         <div>
+          <label style={{ display: 'block', marginBottom: 12 }}>
+            Key points (one per line)
+            <textarea
+              value={draft.keyPoints.join('\n')}
+              onChange={(e) => setDraft({ ...draft, keyPoints: e.target.value.split('\n') })}
+            />
+          </label>
           {SECTIONS.map(({ key, label }) => (
             <label key={key} style={{ display: 'block', marginBottom: 12 }}>
               {label}
@@ -523,6 +543,13 @@ export function AcademyTopicPage() {
               />
             </label>
           ))}
+          <label style={{ display: 'block', marginBottom: 12 }}>
+            Case questions (one per line)
+            <textarea
+              value={draft.caseQuestions.join('\n')}
+              onChange={(e) => setDraft({ ...draft, caseQuestions: e.target.value.split('\n') })}
+            />
+          </label>
           <button onClick={() => void handleSave()}>Save topic</button>
         </div>
       ) : (
@@ -532,6 +559,13 @@ export function AcademyTopicPage() {
               <section key={key} style={{ marginBottom: 16 }}>
                 <h3>{label}</h3>
                 <p style={{ whiteSpace: 'pre-wrap' }}>{topic[key] as string}</p>
+                {key === 'caseStem' && topic.caseQuestions.length > 0 && (
+                  <ol>
+                    {topic.caseQuestions.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ol>
+                )}
               </section>
             ) : null
           )}

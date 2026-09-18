@@ -33,19 +33,13 @@ body {
    "mEq/kg"). Without this, the browser resolves bidi runs assuming an
    LTR paragraph base direction, which scrambles word order the moment
    a Latin/number run appears inside Persian text. unicode-bidi:
-   plaintext makes each of these elements resolve its own base
-   direction from its first strong character instead, so a
-   Persian-first block reorders correctly and an English-first one is
-   unaffected. */
-p,
-li,
-td,
-th,
-label,
-textarea,
-blockquote,
-input[type='text'],
-input[type='search'] {
+   plaintext makes every element resolve its own base direction from
+   its first strong character instead, so Persian-first content
+   reorders (and aligns) correctly with embedded English terms, while
+   English-only content is unaffected. Applied universally (not just
+   to p/li/td, etc.) since free text in this app also lands in plain
+   spans, divs, and headings. */
+* {
   unicode-bidi: plaintext;
 }
 
