@@ -11,6 +11,7 @@ import {
   uploadAcademyAttachmentFile,
 } from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
+import { protectNumberRanges } from '../lib/bidiText'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import type {
@@ -302,7 +303,7 @@ export function AcademyTopicPage() {
           </div>
           <ul className="study-link-list">
             {topic.keyPoints.map((k, i) => (
-              <li key={i}>{k}</li>
+              <li key={i}>{protectNumberRanges(k)}</li>
             ))}
           </ul>
         </div>
@@ -558,11 +559,11 @@ export function AcademyTopicPage() {
             topic[key] ? (
               <section key={key} style={{ marginBottom: 16 }}>
                 <h3>{label}</h3>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{topic[key] as string}</p>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{protectNumberRanges(topic[key] as string)}</p>
                 {key === 'caseStem' && topic.caseQuestions.length > 0 && (
                   <ol>
                     {topic.caseQuestions.map((q, i) => (
-                      <li key={i}>{q}</li>
+                      <li key={i}>{protectNumberRanges(q)}</li>
                     ))}
                   </ol>
                 )}

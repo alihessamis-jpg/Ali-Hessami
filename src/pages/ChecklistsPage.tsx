@@ -10,6 +10,7 @@ import {
 } from '../lib/api/checklists'
 import { useAuth } from '../context/AuthContext'
 import { ChecklistIcon } from '../components/icons'
+import { protectNumberRanges } from '../lib/bidiText'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
 
 export function ChecklistsPage() {
@@ -145,7 +146,7 @@ export function ChecklistsPage() {
                     <li key={item.id}>
                       {showHeader && (
                         <div className="dash-card-title" style={{ marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}>
-                          {item.section}
+                          {protectNumberRanges(item.section ?? '')}
                         </div>
                       )}
                       <label style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -154,7 +155,7 @@ export function ChecklistsPage() {
                           checked={completions[item.id] ?? false}
                           onChange={() => void toggleItem(item.id)}
                         />
-                        {item.label}
+                        {protectNumberRanges(item.label)}
                       </label>
                     </li>
                   )
