@@ -15,6 +15,9 @@ import {
 import { toShamsi } from '../../lib/shamsi'
 import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
+import { assessCkdMbd } from '../../lib/ckdMbd'
+import { ageInYears } from '../../lib/growth'
+import { listMedications } from '../../lib/api/medications'
 import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
 
 interface Props {
@@ -60,6 +63,7 @@ export function LabsTab({ patientId, patient }: Props) {
   const [customTest, setCustomTest] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
+  const [activeMedNames, setActiveMedNames] = useState<string[]>([])
 
   useEffect(() => {
     refresh()
@@ -71,6 +75,9 @@ export function LabsTab({ patientId, patient }: Props) {
       .then((rows) => setEntries(rows.slice().reverse()))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load labs'))
       .finally(() => setLoading(false))
+    listMedications(patientId)
+      .then((meds) => setActiveMedNames(meds.filter((m) => m.active).map((m) => m.name.toLowerCase())))
+      .catch(() => undefined)
   }
 
   function updateSusceptibility(index: number, patch: Partial<MicroSusceptibility>) {
@@ -190,6 +197,12 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const nephriticWorkup = useMemo(() => assessNephriticWorkup(entries), [entries])
 
+  const ckdMbd = useMemo(() => {
+    if (!patient.baselineCr && !patient.baselineEGFR) return null
+    const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
+    return assessCkdMbd(entries, ageYears, activeMedNames)
+  }, [entries, patient.baselineCr, patient.baselineEGFR, patient.dob, activeMedNames])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -252,6 +265,32 @@ export function LabsTab({ patientId, patient }: Props) {
                 : 'If complement is normal, or systemic/vasculitic features: check P-ANCA, C-ANCA'}
             </li>
           </ul>
+        </div>
+      )}
+      {ckdMbd && (
+        <div className={`aki-banner ${ckdMbd.flags.length > 0 ? 'aki-banner--warning' : ''}`}>
+          <strong>CKD-MBD: {ckdMbd.flags.length > 0 ? `${ckdMbd.flags.length} item${ckdMbd.flags.length === 1 ? '' : 's'} to address` : 'No action flagged'}</strong>
+          <span className="patient-meta">
+            {[
+              ckdMbd.correctedCa != null ? `Ca ${ckdMbd.correctedCa.toFixed(1)}` : null,
+              ckdMbd.phosphate?.value != null ? `Phos ${ckdMbd.phosphate.value}` : null,
+              ckdMbd.pth?.value != null ? `PTH ${ckdMbd.pth.value}` : null,
+              ckdMbd.vitD?.value != null ? `25-OH Vit D ${ckdMbd.vitD.value}` : null,
+              ckdMbd.alkPhos?.value != null ? `Alk Phos ${ckdMbd.alkPhos.value}` : null,
+              ckdMbd.bicarb?.value != null ? `HCO3 ${ckdMbd.bicarb.value}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          {ckdMbd.flags.length > 0 && (
+            <ul className="study-link-list" style={{ marginTop: 8 }}>
+              {ckdMbd.flags.map((f) => (
+                <li key={f.key} className="value-abnormal">
+                  {f.message}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       <datalist id="lab-test-options">
