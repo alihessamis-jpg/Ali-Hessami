@@ -224,6 +224,26 @@ export interface AcademyTopic {
 
 export type AcademyTopicDraft = Omit<AcademyTopic, 'id'>
 
+export type AcademyAttachmentKind = 'pdf' | 'audio' | 'other'
+
+export interface AcademyAttachment {
+  id: string
+  topicId: string
+  storagePath: string
+  filename?: string | null
+  kind: AcademyAttachmentKind
+  createdAt: string
+}
+
+export type AcademyAttachmentDraft = Omit<AcademyAttachment, 'id' | 'createdAt'>
+
+export interface TopicPatientLink {
+  topicId: string
+  patientId: string
+  linkedAt: string
+  notes?: string | null
+}
+
 export interface ReviewHistoryEntry {
   date: string
   rating: 'easy' | 'moderate' | 'difficult'

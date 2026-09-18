@@ -1,10 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { listAcademyProgress, listAcademyTopics, saveAcademyProgress, updateAcademyTopic } from '../lib/api/academy'
+import { addAcademyAttachment, deleteAcademyAttachment, listAcademyAttachments } from '../lib/api/academyAttachments'
+import { linkTopicPatient, listPatientIdsForTopic, unlinkTopicPatient } from '../lib/api/academyTopicPatients'
+import { listPatients } from '../lib/api/patients'
+import {
+  deleteAcademyAttachmentFile,
+  getAcademyAttachmentSignedUrl,
+  uploadAcademyAttachmentFile,
+} from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
-import type { AcademyProgress, AcademyTopic, StudyLink } from '../types/domain'
+import type { AcademyAttachment, AcademyAttachmentKind, AcademyProgress, AcademyTopic, Patient, StudyLink } from '../types/domain'
+
+function guessAttachmentKind(file: File): AcademyAttachmentKind {
+  if (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|aac)$/i.test(file.name)) return 'audio'
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return 'pdf'
+  return 'other'
+}
+
+function excerpt(text: string | null | undefined, max = 140): string {
+  if (!text) return ''
+  return text.length > max ? `${text.slice(0, max)}…` : text
+}
 
 const SECTIONS: Array<{ key: keyof AcademyTopic; label: string }> = [
   { key: 'summary', label: 'Summary' },
@@ -34,6 +53,17 @@ export function AcademyTopicPage() {
   const [linkLabel, setLinkLabel] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
 
+  const [attachments, setAttachments] = useState<AcademyAttachment[]>([])
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [allPatients, setAllPatients] = useState<Patient[]>([])
+  const [linkedPatientIds, setLinkedPatientIds] = useState<string[]>([])
+  const [patientQuery, setPatientQuery] = useState('')
+  const [selectedPatientId, setSelectedPatientId] = useState('')
+
   useEffect(() => {
     if (!id || !session) return
     Promise.all([listAcademyTopics(), listAcademyProgress(session.user.id)])
@@ -45,6 +75,85 @@ export function AcademyTopicPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load topic'))
   }, [id, session])
+
+  useEffect(() => {
+    if (!id) return
+    listAcademyAttachments(id)
+      .then((rows) => {
+        setAttachments(rows)
+        rows.forEach((a) => {
+          getAcademyAttachmentSignedUrl(a.storagePath)
+            .then((url) => setAttachmentUrls((prev) => ({ ...prev, [a.id]: url })))
+            .catch(() => undefined)
+        })
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load attachments'))
+    Promise.all([listPatients(), listPatientIdsForTopic(id)])
+      .then(([patients, patientIds]) => {
+        setAllPatients(patients)
+        setLinkedPatientIds(patientIds)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load linked patients'))
+  }, [id])
+
+  async function handleAttachmentFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !id || !session) return
+    setUploadingAttachment(true)
+    setError(null)
+    try {
+      for (const file of Array.from(fileList)) {
+        const kind = guessAttachmentKind(file)
+        const path = await uploadAcademyAttachmentFile(session.user.id, id, file)
+        const attachment = await addAcademyAttachment(id, path, file.name, kind)
+        setAttachments((prev) => [attachment, ...prev])
+        getAcademyAttachmentSignedUrl(path)
+          .then((url) => setAttachmentUrls((prev) => ({ ...prev, [attachment.id]: url })))
+          .catch(() => undefined)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload attachment')
+    } finally {
+      setUploadingAttachment(false)
+    }
+  }
+
+  function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setDragOver(false)
+    void handleAttachmentFiles(e.dataTransfer.files)
+  }
+
+  async function handleDeleteAttachment(a: AcademyAttachment) {
+    try {
+      await deleteAcademyAttachment(a.id)
+      await deleteAcademyAttachmentFile(a.storagePath).catch(() => undefined)
+      setAttachments((prev) => prev.filter((x) => x.id !== a.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete attachment')
+    }
+  }
+
+  async function handleLinkPatient() {
+    if (!id || !selectedPatientId) return
+    try {
+      await linkTopicPatient(id, selectedPatientId)
+      setLinkedPatientIds((prev) => [...prev, selectedPatientId])
+      setSelectedPatientId('')
+      setPatientQuery('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to link patient')
+    }
+  }
+
+  async function handleUnlinkPatient(patientId: string) {
+    if (!id) return
+    try {
+      await unlinkTopicPatient(id, patientId)
+      setLinkedPatientIds((prev) => prev.filter((pid) => pid !== patientId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unlink patient')
+    }
+  }
 
   async function handleSave() {
     if (!draft || !id) return
@@ -92,6 +201,11 @@ export function AcademyTopicPage() {
   if (!id) return null
   if (error) return <p className="form-error">{error}</p>
   if (!topic || !draft) return <p>Loading…</p>
+
+  const linkedPatients = allPatients.filter((p) => linkedPatientIds.includes(p.id))
+  const linkablePatients = allPatients.filter(
+    (p) => !linkedPatientIds.includes(p.id) && (patientQuery === '' || p.name.toLowerCase().includes(patientQuery.toLowerCase()))
+  )
 
   return (
     <div>
@@ -178,6 +292,124 @@ export function AcademyTopicPage() {
           <input placeholder="Label (e.g. Claude summary)" value={linkLabel} onChange={(e) => setLinkLabel(e.target.value)} />
           <input placeholder="URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
           <button type="submit">Add link</button>
+        </form>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Attachments</h2>
+        </div>
+        <p className="patient-meta">PDF summaries, NotebookLM-style podcast audio, or your self-made tests.</p>
+        {error && <p className="form-error">{error}</p>}
+        <div
+          className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleAttachmentDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,application/pdf,audio/*,.mp3,.wav,.m4a,.ogg"
+            multiple
+            hidden
+            onChange={(e) => void handleAttachmentFiles(e.target.files)}
+          />
+          <span className="dropzone-icon">↑</span>
+          <strong>{uploadingAttachment ? 'Uploading…' : 'Drop PDFs or audio files here'}</strong>
+          <span className="dropzone-hint">Choose one or more files</span>
+        </div>
+        {attachments.length === 0 ? (
+          <p className="empty-state">No attachments yet.</p>
+        ) : (
+          <ul className="study-link-list">
+            {attachments.map((a) => (
+              <li key={a.id}>
+                <div>
+                  <strong>{a.filename ?? a.kind}</strong>
+                  <span className="patient-meta"> · {a.kind} · {toShamsi(a.createdAt.slice(0, 10))}</span>
+                  {a.kind === 'audio' && attachmentUrls[a.id] && (
+                    <div style={{ marginTop: 6 }}>
+                      <audio controls src={attachmentUrls[a.id]} style={{ width: '100%' }} />
+                    </div>
+                  )}
+                  {a.kind !== 'audio' && attachmentUrls[a.id] && (
+                    <div style={{ marginTop: 4 }}>
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer" className="study-link">
+                        Open {a.kind === 'pdf' ? 'PDF' : 'file'}
+                      </a>
+                    </div>
+                  )}
+                </div>
+                <button className="link-button" onClick={() => void handleDeleteAttachment(a)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Linked patients</h2>
+        </div>
+        <p className="patient-meta">
+          Link real patients you've managed with this diagnosis to review their presentation and course alongside
+          this topic.
+        </p>
+        {linkedPatients.length === 0 ? (
+          <p className="empty-state">No patients linked yet.</p>
+        ) : (
+          <ul className="study-link-list">
+            {linkedPatients.map((p) => (
+              <li key={p.id}>
+                <div>
+                  <Link to={`/patients/${p.id}`} className="study-link">
+                    {p.name}
+                  </Link>
+                  <span className="patient-meta">
+                    {' '}
+                    {[p.diagnosis, p.age != null ? `${p.age}y` : null].filter(Boolean).join(' · ')}
+                  </span>
+                  {(p.chiefComplaint || p.hpi) && (
+                    <p className="patient-meta" style={{ marginTop: 2 }}>
+                      {excerpt(p.chiefComplaint || p.hpi)}
+                    </p>
+                  )}
+                </div>
+                <button className="link-button" onClick={() => void handleUnlinkPatient(p.id)}>
+                  Unlink
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form
+          className="inline-form"
+          style={{ marginTop: 10 }}
+          onSubmit={(e) => {
+            e.preventDefault()
+            void handleLinkPatient()
+          }}
+        >
+          <input placeholder="Search patients…" value={patientQuery} onChange={(e) => setPatientQuery(e.target.value)} />
+          <select value={selectedPatientId} onChange={(e) => setSelectedPatientId(e.target.value)}>
+            <option value="">Select a patient…</option>
+            {linkablePatients.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.diagnosis ? ` — ${p.diagnosis}` : ''}
+              </option>
+            ))}
+          </select>
+          <button type="submit" disabled={!selectedPatientId}>
+            Link
+          </button>
         </form>
       </div>
 

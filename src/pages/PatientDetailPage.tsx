@@ -12,6 +12,7 @@ import { DocumentTab } from '../components/patient/DocumentTab'
 import { UrineOutputTab } from '../components/patient/UrineOutputTab'
 import { NephroticSyndromeTab } from '../components/patient/NephroticSyndromeTab'
 import { GrowthTab } from '../components/patient/GrowthTab'
+import { LinkedTopicsWidget } from '../components/patient/LinkedTopicsWidget'
 import {
   AssessmentIcon,
   DocumentIcon,
@@ -116,6 +117,8 @@ export function PatientDetailPage() {
           </button>
         </div>
       </div>
+
+      <LinkedTopicsWidget patientId={id} />
 
       <nav className="tab-bar">
         {TABS.map((t) => {

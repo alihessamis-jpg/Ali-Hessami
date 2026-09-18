@@ -346,6 +346,32 @@ create table public.academy_progress (
     primary key (user_id, topic_id)
 );
 
+-- Files attached to a study topic (PDF summaries, NotebookLM-style podcast
+-- audio, self-made test PDFs) -- a topic can have any number of these.
+create table public.academy_topic_attachments (
+    id            uuid primary key default gen_random_uuid(),
+    topic_id      uuid not null references public.academy_topics (id) on delete cascade,
+    storage_path  text not null,
+    filename      text,
+    kind          text not null default 'other', -- 'pdf' | 'audio' | 'other'
+    created_at    timestamptz not null default now()
+);
+
+create index academy_topic_attachments_topic_id_idx on public.academy_topic_attachments (topic_id);
+
+-- Manual many-to-many link between a study topic and real patients the
+-- clinician has managed, so a topic's review page can show their actual
+-- presentation/course alongside the summary material.
+create table public.academy_topic_patients (
+    topic_id    uuid not null references public.academy_topics (id) on delete cascade,
+    patient_id  uuid not null references public.patients (id) on delete cascade,
+    linked_at   timestamptz not null default now(),
+    notes       text,
+    primary key (topic_id, patient_id)
+);
+
+create index academy_topic_patients_patient_id_idx on public.academy_topic_patients (patient_id);
+
 create table public.study_notes (
     id          uuid primary key default gen_random_uuid(),
     user_id     uuid not null references auth.users (id) on delete cascade,
@@ -541,6 +567,8 @@ alter table public.checklist_items enable row level security;
 alter table public.checklist_completions enable row level security;
 alter table public.academy_topics enable row level security;
 alter table public.academy_progress enable row level security;
+alter table public.academy_topic_attachments enable row level security;
+alter table public.academy_topic_patients enable row level security;
 alter table public.study_notes enable row level security;
 alter table public.flashcards enable row level security;
 alter table public.reading_items enable row level security;
@@ -634,6 +662,24 @@ create policy academy_topics_owner_access on public.academy_topics
 
 create policy academy_progress_self_access on public.academy_progress
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy academy_topic_attachments_owner_access on public.academy_topic_attachments
+    for all using (exists (
+        select 1 from public.academy_topics t
+        where t.id = academy_topic_attachments.topic_id and t.owner_id = auth.uid()
+    ));
+
+create policy academy_topic_patients_owner_access on public.academy_topic_patients
+    for all using (
+        exists (
+            select 1 from public.academy_topics t
+            where t.id = academy_topic_patients.topic_id and t.owner_id = auth.uid()
+        )
+        and exists (
+            select 1 from public.patients p
+            where p.id = academy_topic_patients.patient_id and p.owner_id = auth.uid()
+        )
+    );
 
 create policy study_notes_self_access on public.study_notes
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
