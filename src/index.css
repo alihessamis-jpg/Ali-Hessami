@@ -34,13 +34,23 @@ body {
    LTR paragraph base direction, which scrambles word order the moment
    a Latin/number run appears inside Persian text. unicode-bidi:
    plaintext makes every element resolve its own base direction from
-   its first strong character instead, so Persian-first content
-   reorders (and aligns) correctly with embedded English terms, while
-   English-only content is unaffected. Applied universally (not just
-   to p/li/td, etc.) since free text in this app also lands in plain
-   spans, divs, and headings. */
+   its first strong character instead, which is only a heuristic: a
+   sentence that happens to start with an English term (e.g.
+   "PTH بالا با ..." starting with "PTH") still gets misdetected as an
+   LTR paragraph, scrambling the Persian clauses inside it. This is a
+   best-effort fallback for content we don't explicitly mark up. */
 * {
   unicode-bidi: plaintext;
+}
+
+/* For content we know is Persian regardless of its first character
+   (Academy topic text, checklist items, etc.), React sets dir="rtl"
+   explicitly instead of relying on the plaintext heuristic above --
+   this rule lets that explicit direction actually take effect, since
+   unicode-bidi: plaintext otherwise ignores the dir attribute/
+   direction property entirely when determining paragraph direction. */
+[dir='rtl'] {
+  unicode-bidi: normal;
 }
 
 button {

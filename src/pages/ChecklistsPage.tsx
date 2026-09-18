@@ -145,7 +145,11 @@ export function ChecklistsPage() {
                   return (
                     <li key={item.id}>
                       {showHeader && (
-                        <div className="dash-card-title" style={{ marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}>
+                        <div
+                          className="dash-card-title"
+                          dir="rtl"
+                          style={{ marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}
+                        >
                           {protectNumberRanges(item.section ?? '')}
                         </div>
                       )}
@@ -155,7 +159,7 @@ export function ChecklistsPage() {
                           checked={completions[item.id] ?? false}
                           onChange={() => void toggleItem(item.id)}
                         />
-                        {protectNumberRanges(item.label)}
+                        <span dir="rtl">{protectNumberRanges(item.label)}</span>
                       </label>
                     </li>
                   )

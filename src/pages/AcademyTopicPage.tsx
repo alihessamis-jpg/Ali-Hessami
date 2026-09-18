@@ -303,7 +303,9 @@ export function AcademyTopicPage() {
           </div>
           <ul className="study-link-list">
             {topic.keyPoints.map((k, i) => (
-              <li key={i}>{protectNumberRanges(k)}</li>
+              <li key={i} dir="rtl">
+                {protectNumberRanges(k)}
+              </li>
             ))}
           </ul>
         </div>
@@ -559,11 +561,15 @@ export function AcademyTopicPage() {
             topic[key] ? (
               <section key={key} style={{ marginBottom: 16 }}>
                 <h3>{label}</h3>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{protectNumberRanges(topic[key] as string)}</p>
+                <p dir="rtl" style={{ whiteSpace: 'pre-wrap' }}>
+                  {protectNumberRanges(topic[key] as string)}
+                </p>
                 {key === 'caseStem' && topic.caseQuestions.length > 0 && (
                   <ol>
                     {topic.caseQuestions.map((q, i) => (
-                      <li key={i}>{protectNumberRanges(q)}</li>
+                      <li key={i} dir="rtl">
+                        {protectNumberRanges(q)}
+                      </li>
                     ))}
                   </ol>
                 )}
