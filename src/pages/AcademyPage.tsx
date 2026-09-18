@@ -125,7 +125,10 @@ export function AcademyPage() {
                   {due && <span className="status-badge status-badge--dialysis">Due for review</span>}
                 </div>
                 <h3 className="topic-card-title">{t.name}</h3>
-                <p className="topic-card-meta">{t.category ?? 'Uncategorized'}</p>
+                <p className="topic-card-meta">
+                  {t.category ?? 'Uncategorized'}
+                  {t.parentTopicId && ` · Sub-topic of ${topics.find((p) => p.id === t.parentTopicId)?.name ?? '…'}`}
+                </p>
                 <p className="topic-card-sections">{sectionSummary(t)}</p>
                 <span className="link-button">Open topic →</span>
               </Link>

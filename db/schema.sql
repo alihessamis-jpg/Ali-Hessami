@@ -317,6 +317,9 @@ create table public.academy_topics (
     id              uuid primary key default gen_random_uuid(),
     owner_id        uuid not null references auth.users (id) on delete cascade,
     category        text,
+    -- Optional parent topic, e.g. "Anemia of CKD" / "CKD-MBD" / "Dialysis"
+    -- nested under a "CKD" parent topic. Null for a top-level topic.
+    parent_topic_id uuid references public.academy_topics (id) on delete set null,
     name            text not null,
     summary         text,
     key_points      jsonb not null default '[]'::jsonb,
@@ -334,6 +337,8 @@ create table public.academy_topics (
     case_questions  jsonb not null default '[]'::jsonb,
     case_discussion text
 );
+
+create index academy_topics_parent_topic_id_idx on public.academy_topics (parent_topic_id);
 
 -- Per-user SRS state for an academy topic (split out per the handoff brief).
 create table public.academy_progress (

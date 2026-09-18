@@ -55,6 +55,7 @@ export function AcademyTopicPage() {
   const { id } = useParams<{ id: string }>()
   const { session } = useAuth()
   const [topic, setTopic] = useState<AcademyTopic | null>(null)
+  const [allTopics, setAllTopics] = useState<AcademyTopic[]>([])
   const [progress, setProgress] = useState<AcademyProgress>(emptyProgress)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<AcademyTopic | null>(null)
@@ -79,6 +80,7 @@ export function AcademyTopicPage() {
     if (!id || !session) return
     Promise.all([listAcademyTopics(), listAcademyProgress(session.user.id)])
       .then(([topics, progressRows]) => {
+        setAllTopics(topics)
         const found = topics.find((t) => t.id === id) ?? null
         setTopic(found)
         setDraft(found)
@@ -212,6 +214,18 @@ export function AcademyTopicPage() {
     void persistLinks(topic.studyLinks.filter((_, i) => i !== index))
   }
 
+  async function handleParentChange(parentTopicId: string) {
+    if (!id) return
+    try {
+      const updated = await updateAcademyTopic(id, { parentTopicId: parentTopicId || null })
+      setTopic(updated)
+      setDraft((d) => (d ? { ...d, parentTopicId: updated.parentTopicId } : d))
+      setAllTopics((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update parent topic')
+    }
+  }
+
   if (!id) return null
   if (error) return <p className="form-error">{error}</p>
   if (!topic || !draft) return <p>Loading…</p>
@@ -221,6 +235,10 @@ export function AcademyTopicPage() {
     (p) => !linkedPatientIds.includes(p.id) && (patientQuery === '' || p.name.toLowerCase().includes(patientQuery.toLowerCase()))
   )
 
+  const parentTopic = allTopics.find((t) => t.id === topic.parentTopicId) ?? null
+  const subTopics = allTopics.filter((t) => t.parentTopicId === id)
+  const parentOptions = allTopics.filter((t) => t.id !== id && t.parentTopicId !== id)
+
   return (
     <div>
       <div className="page-header">
@@ -228,9 +246,32 @@ export function AcademyTopicPage() {
           <Link to="/academy" className="back-link">
             ← Academy
           </Link>
+          {parentTopic && (
+            <div>
+              <Link to={`/academy/${parentTopic.id}`} className="patient-meta">
+                {parentTopic.name}
+              </Link>
+              <span className="patient-meta"> / </span>
+            </div>
+          )}
           <h1>{topic.name}</h1>
         </div>
         <button onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit'}</button>
+      </div>
+
+      <div className="form-actions" style={{ marginBottom: 20, alignItems: 'center' }}>
+        <label className="patient-meta" htmlFor="parent-topic-select">
+          Parent topic
+        </label>
+        <select id="parent-topic-select" value={topic.parentTopicId ?? ''} onChange={(e) => void handleParentChange(e.target.value)}>
+          <option value="">None (top-level topic)</option>
+          {parentOptions.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.category ? `${t.category} — ` : ''}
+              {t.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="calc-strip">
@@ -426,6 +467,23 @@ export function AcademyTopicPage() {
           </button>
         </form>
       </div>
+
+      {subTopics.length > 0 && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Sub-topics</h2>
+          </div>
+          <ul className="study-link-list">
+            {subTopics.map((t) => (
+              <li key={t.id}>
+                <Link to={`/academy/${t.id}`} className="study-link">
+                  {t.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {linkedReadingItems.length > 0 && (
         <div className="dash-card">

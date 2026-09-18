@@ -204,6 +204,7 @@ export interface StudyLink {
 export interface AcademyTopic {
   id: string
   category?: string | null
+  parentTopicId?: string | null
   name: string
   summary?: string | null
   keyPoints: string[]

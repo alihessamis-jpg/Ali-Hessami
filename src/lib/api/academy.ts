@@ -4,6 +4,7 @@ import type { AcademyProgress, AcademyTopic, AcademyTopicDraft, SrsState, StudyL
 interface TopicRow {
   id: string
   category: string | null
+  parent_topic_id: string | null
   name: string
   summary: string | null
   key_points: string[]
@@ -34,6 +35,7 @@ function topicToDomain(row: TopicRow): AcademyTopic {
   return {
     id: row.id,
     category: row.category,
+    parentTopicId: row.parent_topic_id,
     name: row.name,
     summary: row.summary,
     keyPoints: row.key_points ?? [],
@@ -56,6 +58,7 @@ function topicToDomain(row: TopicRow): AcademyTopic {
 function topicToRow(draft: Partial<AcademyTopic>) {
   return {
     category: draft.category,
+    parent_topic_id: draft.parentTopicId,
     name: draft.name,
     summary: draft.summary,
     key_points: draft.keyPoints,
