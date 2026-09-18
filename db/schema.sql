@@ -409,8 +409,13 @@ create table public.reading_items (
     review_14d_done  boolean not null default false,
     review_30d_done  boolean not null default false,
     review_90d_done  boolean not null default false,
+    -- Optional link to an Academy topic, so a reading item's linked patients
+    -- (via academy_topic_patients) surface without a second linking system.
+    topic_id         uuid references public.academy_topics (id) on delete set null,
     created_at       timestamptz not null default now()
 );
+
+create index reading_items_topic_id_idx on public.reading_items (topic_id);
 
 create table public.reasoning_cases (
     id          uuid primary key default gen_random_uuid(),

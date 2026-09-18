@@ -11,6 +11,7 @@ interface ReadingItemRow {
   review_14d_done: boolean
   review_30d_done: boolean
   review_90d_done: boolean
+  topic_id: string | null
 }
 
 const CHECKPOINT_COLUMNS: Record<ReviewCheckpointKey, string> = {
@@ -32,6 +33,7 @@ function toDomain(row: ReadingItemRow): ReadingItem {
     review14dDone: row.review_14d_done,
     review30dDone: row.review_30d_done,
     review90dDone: row.review_90d_done,
+    topicId: row.topic_id,
   }
 }
 
@@ -53,7 +55,19 @@ export async function addReadingItem(draft: ReadingItemDraft): Promise<ReadingIt
       title: draft.title,
       source: draft.source,
       date_read: draft.dateRead,
+      topic_id: draft.topicId ?? null,
     })
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ReadingItemRow)
+}
+
+export async function setReadingItemTopic(id: string, topicId: string | null): Promise<ReadingItem> {
+  const { data, error } = await supabase
+    .from('reading_items')
+    .update({ topic_id: topicId })
+    .eq('id', id)
     .select()
     .single()
   if (error) throw error

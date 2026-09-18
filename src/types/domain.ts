@@ -416,6 +416,7 @@ export interface ReadingItem {
   review14dDone: boolean
   review30dDone: boolean
   review90dDone: boolean
+  topicId?: string | null
 }
 
 export type ReadingItemDraft = Omit<ReadingItem, 'id'>

@@ -4,6 +4,7 @@ import { listAcademyProgress, listAcademyTopics, saveAcademyProgress, updateAcad
 import { addAcademyAttachment, deleteAcademyAttachment, listAcademyAttachments } from '../lib/api/academyAttachments'
 import { linkTopicPatient, listPatientIdsForTopic, unlinkTopicPatient } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
+import { listReadingItems } from '../lib/api/readingItems'
 import {
   deleteAcademyAttachmentFile,
   getAcademyAttachmentSignedUrl,
@@ -12,7 +13,15 @@ import {
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
-import type { AcademyAttachment, AcademyAttachmentKind, AcademyProgress, AcademyTopic, Patient, StudyLink } from '../types/domain'
+import type {
+  AcademyAttachment,
+  AcademyAttachmentKind,
+  AcademyProgress,
+  AcademyTopic,
+  Patient,
+  ReadingItem,
+  StudyLink,
+} from '../types/domain'
 
 function guessAttachmentKind(file: File): AcademyAttachmentKind {
   if (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|aac)$/i.test(file.name)) return 'audio'
@@ -64,6 +73,8 @@ export function AcademyTopicPage() {
   const [patientQuery, setPatientQuery] = useState('')
   const [selectedPatientId, setSelectedPatientId] = useState('')
 
+  const [linkedReadingItems, setLinkedReadingItems] = useState<ReadingItem[]>([])
+
   useEffect(() => {
     if (!id || !session) return
     Promise.all([listAcademyTopics(), listAcademyProgress(session.user.id)])
@@ -94,6 +105,9 @@ export function AcademyTopicPage() {
         setLinkedPatientIds(patientIds)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load linked patients'))
+    listReadingItems()
+      .then((rows) => setLinkedReadingItems(rows.filter((r) => r.topicId === id)))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load related reading'))
   }, [id])
 
   async function handleAttachmentFiles(fileList: FileList | null) {
@@ -412,6 +426,33 @@ export function AcademyTopicPage() {
           </button>
         </form>
       </div>
+
+      {linkedReadingItems.length > 0 && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Related reading</h2>
+          </div>
+          <p className="patient-meta">Linked from Reading Reviews in the Study Hub — reviews stay tracked there.</p>
+          <ul className="study-link-list">
+            {linkedReadingItems.map((r) => {
+              const doneCount = [r.review3dDone, r.review7dDone, r.review14dDone, r.review30dDone, r.review90dDone].filter(
+                Boolean
+              ).length
+              return (
+                <li key={r.id}>
+                  <div>
+                    <strong>{r.title}</strong>
+                    <span className="patient-meta">
+                      {' '}
+                      {[r.source, `Read ${toShamsi(r.dateRead)}`, `${doneCount}/5 reviews done`].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {editing ? (
         <div>
