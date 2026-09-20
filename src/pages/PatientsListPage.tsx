@@ -37,7 +37,7 @@ export function PatientsListPage() {
     if (!name.trim()) return
     setCreating(true)
     try {
-      const patient = await createPatient({ name: name.trim() })
+      const patient = await createPatient({ name: name.trim(), careStatus: ward })
       setShowNewForm(false)
       setName('')
       navigate(`/patients/${patient.id}`)
@@ -81,17 +81,22 @@ export function PatientsListPage() {
       </div>
 
       {showNewForm && (
-        <form className="inline-form" onSubmit={(e) => void handleCreate(e)}>
-          <input
-            placeholder="Patient name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-          <button type="submit" disabled={creating}>
-            Add
-          </button>
-        </form>
+        <>
+          <p className="patient-meta">
+            Will be added to: {WARDS.find((w) => w.id === ward)?.label}
+          </p>
+          <form className="inline-form" onSubmit={(e) => void handleCreate(e)}>
+            <input
+              placeholder="Patient name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+            />
+            <button type="submit" disabled={creating}>
+              Add
+            </button>
+          </form>
+        </>
       )}
 
       <nav className="tab-bar">
