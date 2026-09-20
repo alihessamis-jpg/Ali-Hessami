@@ -33,6 +33,13 @@ create table public.patients (
     doa                 date,
     bed                 text,
 
+    -- care_status separates the "Inpatient" and "Discharged" patient lists
+    -- shown on the Patients page -- new patients start as inpatient, and
+    -- discharging one just flips this flag rather than moving/archiving the
+    -- record.
+    care_status         text not null default 'inpatient'
+                          check (care_status in ('inpatient', 'discharged')),
+
     -- diagnosis / status
     diagnosis           text,
     underlying_disease  text,

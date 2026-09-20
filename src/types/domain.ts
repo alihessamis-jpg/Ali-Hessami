@@ -2,6 +2,8 @@
 // so existing formulas/logic (e.g. scheduleReview, schwartzEGFR) can be
 // reused as-is against these types.
 
+export type PatientCareStatus = 'inpatient' | 'discharged'
+
 export interface Patient {
   id: string
   name: string
@@ -11,6 +13,7 @@ export interface Patient {
   dob?: string | null
   doa?: string | null
   bed?: string | null
+  careStatus: PatientCareStatus
   diagnosis?: string | null
   underlyingDisease?: string | null
   height?: number | null
@@ -56,7 +59,7 @@ export interface Patient {
   exHydration?: string | null
 }
 
-export type PatientDraft = Omit<Patient, 'id'>
+export type PatientDraft = Omit<Patient, 'id' | 'careStatus'> & { careStatus?: PatientCareStatus }
 
 export interface MicroSusceptibility {
   antibiotic: string

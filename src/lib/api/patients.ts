@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { Patient, PatientDraft } from '../../types/domain'
+import type { Patient, PatientCareStatus, PatientDraft } from '../../types/domain'
 
 interface PatientRow {
   id: string
@@ -10,6 +10,7 @@ interface PatientRow {
   dob: string | null
   doa: string | null
   bed: string | null
+  care_status: PatientCareStatus
   diagnosis: string | null
   underlying_disease: string | null
   height: number | null
@@ -59,6 +60,7 @@ function toDomain(row: PatientRow): Patient {
     dob: row.dob,
     doa: row.doa,
     bed: row.bed,
+    careStatus: row.care_status,
     diagnosis: row.diagnosis,
     underlyingDisease: row.underlying_disease,
     height: row.height,
@@ -108,6 +110,7 @@ function toRow(patient: Partial<Patient>): Partial<Omit<PatientRow, 'id'>> {
     dob: patient.dob,
     doa: patient.doa,
     bed: patient.bed,
+    care_status: patient.careStatus,
     diagnosis: patient.diagnosis,
     underlying_disease: patient.underlyingDisease,
     height: patient.height,
