@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPatient } from '../lib/api/patients'
+import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
 import { LabsTab } from '../components/patient/LabsTab'
 import { TrendsTab } from '../components/patient/TrendsTab'
@@ -30,6 +31,7 @@ import type { Patient } from '../types/domain'
 import type { ComponentType, SVGProps } from 'react'
 
 type Tab =
+  | 'overview'
   | 'assessment'
   | 'labs'
   | 'trends'
@@ -43,6 +45,7 @@ type Tab =
   | 'growth'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
+  { id: 'overview', label: 'Overview', icon: KidneyIcon },
   { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
   { id: 'labs', label: 'Labs', icon: LabsIcon },
   { id: 'growth', label: 'Growth & BP', icon: GrowthIcon },
@@ -61,7 +64,7 @@ export function PatientDetailPage() {
   const [patient, setPatient] = useState<Patient | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('assessment')
+  const [tab, setTab] = useState<Tab>('overview')
 
   useEffect(() => {
     if (!id) return
@@ -137,6 +140,7 @@ export function PatientDetailPage() {
       </nav>
 
       <div className="tab-panel">
+        {tab === 'overview' && <OverviewTab patientId={id} patient={patient} />}
         {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
         {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
         {tab === 'growth' && <GrowthTab patientId={id} patient={patient} />}
