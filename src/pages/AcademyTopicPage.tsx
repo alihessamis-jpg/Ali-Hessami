@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { listAcademyProgress, listAcademyTopics, saveAcademyProgress, updateAcademyTopic } from '../lib/api/academy'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  deleteAcademyTopic,
+  listAcademyProgress,
+  listAcademyTopics,
+  saveAcademyProgress,
+  updateAcademyTopic,
+} from '../lib/api/academy'
 import { addAcademyAttachment, deleteAcademyAttachment, listAcademyAttachments } from '../lib/api/academyAttachments'
 import { linkTopicPatient, listPatientIdsForTopic, unlinkTopicPatient } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
@@ -54,6 +60,7 @@ const emptyProgress: AcademyProgress = { topicId: '', intervalIndex: -1, lastRev
 
 export function AcademyTopicPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [topic, setTopic] = useState<AcademyTopic | null>(null)
   const [allTopics, setAllTopics] = useState<AcademyTopic[]>([])
@@ -183,6 +190,17 @@ export function AcademyTopicPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!id || !topic) return
+    if (!window.confirm(`Delete "${topic.name}"? This cannot be undone.`)) return
+    try {
+      await deleteAcademyTopic(id)
+      navigate('/academy')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete topic')
+    }
+  }
+
   async function handleReview(rating: 'easy' | 'moderate' | 'difficult') {
     if (!id || !session) return
     const next = scheduleReview(progress, rating)
@@ -257,7 +275,12 @@ export function AcademyTopicPage() {
           )}
           <h1>{topic.name}</h1>
         </div>
-        <button onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit'}</button>
+        <div className="form-actions">
+          <button onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit'}</button>
+          <button className="link-button" onClick={() => void handleDelete()}>
+            Delete topic
+          </button>
+        </div>
       </div>
 
       <div className="form-actions" style={{ marginBottom: 20, alignItems: 'center' }}>
