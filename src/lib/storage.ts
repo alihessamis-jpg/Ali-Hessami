@@ -59,3 +59,25 @@ export async function deleteAcademyAttachmentFile(path: string): Promise<void> {
   const { error } = await supabase.storage.from(IMAGING_BUCKET).remove([path])
   if (error) throw error
 }
+
+// Same bucket again, under a reference-attachments path segment (photos/PDFs
+// of dosing tables and other reference material kept alongside the Drug/
+// Dialysis reference lists).
+export async function uploadReferenceAttachmentFile(userId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${userId}/reference-attachments/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+  const { error } = await supabase.storage.from(IMAGING_BUCKET).upload(path, file)
+  if (error) throw error
+  return path
+}
+
+export async function getReferenceAttachmentSignedUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(IMAGING_BUCKET).createSignedUrl(path, 60 * 60)
+  if (error) throw error
+  return data.signedUrl
+}
+
+export async function deleteReferenceAttachmentFile(path: string): Promise<void> {
+  const { error } = await supabase.storage.from(IMAGING_BUCKET).remove([path])
+  if (error) throw error
+}

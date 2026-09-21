@@ -1,12 +1,27 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import {
   addDialysisReference,
   deleteDialysisReference,
   listDialysisReference,
 } from '../lib/api/dialysisReference'
 import { addDrugReference, deleteDrugReference, listDrugReference } from '../lib/api/drugReference'
+import {
+  addReferenceAttachment,
+  deleteReferenceAttachment,
+  listReferenceAttachments,
+} from '../lib/api/referenceAttachments'
+import {
+  deleteReferenceAttachmentFile,
+  getReferenceAttachmentSignedUrl,
+  uploadReferenceAttachmentFile,
+} from '../lib/storage'
+import { useAuth } from '../context/AuthContext'
 import { ReferenceIcon } from '../components/icons'
-import type { DialysisRefEntry, DrugRefEntry } from '../types/domain'
+import type { DialysisRefEntry, DrugRefEntry, ReferenceAttachment } from '../types/domain'
+
+function isImagePath(path: string): boolean {
+  return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
+}
 
 type Tab = 'drug' | 'dialysis'
 
@@ -33,6 +48,7 @@ const emptyDialysisDraft = {
 }
 
 export function ReferencePage() {
+  const { session } = useAuth()
   const [tab, setTab] = useState<Tab>('drug')
   const [search, setSearch] = useState('')
 
@@ -44,6 +60,12 @@ export function ReferencePage() {
   const [dialysisDraft, setDialysisDraft] = useState(emptyDialysisDraft)
   const [showForm, setShowForm] = useState(false)
 
+  const [attachments, setAttachments] = useState<Record<Tab, ReferenceAttachment[]>>({ drug: [], dialysis: [] })
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     setLoading(true)
     Promise.all([listDrugReference(), listDialysisReference()])
@@ -54,6 +76,55 @@ export function ReferencePage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load reference data'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    listReferenceAttachments(tab)
+      .then((rows) => {
+        setAttachments((prev) => ({ ...prev, [tab]: rows }))
+        rows.forEach((a) => {
+          getReferenceAttachmentSignedUrl(a.storagePath)
+            .then((url) => setAttachmentUrls((prev) => ({ ...prev, [a.id]: url })))
+            .catch(() => undefined)
+        })
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load attachments'))
+  }, [tab])
+
+  async function handleAttachmentFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !session) return
+    setUploadingAttachment(true)
+    setError(null)
+    try {
+      for (const file of Array.from(fileList)) {
+        const path = await uploadReferenceAttachmentFile(session.user.id, file)
+        const attachment = await addReferenceAttachment(tab, path, file.name)
+        setAttachments((prev) => ({ ...prev, [tab]: [attachment, ...prev[tab]] }))
+        getReferenceAttachmentSignedUrl(path)
+          .then((url) => setAttachmentUrls((prev) => ({ ...prev, [attachment.id]: url })))
+          .catch(() => undefined)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload attachment')
+    } finally {
+      setUploadingAttachment(false)
+    }
+  }
+
+  function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setDragOver(false)
+    void handleAttachmentFiles(e.dataTransfer.files)
+  }
+
+  async function handleDeleteAttachment(a: ReferenceAttachment) {
+    try {
+      await deleteReferenceAttachment(a.id)
+      await deleteReferenceAttachmentFile(a.storagePath).catch(() => undefined)
+      setAttachments((prev) => ({ ...prev, [tab]: prev[tab].filter((x) => x.id !== a.id) }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete attachment')
+    }
+  }
 
   async function handleAddDrug(e: FormEvent) {
     e.preventDefault()
@@ -135,6 +206,70 @@ export function ReferencePage() {
         onChange={(e) => setSearch(e.target.value)}
         style={{ marginBottom: 16, width: '100%', maxWidth: 320 }}
       />
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Attachments</h2>
+        </div>
+        <p className="patient-meta">
+          Photos or PDFs of tables, protocols, or other reference material for{' '}
+          {tab === 'drug' ? 'drug dosing' : 'dialysis medications'}.
+        </p>
+        {error && <p className="form-error">{error}</p>}
+        <div
+          className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleAttachmentDrop}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,application/pdf"
+            multiple
+            hidden
+            onChange={(e) => void handleAttachmentFiles(e.target.files)}
+          />
+          <span className="dropzone-icon">↑</span>
+          <strong>{uploadingAttachment ? 'Uploading…' : 'Drop images or PDFs here'}</strong>
+          <span className="dropzone-hint">Choose one or more files</span>
+        </div>
+        {attachments[tab].length === 0 ? (
+          <p className="empty-state">No attachments yet.</p>
+        ) : (
+          <ul className="document-grid">
+            {attachments[tab].map((a) => (
+              <li key={a.id} className="document-card">
+                <div className="document-card-preview">
+                  {attachmentUrls[a.id] ? (
+                    isImagePath(a.storagePath) ? (
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} />
+                      </a>
+                    ) : (
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer" className="document-card-pdf">
+                        Open PDF
+                      </a>
+                    )
+                  ) : (
+                    <span className="empty-state">Loading…</span>
+                  )}
+                </div>
+                <div className="document-card-meta">
+                  <span className="patient-meta">{a.filename ?? 'Attachment'}</span>
+                  <button className="link-button" onClick={() => void handleDeleteAttachment(a)}>
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {showForm && tab === 'drug' && (
         <form className="soap-form" onSubmit={(e) => void handleAddDrug(e)}>

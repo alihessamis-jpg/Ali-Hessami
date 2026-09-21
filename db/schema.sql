@@ -273,6 +273,20 @@ create table public.drug_reference (
     notes           text
 );
 
+-- Images/PDFs of reference material (e.g. a dosing table photographed from a
+-- textbook) the clinician wants to keep alongside the Drug/Dialysis
+-- reference lists -- not tied to a single medication row.
+create table public.reference_attachments (
+    id            uuid primary key default gen_random_uuid(),
+    owner_id      uuid not null references auth.users (id) on delete cascade,
+    category      text not null, -- 'drug' | 'dialysis'
+    storage_path  text not null,
+    filename      text,
+    created_at    timestamptz not null default now()
+);
+
+create index reference_attachments_owner_category_idx on public.reference_attachments (owner_id, category);
+
 create table public.dialysis_reference (
     id              uuid primary key default gen_random_uuid(),
     owner_id        uuid not null references auth.users (id) on delete cascade,
@@ -580,6 +594,7 @@ alter table public.growth_entries enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
+alter table public.reference_attachments enable row level security;
 alter table public.checklist_templates enable row level security;
 alter table public.checklist_items enable row level security;
 alter table public.checklist_completions enable row level security;
@@ -661,6 +676,9 @@ create policy drug_reference_owner_access on public.drug_reference
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy dialysis_reference_owner_access on public.dialysis_reference
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy reference_attachments_owner_access on public.reference_attachments
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy checklist_templates_owner_access on public.checklist_templates

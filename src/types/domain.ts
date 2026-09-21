@@ -179,6 +179,16 @@ export interface DialysisRefEntry {
 
 export type DialysisRefEntryDraft = Omit<DialysisRefEntry, 'id'>
 
+export type ReferenceAttachmentCategory = 'drug' | 'dialysis'
+
+export interface ReferenceAttachment {
+  id: string
+  category: ReferenceAttachmentCategory
+  storagePath: string
+  filename?: string | null
+  createdAt: string
+}
+
 export interface ChecklistTemplate {
   id: string
   name: string
