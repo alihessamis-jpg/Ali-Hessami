@@ -17,6 +17,7 @@ import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
+import { assessCkdScreening } from '../../lib/ckdScreening'
 import { ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
@@ -227,6 +228,11 @@ export function LabsTab({ patientId, patient }: Props) {
     return assessAcidBase(entries, settings.acidosisPhThreshold, settings.acidosisHco3Threshold)
   }, [entries, renalFailure, settings.acidosisPhThreshold, settings.acidosisHco3Threshold])
 
+  const ckdScreening = useMemo(() => {
+    if (!renalFailure) return null
+    return assessCkdScreening(entries)
+  }, [entries, renalFailure])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -344,6 +350,24 @@ export function LabsTab({ patientId, patient }: Props) {
               ))}
             </ul>
           )}
+        </div>
+      )}
+      {ckdScreening && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">CKD periodic screening</h2>
+          </div>
+          <p className="patient-meta">Required labs for a CKD patient — order any not yet checked.</p>
+          <ul className="study-link-list">
+            <li className={ckdScreening.anemiaMissing.length > 0 ? 'value-abnormal' : undefined}>
+              Anemia workup (Ferritin, Serum Iron, TIBC):{' '}
+              {ckdScreening.anemiaMissing.length > 0 ? `missing ${ckdScreening.anemiaMissing.join(', ')}` : 'complete'}
+            </li>
+            <li className={ckdScreening.mbdMissing.length > 0 ? 'value-abnormal' : undefined}>
+              CKD-MBD workup (PTH, Alkaline Phosphatase, Vitamin D, Calcium, Phosphorus, Albumin):{' '}
+              {ckdScreening.mbdMissing.length > 0 ? `missing ${ckdScreening.mbdMissing.join(', ')}` : 'complete'}
+            </li>
+          </ul>
         </div>
       )}
       <datalist id="lab-test-options">
