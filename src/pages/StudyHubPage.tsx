@@ -7,6 +7,7 @@ import { ImagingChallengesPanel } from '../components/study/ImagingChallengesPan
 import { KnowledgeGapsPanel } from '../components/study/KnowledgeGapsPanel'
 import { PersonalCasesPanel } from '../components/study/PersonalCasesPanel'
 import { ReadingReviewPanel } from '../components/study/ReadingReviewPanel'
+import { BoardQuestionsPanel } from '../components/study/BoardQuestionsPanel'
 import {
   CalendarIcon,
   FlashcardsIcon,
@@ -15,11 +16,21 @@ import {
   LabsIcon,
   NotesIcon,
   PersonalCaseIcon,
+  QuizIcon,
   ReasoningIcon,
   StudyHubIcon,
 } from '../components/icons'
 
-type Tab = 'notes' | 'flashcards' | 'reasoning' | 'labChallenges' | 'imagingChallenges' | 'gaps' | 'cases' | 'reading'
+type Tab =
+  | 'notes'
+  | 'flashcards'
+  | 'reasoning'
+  | 'labChallenges'
+  | 'imagingChallenges'
+  | 'boardQuestions'
+  | 'gaps'
+  | 'cases'
+  | 'reading'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'notes', label: 'Study Notes', icon: NotesIcon },
@@ -27,6 +38,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'reasoning', label: 'Reasoning Cases', icon: ReasoningIcon },
   { id: 'labChallenges', label: 'Lab Challenges', icon: LabsIcon },
   { id: 'imagingChallenges', label: 'Imaging Challenges', icon: ImagingIcon },
+  { id: 'boardQuestions', label: 'Board Questions', icon: QuizIcon },
   { id: 'gaps', label: 'Knowledge Gaps', icon: KnowledgeGapIcon },
   { id: 'cases', label: 'Personal Cases', icon: PersonalCaseIcon },
   { id: 'reading', label: 'Reading Reviews', icon: CalendarIcon },
@@ -60,6 +72,7 @@ export function StudyHubPage() {
         {tab === 'reasoning' && <ReasoningCasesPanel />}
         {tab === 'labChallenges' && <LabChallengesPanel />}
         {tab === 'imagingChallenges' && <ImagingChallengesPanel />}
+        {tab === 'boardQuestions' && <BoardQuestionsPanel />}
         {tab === 'gaps' && <KnowledgeGapsPanel />}
         {tab === 'cases' && <PersonalCasesPanel />}
         {tab === 'reading' && <ReadingReviewPanel />}

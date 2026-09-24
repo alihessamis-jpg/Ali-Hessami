@@ -360,6 +360,26 @@ export interface KnowledgeGap {
 
 export type KnowledgeGapDraft = Omit<KnowledgeGap, 'id'>
 
+export interface BoardQuestion {
+  id: string
+  topic: string
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation?: string | null
+  createdAt: string
+}
+export type BoardQuestionDraft = Omit<BoardQuestion, 'id' | 'createdAt'>
+
+export interface BoardQuestionAttempt {
+  id: string
+  questionId: string
+  selectedIndex: number
+  isCorrect: boolean
+  attemptedAt: string
+}
+export type BoardQuestionAttemptDraft = Omit<BoardQuestionAttempt, 'id' | 'attemptedAt'>
+
 export interface PersonalCase {
   id: string
   sourcePatientId?: string | null

@@ -303,6 +303,16 @@ export function DialysisIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function QuizIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.3a2.5 2.5 0 013.4-2.3c1 .4 1.6 1.5 1.3 2.6-.3 1-1.3 1.4-1.9 2.1-.4.4-.3 1-.3 1.4" />
+      <path d="M12 16.3h.01" />
+    </Icon>
+  )
+}
+
 export function VaccineIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

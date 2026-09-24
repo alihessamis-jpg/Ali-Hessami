@@ -1164,6 +1164,41 @@ legend {
   font-weight: 700;
 }
 
+.value-correct {
+  color: #1a8a4a;
+  font-weight: 700;
+}
+
+.quiz-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.quiz-option:hover {
+  background: var(--surface-tint);
+}
+
+.quiz-option.selected {
+  border-color: var(--accent);
+}
+
+.quiz-option.correct {
+  border-color: #1a8a4a;
+  background: #e7f6ec;
+}
+
+.quiz-option.incorrect {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
 /* ---- Patient detail: header card ---- */
 
 .patient-header-card {

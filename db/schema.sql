@@ -567,6 +567,31 @@ create table public.imaging_challenges (
     storage_path text
 );
 
+-- Board-exam-style question bank: user-authored MCQs, organized by topic,
+-- with a separate attempt log (board_question_attempts) so practice sessions
+-- build a scored history over time instead of just pass/fail per question.
+create table public.board_questions (
+    id             uuid primary key default gen_random_uuid(),
+    owner_id       uuid not null references auth.users (id) on delete cascade,
+    topic          text not null,
+    question       text not null,
+    options        jsonb not null default '[]'::jsonb,
+    correct_index  integer not null,
+    explanation    text,
+    created_at     timestamptz not null default now()
+);
+create index board_questions_owner_id_idx on public.board_questions (owner_id, topic);
+
+create table public.board_question_attempts (
+    id              uuid primary key default gen_random_uuid(),
+    question_id     uuid not null references public.board_questions (id) on delete cascade,
+    owner_id        uuid not null references auth.users (id) on delete cascade,
+    selected_index  integer not null,
+    is_correct      boolean not null,
+    attempted_at    timestamptz not null default now()
+);
+create index board_question_attempts_owner_id_idx on public.board_question_attempts (owner_id, attempted_at);
+
 create table public.knowledge_gaps (
     id          uuid primary key default gen_random_uuid(),
     user_id     uuid not null references auth.users (id) on delete cascade,
@@ -725,6 +750,8 @@ alter table public.reading_items enable row level security;
 alter table public.reasoning_cases enable row level security;
 alter table public.lab_challenges enable row level security;
 alter table public.imaging_challenges enable row level security;
+alter table public.board_questions enable row level security;
+alter table public.board_question_attempts enable row level security;
 alter table public.knowledge_gaps enable row level security;
 alter table public.case_log_entries enable row level security;
 alter table public.personal_cases enable row level security;
@@ -885,6 +912,12 @@ create policy imaging_challenges_owner_access on public.imaging_challenges
 
 create policy knowledge_gaps_self_access on public.knowledge_gaps
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy board_questions_owner_access on public.board_questions
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+create policy board_question_attempts_owner_access on public.board_question_attempts
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy case_log_entries_owner_access on public.case_log_entries
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
