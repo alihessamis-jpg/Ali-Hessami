@@ -230,6 +230,58 @@ create table public.growth_entries (
 
 create index growth_entries_patient_id_idx on public.growth_entries (patient_id, date desc);
 
+-- Dialysis flowsheet: HD session log, PD prescription history, and PD
+-- peritonitis episode log. Dialysis adequacy (Kt/V, URR, PET D/P ratio)
+-- reuses lab_entries instead of a new table -- it's the same "value + date"
+-- shape as every other lab.
+create table public.hd_sessions (
+    id               uuid primary key default gen_random_uuid(),
+    patient_id       uuid not null references public.patients (id) on delete cascade,
+    date             date not null,
+    pre_weight_kg    numeric,
+    post_weight_kg   numeric,
+    uf_goal_ml       numeric,
+    uf_achieved_ml   numeric,
+    duration_hours   numeric,
+    bp_pre           text,
+    bp_post          text,
+    access_type      text, -- 'AVF' | 'AVG' | 'Catheter' | free text
+    complications    text,
+    notes            text,
+    created_at       timestamptz not null default now()
+);
+
+create index hd_sessions_patient_id_idx on public.hd_sessions (patient_id, date desc);
+
+create table public.pd_prescriptions (
+    id                 uuid primary key default gen_random_uuid(),
+    patient_id         uuid not null references public.patients (id) on delete cascade,
+    date               date not null,
+    modality           text, -- 'CAPD' | 'APD'
+    fill_volume_ml     numeric,
+    exchanges_per_day  numeric,
+    dwell_hours        numeric,
+    dextrose_pct       text,
+    notes              text,
+    created_at         timestamptz not null default now()
+);
+
+create index pd_prescriptions_patient_id_idx on public.pd_prescriptions (patient_id, date desc);
+
+create table public.pd_peritonitis_episodes (
+    id                   uuid primary key default gen_random_uuid(),
+    patient_id           uuid not null references public.patients (id) on delete cascade,
+    onset_date           date not null,
+    organism             text,
+    antibiotic_regimen   text,
+    resolution_date      date,
+    outcome              text, -- 'resolved' | 'catheter_removed' | 'relapse' | 'ongoing'
+    notes                text,
+    created_at           timestamptz not null default now()
+);
+
+create index pd_peritonitis_episodes_patient_id_idx on public.pd_peritonitis_episodes (patient_id, onset_date desc);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -635,6 +687,9 @@ alter table public.patient_documents enable row level security;
 alter table public.urine_output_entries enable row level security;
 alter table public.nephrotic_events enable row level security;
 alter table public.growth_entries enable row level security;
+alter table public.hd_sessions enable row level security;
+alter table public.pd_prescriptions enable row level security;
+alter table public.pd_peritonitis_episodes enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.follow_up_items enable row level security;
 alter table public.drug_reference enable row level security;
@@ -710,6 +765,24 @@ create policy growth_entries_owner_access on public.growth_entries
     for all using (exists (
         select 1 from public.patients p
         where p.id = growth_entries.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy hd_sessions_owner_access on public.hd_sessions
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = hd_sessions.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy pd_prescriptions_owner_access on public.pd_prescriptions
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = pd_prescriptions.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy pd_peritonitis_episodes_owner_access on public.pd_peritonitis_episodes
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = pd_peritonitis_episodes.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders

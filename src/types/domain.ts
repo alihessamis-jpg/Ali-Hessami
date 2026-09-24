@@ -439,6 +439,58 @@ export interface GrowthEntry {
 
 export type GrowthEntryDraft = Omit<GrowthEntry, 'id'>
 
+export interface HdSession {
+  id: string
+  patientId: string
+  date: string
+  preWeightKg?: number | null
+  postWeightKg?: number | null
+  ufGoalMl?: number | null
+  ufAchievedMl?: number | null
+  durationHours?: number | null
+  bpPre?: string | null
+  bpPost?: string | null
+  accessType?: string | null
+  complications?: string | null
+  notes?: string | null
+  createdAt: string
+}
+
+export type HdSessionDraft = Omit<HdSession, 'id' | 'createdAt'>
+
+export type PdModality = 'CAPD' | 'APD'
+
+export interface PdPrescription {
+  id: string
+  patientId: string
+  date: string
+  modality?: PdModality | null
+  fillVolumeMl?: number | null
+  exchangesPerDay?: number | null
+  dwellHours?: number | null
+  dextrosePct?: string | null
+  notes?: string | null
+  createdAt: string
+}
+
+export type PdPrescriptionDraft = Omit<PdPrescription, 'id' | 'createdAt'>
+
+export type PeritonitisOutcome = 'resolved' | 'catheter_removed' | 'relapse' | 'ongoing'
+
+export interface PdPeritonitisEpisode {
+  id: string
+  patientId: string
+  onsetDate: string
+  organism?: string | null
+  antibioticRegimen?: string | null
+  resolutionDate?: string | null
+  outcome?: PeritonitisOutcome | null
+  notes?: string | null
+  createdAt: string
+}
+
+export type PdPeritonitisEpisodeDraft = Omit<PdPeritonitisEpisode, 'id' | 'createdAt'>
+
 export interface ReadingItem {
   id: string
   title: string

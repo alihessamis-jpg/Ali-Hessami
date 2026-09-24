@@ -292,6 +292,17 @@ export function DropletIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function DialysisIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 9c2-3.5 5-5.2 8-5.2S18 5.5 20 9" />
+      <path d="M17.5 7.5L20 9l-1 2.8" />
+      <path d="M20 15c-2 3.5-5 5.2-8 5.2S6 18.5 4 15" />
+      <path d="M6.5 16.5L4 15l1-2.8" />
+    </Icon>
+  )
+}
+
 export function DocumentIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
