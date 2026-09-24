@@ -16,6 +16,7 @@ import { toShamsi } from '../../lib/shamsi'
 import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
+import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
@@ -219,6 +220,13 @@ export function LabsTab({ patientId, patient }: Props) {
     return assessCkdMbd(entries, ageYears, activeMedNames)
   }, [entries, patient.baselineCr, patient.baselineEGFR, patient.dob, activeMedNames])
 
+  const renalFailure = !!patient.baselineCr || !!patient.baselineEGFR
+
+  const acidBase = useMemo(() => {
+    if (!renalFailure) return null
+    return assessAcidBase(entries)
+  }, [entries, renalFailure])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -290,6 +298,26 @@ export function LabsTab({ patientId, patient }: Props) {
                 : 'If complement is normal, or systemic/vasculitic features: check P-ANCA, C-ANCA'}
             </li>
           </ul>
+        </div>
+      )}
+      {acidBase && (
+        <div className={`aki-banner ${acidBase.needsBicarbTherapy ? 'aki-banner--warning' : ''}`}>
+          <strong>
+            {acidBase.needsBicarbTherapy
+              ? '⚠ Severe metabolic acidosis — start bicarbonate therapy'
+              : 'Renal failure — check VBG (pH, HCO3) regularly'}
+          </strong>
+          <span className="patient-meta">
+            {acidBase.ph?.value != null || acidBase.hco3?.value != null
+              ? `Latest VBG: pH ${acidBase.ph?.value ?? '—'}, HCO3 ${acidBase.hco3?.value ?? '—'} mEq/L (normal ≥ ${NORMAL_HCO3_MEQ_L})`
+              : 'No VBG recorded yet — order one to assess acid-base status.'}
+          </span>
+          {acidBase.needsBicarbTherapy && (
+            <span className="patient-meta">
+              pH acidic with HCO3 below 15 mEq/L — give sodium bicarbonate (IV or oral NaHCO3) toward the normal of{' '}
+              {NORMAL_HCO3_MEQ_L} mEq/L.
+            </span>
+          )}
         </div>
       )}
       {ckdMbd && (
