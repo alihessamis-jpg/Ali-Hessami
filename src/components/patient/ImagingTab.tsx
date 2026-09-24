@@ -11,6 +11,24 @@ interface Props {
 
 const emptyDraft = { category: '', date: new Date().toISOString().slice(0, 10), notes: '', report: '', impression: '' }
 
+// Suggestions only — free text still works for anything not listed here.
+// Covers studies/procedures done before this admission (outside records,
+// prior workups) just as well as ones ordered now; set the date to when it
+// was actually done.
+const COMMON_IMAGING_STUDIES = [
+  'Renal/Bladder Ultrasound',
+  'VCUG (Voiding Cystourethrogram)',
+  'DMSA Scan',
+  'MAG3 Renal Scan',
+  'DTPA Renal Scan',
+  'CT Abdomen/Pelvis',
+  'MRI Abdomen/Pelvis',
+  'KUB X-ray',
+  'Doppler Ultrasound',
+  'Cystoscopy',
+  'Urodynamics Study',
+]
+
 export function ImagingTab({ patientId }: Props) {
   const { session } = useAuth()
   const [entries, setEntries] = useState<ImagingEntry[]>([])
@@ -97,8 +115,18 @@ export function ImagingTab({ patientId }: Props) {
         <div className="field-grid">
           <label>
             Category
-            <input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} placeholder="e.g. Renal US" />
+            <input
+              value={draft.category}
+              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+              placeholder="e.g. VCUG, DMSA Scan"
+              list="imaging-category-options"
+            />
           </label>
+          <datalist id="imaging-category-options">
+            {COMMON_IMAGING_STUDIES.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
           <label>
             Date
             <input

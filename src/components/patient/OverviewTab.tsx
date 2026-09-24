@@ -337,6 +337,9 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
                 <div>
                   <strong>{img.category || 'Imaging'}</strong>
                   <span className="patient-meta"> {img.date ? toShamsi(img.date) : ''}</span>
+                  {img.date && patient.doa && img.date < patient.doa && (
+                    <span className="patient-meta"> (prior to this admission)</span>
+                  )}
                   {img.impression && <p className="patient-meta">{img.impression}</p>}
                 </div>
                 {imagingUrls[img.id] && (
