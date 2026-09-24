@@ -17,6 +17,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   phosphateAge3to10: 5.8,
   phosphateAge10to17: 5.4,
   phosphateAdult: 4.5,
+  biopsyPlateletMin: 50,
+  biopsyInrMax: 1.5,
 }
 
 interface UserSettingsRow {
@@ -35,6 +37,8 @@ interface UserSettingsRow {
   phosphate_age_3to10: number
   phosphate_age_10to17: number
   phosphate_adult: number
+  biopsy_platelet_min: number
+  biopsy_inr_max: number
 }
 
 function toDomain(row: UserSettingsRow): UserSettings {
@@ -54,6 +58,8 @@ function toDomain(row: UserSettingsRow): UserSettings {
     phosphateAge3to10: row.phosphate_age_3to10,
     phosphateAge10to17: row.phosphate_age_10to17,
     phosphateAdult: row.phosphate_adult,
+    biopsyPlateletMin: row.biopsy_platelet_min,
+    biopsyInrMax: row.biopsy_inr_max,
   }
 }
 
@@ -90,6 +96,8 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         phosphate_age_3to10: next.phosphateAge3to10,
         phosphate_age_10to17: next.phosphateAge10to17,
         phosphate_adult: next.phosphateAdult,
+        biopsy_platelet_min: next.biopsyPlateletMin,
+        biopsy_inr_max: next.biopsyInrMax,
       },
       { onConflict: 'owner_id' }
     )

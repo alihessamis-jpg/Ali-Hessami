@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addReminder, deleteReminder, listRemindersForPatient, setReminderDone } from '../../lib/api/reminders'
 import { listLabEntries } from '../../lib/api/labs'
+import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import { isPositiveCulture } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
-import type { LabEntry, PatientReminder, ReminderType } from '../../types/domain'
+import type { LabEntry, PatientReminder, ReminderType, UserSettings } from '../../types/domain'
 
 interface Props {
   patientId: string
@@ -17,31 +18,79 @@ const TYPE_LABELS: Record<ReminderType, string> = {
 
 const emptyDraft = { type: 'follow_up' as ReminderType, title: '', note: '', eventDate: new Date().toISOString().slice(0, 10) }
 
-// Procedures that have a lab prerequisite worth flagging inline when the
+type PrerequisiteCheck =
+  | { kind: 'culture'; test: string }
+  | { kind: 'min'; test: string; unit: string; threshold: (s: UserSettings) => number }
+  | { kind: 'max'; test: string; unit: string; threshold: (s: UserSettings) => number }
+
+interface ProcedureRule {
+  match: RegExp
+  label: string
+  checks: PrerequisiteCheck[]
+}
+
+// Procedures that have lab prerequisites worth flagging inline when the
 // reminder's own title mentions them, so the check surfaces right where the
 // clinician is scheduling the thing rather than only in the Labs tab.
-const PROCEDURE_PREREQUISITES: Array<{ match: RegExp; cultureTest: string; label: string }> = [
-  { match: /vcug/i, cultureTest: 'Urine Culture', label: 'VCUG' },
+const PROCEDURE_RULES: ProcedureRule[] = [
+  { match: /vcug/i, label: 'VCUG', checks: [{ kind: 'culture', test: 'Urine Culture' }] },
+  {
+    match: /biopsy/i,
+    label: 'biopsy',
+    checks: [
+      { kind: 'min', test: 'Platelets', unit: 'x10³/µL', threshold: (s) => s.biopsyPlateletMin },
+      { kind: 'max', test: 'INR', unit: '', threshold: (s) => s.biopsyInrMax },
+    ],
+  },
 ]
 
-function latestCulture(entries: LabEntry[], test: string): LabEntry | null {
+type CheckStatus = { text: string; cls: 'value-abnormal' | undefined }
+
+function latestWithMicro(entries: LabEntry[], test: string): LabEntry | null {
   const matches = entries.filter((e) => e.test === test && e.microDetails)
   if (matches.length === 0) return null
   return matches.reduce((latest, e) => (e.date > latest.date ? e : latest))
 }
 
-function cultureStatusMessage(culture: LabEntry | null, label: string): { text: string; cls: 'value-abnormal' | undefined } {
-  if (!culture) return { text: `⚠ No ${label === 'VCUG' ? 'Urine Culture' : 'culture'} on file — must be negative before ${label}`, cls: 'value-abnormal' }
-  const positive = isPositiveCulture(culture.microDetails!.organism)
-  if (positive) {
-    return { text: `⚠ Latest culture (${toShamsi(culture.date)}) is POSITIVE — hold ${label} until it's negative`, cls: 'value-abnormal' }
+function latestNumeric(entries: LabEntry[], test: string): LabEntry | null {
+  const matches = entries.filter((e) => e.test === test && e.value != null)
+  if (matches.length === 0) return null
+  return matches.reduce((latest, e) => (e.date > latest.date ? e : latest))
+}
+
+function evaluateCheck(check: PrerequisiteCheck, entries: LabEntry[], settings: UserSettings, procedureLabel: string): CheckStatus {
+  if (check.kind === 'culture') {
+    const culture = latestWithMicro(entries, check.test)
+    if (!culture) return { text: `⚠ No ${check.test} on file — must be negative before ${procedureLabel}`, cls: 'value-abnormal' }
+    if (isPositiveCulture(culture.microDetails!.organism)) {
+      return {
+        text: `⚠ Latest ${check.test} (${toShamsi(culture.date)}) is POSITIVE — hold ${procedureLabel} until it's negative`,
+        cls: 'value-abnormal',
+      }
+    }
+    return { text: `✓ Latest ${check.test} (${toShamsi(culture.date)}) is negative — OK for ${procedureLabel}`, cls: undefined }
   }
-  return { text: `✓ Latest culture (${toShamsi(culture.date)}) is negative — OK for ${label}`, cls: undefined }
+
+  const entry = latestNumeric(entries, check.test)
+  const threshold = check.threshold(settings)
+  if (!entry || entry.value == null) {
+    return { text: `⚠ No ${check.test} recorded — check before ${procedureLabel}`, cls: 'value-abnormal' }
+  }
+  const ok = check.kind === 'min' ? entry.value >= threshold : entry.value <= threshold
+  const comparator = check.kind === 'min' ? '≥' : '≤'
+  const unitSuffix = check.unit ? ` ${check.unit}` : ''
+  return {
+    text: `${ok ? '✓' : '⚠'} ${check.test}: ${entry.value}${unitSuffix} (${toShamsi(entry.date)}) — needs ${comparator} ${threshold}${unitSuffix}${
+      ok ? '' : ` — hold ${procedureLabel}`
+    }`,
+    cls: ok ? undefined : 'value-abnormal',
+  }
 }
 
 export function RemindersTab({ patientId }: Props) {
   const [reminders, setReminders] = useState<PatientReminder[]>([])
   const [labEntries, setLabEntries] = useState<LabEntry[]>([])
+  const [settings, setSettings] = useState(DEFAULT_USER_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
@@ -49,6 +98,12 @@ export function RemindersTab({ patientId }: Props) {
   useEffect(() => {
     refresh()
   }, [patientId])
+
+  useEffect(() => {
+    getUserSettings()
+      .then(setSettings)
+      .catch(() => undefined)
+  }, [])
 
   function refresh() {
     setLoading(true)
@@ -61,11 +116,17 @@ export function RemindersTab({ patientId }: Props) {
       .catch(() => undefined)
   }
 
-  function matchingPrerequisite(title: string) {
-    return PROCEDURE_PREREQUISITES.find((p) => p.match.test(title))
+  function matchingRule(title: string) {
+    return PROCEDURE_RULES.find((r) => r.match.test(title))
   }
 
-  const draftPrerequisite = matchingPrerequisite(draft.title)
+  function statusesFor(title: string): CheckStatus[] {
+    const rule = matchingRule(title)
+    if (!rule) return []
+    return rule.checks.map((check) => evaluateCheck(check, labEntries, settings, rule.label))
+  }
+
+  const draftStatuses = statusesFor(draft.title)
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
@@ -109,7 +170,8 @@ export function RemindersTab({ patientId }: Props) {
       <p className="empty-state">
         For "Surgery date", set the actual OT date — the Dashboard will remind you the day before
         so pre-op labs/coordination happen on time. For "Follow-up"/"Custom", the date is when the
-        task itself is due.
+        task itself is due. A title mentioning "VCUG" or "biopsy" gets an automatic prerequisite
+        check against the patient's latest labs.
       </p>
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as ReminderType })}>
@@ -128,11 +190,11 @@ export function RemindersTab({ patientId }: Props) {
         <button type="submit">Add</button>
       </form>
 
-      {draftPrerequisite &&
-        (() => {
-          const status = cultureStatusMessage(latestCulture(labEntries, draftPrerequisite.cultureTest), draftPrerequisite.label)
-          return <p className={status.cls}>{status.text}</p>
-        })()}
+      {draftStatuses.map((status, i) => (
+        <p key={i} className={status.cls}>
+          {status.text}
+        </p>
+      ))}
 
       {error && <p className="form-error">{error}</p>}
       {loading ? (
@@ -153,20 +215,17 @@ export function RemindersTab({ patientId }: Props) {
           </thead>
           <tbody>
             {reminders.map((r) => {
-              const prerequisite = matchingPrerequisite(r.title)
-              const status = prerequisite
-                ? cultureStatusMessage(latestCulture(labEntries, prerequisite.cultureTest), prerequisite.label)
-                : null
+              const statuses = statusesFor(r.title)
               return (
                 <tr key={r.id} style={{ opacity: r.done ? 0.5 : 1 }}>
                   <td>{TYPE_LABELS[r.type]}</td>
                   <td>
                     {r.title}
-                    {status && (
-                      <div className={status.cls ?? 'patient-meta'} style={{ marginTop: 4 }}>
+                    {statuses.map((status, i) => (
+                      <div key={i} className={status.cls ?? 'patient-meta'} style={{ marginTop: 4 }}>
                         {status.text}
                       </div>
-                    )}
+                    ))}
                   </td>
                   <td>{toShamsi(r.eventDate)}</td>
                   <td>{r.note}</td>

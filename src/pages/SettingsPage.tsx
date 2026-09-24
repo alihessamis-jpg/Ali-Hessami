@@ -40,7 +40,12 @@ const PHOSPHATE_FIELDS: FieldConfig[] = [
   { key: 'phosphateAdult', label: 'Phosphorus upper limit — 17 years and up (mg/dL)', step: '0.1' },
 ]
 
-const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS]
+const BIOPSY_FIELDS: FieldConfig[] = [
+  { key: 'biopsyPlateletMin', label: 'Kidney biopsy — Platelets must be at least (x10³/µL)', step: '1' },
+  { key: 'biopsyInrMax', label: 'Kidney biopsy — INR must be at most', step: '0.1' },
+]
+
+const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS, ...BIOPSY_FIELDS]
 
 export function SettingsPage() {
   const [form, setForm] = useState<FormState>(toFormState(DEFAULT_USER_SETTINGS))
@@ -138,6 +143,12 @@ export function SettingsPage() {
             <p className="patient-meta">
               Phosphorus is age-dependent in children — these age-band upper limits decide when the phosphate binder
               flag above triggers, instead of one fixed adult number.
+            </p>
+
+            {BIOPSY_FIELDS.map(renderField)}
+            <p className="patient-meta">
+              Used by the Reminders tab: any reminder mentioning "biopsy" checks the patient's latest Platelets and
+              INR against these safe limits, alongside the VCUG/Urine Culture check.
             </p>
 
             {error && <p className="form-error">{error}</p>}

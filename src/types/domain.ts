@@ -522,4 +522,6 @@ export interface UserSettings {
   phosphateAge3to10: number
   phosphateAge10to17: number
   phosphateAdult: number
+  biopsyPlateletMin: number
+  biopsyInrMax: number
 }
