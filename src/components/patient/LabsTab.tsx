@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
 import { correctedCalcium, feNa, feUrea, kdigoStage, transferrinSaturation } from '../../lib/formulas'
 import { isAbnormal } from '../../lib/labRange'
+import { formatLabReferenceRange, getLabReferenceRange, isOutsideLabReferenceRange } from '../../lib/labReferenceRanges'
 import {
   COLLECTION_METHODS,
   COMMON_LAB_TESTS,
@@ -637,6 +638,8 @@ export function LabsTab({ patientId, patient }: Props) {
             </thead>
             <tbody>
               {visibleEntries.map((e) => {
+                const ageAtLab = patient.dob ? ageInYears(patient.dob, e.date) : null
+                const autoRange = !e.ref ? getLabReferenceRange(e.test, ageAtLab) : null
                 const tsat =
                   e.test === 'Iron' && e.value != null && tibcByDate.has(e.date)
                     ? transferrinSaturation(e.value, tibcByDate.get(e.date)!)
@@ -669,7 +672,8 @@ export function LabsTab({ patientId, patient }: Props) {
                   (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
                   (tsat != null && tsat < 20) ||
                   (upcClass != null && upcClass !== 'normal') ||
-                  (e.test === 'Hemoglobin' && e.value != null && e.value < settings.anemiaHbThreshold)
+                  (e.test === 'Hemoglobin' && e.value != null && e.value < settings.anemiaHbThreshold) ||
+                  isOutsideLabReferenceRange(e.test, e.value, ageAtLab, e.unit)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>
@@ -741,7 +745,13 @@ export function LabsTab({ patientId, patient }: Props) {
                       )}
                     </td>
                     <td>{e.unit}</td>
-                    <td>{e.ref}</td>
+                    <td>
+                      {e.ref || (
+                        autoRange && (
+                          <span className="patient-meta">{formatLabReferenceRange(autoRange)} (auto, verify vs. your lab)</span>
+                        )
+                      )}
+                    </td>
                     <td>{e.comment}</td>
                     <td>
                       <button className="link-button" onClick={() => void handleDelete(e.id)}>
