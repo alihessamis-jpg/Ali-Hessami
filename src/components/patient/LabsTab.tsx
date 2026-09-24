@@ -18,6 +18,7 @@ import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
+import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
 
 interface Props {
@@ -64,10 +65,17 @@ export function LabsTab({ patientId, patient }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [activeMedNames, setActiveMedNames] = useState<string[]>([])
+  const [anemiaHbThreshold, setAnemiaHbThreshold] = useState(DEFAULT_USER_SETTINGS.anemiaHbThreshold)
 
   useEffect(() => {
     refresh()
   }, [patientId])
+
+  useEffect(() => {
+    getUserSettings()
+      .then((s) => setAnemiaHbThreshold(s.anemiaHbThreshold))
+      .catch(() => undefined)
+  }, [])
 
   function refresh() {
     setLoading(true)
@@ -157,9 +165,9 @@ export function LabsTab({ patientId, patient }: Props) {
     const hbEntries = entries.filter((e) => e.test === 'Hemoglobin' && e.value != null)
     if (hbEntries.length === 0) return null
     const latest = hbEntries.reduce((a, b) => (b.date > a.date ? b : a))
-    if (latest.value == null || latest.value >= 8) return null
+    if (latest.value == null || latest.value >= anemiaHbThreshold) return null
     return latest
-  }, [entries])
+  }, [entries, anemiaHbThreshold])
 
   const albuminByDate = useMemo(() => mapByDate(entries, 'Albumin'), [entries])
   const tibcByDate = useMemo(() => mapByDate(entries, 'TIBC'), [entries])
@@ -227,7 +235,8 @@ export function LabsTab({ patientId, patient }: Props) {
         <div className="aki-banner aki-banner--warning">
           <strong>⚠ Severe anemia — Hb {anemiaAlert.value} {anemiaAlert.unit || 'g/dL'}</strong>
           <span className="patient-meta">
-            Recorded {toShamsi(anemiaAlert.date)} — below 8 g/dL. Consider transfusion and evaluate cause.
+            Recorded {toShamsi(anemiaAlert.date)} — below your {anemiaHbThreshold} g/dL alert threshold. Consider
+            transfusion and evaluate cause.
           </span>
         </div>
       )}
@@ -554,7 +563,7 @@ export function LabsTab({ patientId, patient }: Props) {
                   (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
                   (tsat != null && tsat < 20) ||
                   (upcClass != null && upcClass !== 'normal') ||
-                  (e.test === 'Hemoglobin' && e.value != null && e.value < 8)
+                  (e.test === 'Hemoglobin' && e.value != null && e.value < anemiaHbThreshold)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>

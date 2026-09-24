@@ -578,6 +578,14 @@ create table public.research_records (
 
 create index research_records_project_id_idx on public.research_records (project_id);
 
+-- Per-clinician app preferences (e.g. lab alert thresholds). One row per user,
+-- created on first save; the app falls back to hardcoded defaults until then.
+create table public.user_settings (
+    owner_id             uuid primary key references auth.users (id) on delete cascade,
+    anemia_hb_threshold  numeric not null default 8,
+    updated_at           timestamptz not null default now()
+);
+
 -- ============================================================================
 -- Row-level security
 -- ============================================================================
@@ -614,6 +622,7 @@ alter table public.personal_cases enable row level security;
 alter table public.research_projects enable row level security;
 alter table public.research_fields enable row level security;
 alter table public.research_records enable row level security;
+alter table public.user_settings enable row level security;
 
 create policy patients_owner_access on public.patients
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
@@ -758,3 +767,6 @@ create policy research_records_owner_access on public.research_records
         select 1 from public.research_projects rp
         where rp.id = research_records.project_id and rp.owner_id = auth.uid()
     ));
+
+create policy user_settings_owner_access on public.user_settings
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());

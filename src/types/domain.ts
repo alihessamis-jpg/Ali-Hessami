@@ -489,3 +489,7 @@ export interface ResearchRecord {
 }
 
 export type ResearchRecordDraft = Omit<ResearchRecord, 'id'>
+
+export interface UserSettings {
+  anemiaHbThreshold: number
+}

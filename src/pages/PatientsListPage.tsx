@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
 import { listLabEntriesByTest } from '../lib/api/labs'
+import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
 import { PatientsIcon } from '../components/icons'
 import type { Patient, PatientCareStatus } from '../types/domain'
-
-const ANEMIA_ALERT_THRESHOLD = 8
 
 const WARDS: Array<{ id: PatientCareStatus; label: string }> = [
   { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)' },
@@ -21,11 +20,15 @@ export function PatientsListPage() {
   const [creating, setCreating] = useState(false)
   const [ward, setWard] = useState<PatientCareStatus>('inpatient')
   const [query, setQuery] = useState('')
-  const [lowHbByPatient, setLowHbByPatient] = useState<Record<string, number>>({})
+  const [latestHbByPatient, setLatestHbByPatient] = useState<Record<string, number>>({})
+  const [anemiaHbThreshold, setAnemiaHbThreshold] = useState(DEFAULT_USER_SETTINGS.anemiaHbThreshold)
   const navigate = useNavigate()
 
   useEffect(() => {
     refresh()
+    getUserSettings()
+      .then((s) => setAnemiaHbThreshold(s.anemiaHbThreshold))
+      .catch(() => undefined)
   }, [])
 
   function refresh() {
@@ -42,14 +45,20 @@ export function PatientsListPage() {
           const current = latestByPatient.get(e.patientId)
           if (!current || e.date >= current.date) latestByPatient.set(e.patientId, { date: e.date, value: e.value })
         }
-        const alerts: Record<string, number> = {}
-        for (const [patientId, latest] of latestByPatient) {
-          if (latest.value < ANEMIA_ALERT_THRESHOLD) alerts[patientId] = latest.value
-        }
-        setLowHbByPatient(alerts)
+        const latest: Record<string, number> = {}
+        for (const [patientId, entry] of latestByPatient) latest[patientId] = entry.value
+        setLatestHbByPatient(latest)
       })
       .catch(() => undefined)
   }
+
+  const lowHbByPatient = useMemo(() => {
+    const alerts: Record<string, number> = {}
+    for (const [patientId, value] of Object.entries(latestHbByPatient)) {
+      if (value < anemiaHbThreshold) alerts[patientId] = value
+    }
+    return alerts
+  }, [latestHbByPatient, anemiaHbThreshold])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()

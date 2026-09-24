@@ -12,6 +12,7 @@ import {
   PatientsIcon,
   ReferenceIcon,
   ResearchIcon,
+  SettingsIcon,
   StudyHubIcon,
 } from './icons'
 
@@ -27,6 +28,7 @@ const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps
   { to: '/research', label: 'Research', icon: ResearchIcon },
   { to: '/thesis-form', label: 'Thesis Form', icon: FormBuilderIcon },
   { to: '/export', label: 'Export', icon: DownloadIcon },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
