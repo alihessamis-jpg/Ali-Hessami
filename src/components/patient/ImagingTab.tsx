@@ -29,6 +29,8 @@ const COMMON_IMAGING_STUDIES = [
   'Urodynamics Study',
 ]
 
+const DIURETIC_RENOGRAM_PATTERN = /mag3|dtpa/i
+
 export function ImagingTab({ patientId }: Props) {
   const { session } = useAuth()
   const [entries, setEntries] = useState<ImagingEntry[]>([])
@@ -109,8 +111,36 @@ export function ImagingTab({ patientId }: Props) {
     }
   }
 
+  const showNoraGuide =
+    DIURETIC_RENOGRAM_PATTERN.test(draft.category) || entries.some((e) => DIURETIC_RENOGRAM_PATTERN.test(e.category ?? ''))
+
   return (
     <div>
+      {showNoraGuide && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">NORA index — diuretic renography (MAG3/DTPA)</h2>
+          </div>
+          <p className="patient-meta">
+            NORA (Normalized Residual Activity) helps read an equivocal diuretic renogram curve — it does not apply
+            to DMSA (cortical scarring) scans.
+          </p>
+          <ul className="study-link-list">
+            <li>
+              Definition: renal activity at a given time (e.g. 20 min = NORA20, 50 min = NORA50, end of furosemide, or
+              post-micturition) ÷ renal activity at 1–2 min post-injection (early parenchymal phase), both
+              decay-corrected.
+            </li>
+            <li>
+              Use: distinguishes true obstruction from a large, non-obstructed but slowly-draining
+              (gravity-dependent) system when the renogram curve is equivocal (e.g. Type IIIa/b).
+            </li>
+            <li>Cutoff: NORA50 &gt; 0.37 favors true obstruction over unobstructed hydronephrosis.</li>
+            <li>NORA20 is less reliable in grossly dilated non-obstructed systems — can be falsely elevated.</li>
+            <li>Advantage over older parameters (e.g. T½): relatively independent of differential renal function.</li>
+          </ul>
+        </div>
+      )}
       <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
         <div className="field-grid">
           <label>
