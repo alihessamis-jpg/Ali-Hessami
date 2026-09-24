@@ -15,6 +15,7 @@ import { NephroticSyndromeTab } from '../components/patient/NephroticSyndromeTab
 import { GrowthTab } from '../components/patient/GrowthTab'
 import { FollowUpTab } from '../components/patient/FollowUpTab'
 import { DialysisTab } from '../components/patient/DialysisTab'
+import { VaccinationTab } from '../components/patient/VaccinationTab'
 import { LinkedTopicsWidget } from '../components/patient/LinkedTopicsWidget'
 import {
   AssessmentIcon,
@@ -30,6 +31,7 @@ import {
   NotesIcon,
   RemindersIcon,
   TrendsIcon,
+  VaccineIcon,
 } from '../components/icons'
 import type { Patient } from '../types/domain'
 import type { ComponentType, SVGProps } from 'react'
@@ -49,6 +51,7 @@ type Tab =
   | 'growth'
   | 'followUp'
   | 'dialysis'
+  | 'vaccinations'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'overview', label: 'Overview', icon: KidneyIcon },
@@ -61,6 +64,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'imaging', label: 'Imaging', icon: ImagingIcon },
   { id: 'urineOutput', label: 'Urine Output', icon: DropletIcon },
   { id: 'dialysis', label: 'Dialysis', icon: DialysisIcon },
+  { id: 'vaccinations', label: 'Vaccinations', icon: VaccineIcon },
   { id: 'nephroticSyndrome', label: 'Nephrotic Syndrome', icon: KidneyIcon },
   { id: 'followUp', label: 'Follow-up', icon: FollowUpIcon },
   { id: 'reminders', label: 'Reminders', icon: RemindersIcon },
@@ -158,6 +162,7 @@ export function PatientDetailPage() {
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
         {tab === 'dialysis' && <DialysisTab patientId={id} />}
+        {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
         {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
         {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}

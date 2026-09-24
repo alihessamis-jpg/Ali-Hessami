@@ -8,6 +8,7 @@ import { listPatientDocuments } from '../../lib/api/patientDocuments'
 import { listNephroticEvents } from '../../lib/api/nephroticEvents'
 import { listRemindersForPatient } from '../../lib/api/reminders'
 import { listFollowUpItems } from '../../lib/api/followUps'
+import { listVaccinations } from '../../lib/api/vaccinations'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import { getImagingSignedUrl, getPatientDocumentSignedUrl } from '../../lib/storage'
 import {
@@ -33,6 +34,7 @@ import type {
   PatientReminder,
   ProgressNote,
   Patient,
+  Vaccination,
 } from '../../types/domain'
 
 interface Props {
@@ -57,6 +59,7 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
   const [nephroticEvents, setNephroticEvents] = useState<NephroticEvent[]>([])
   const [reminders, setReminders] = useState<PatientReminder[]>([])
   const [followUpItems, setFollowUpItems] = useState<FollowUpItem[]>([])
+  const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [settings, setSettings] = useState(DEFAULT_USER_SETTINGS)
   const [imagingUrls, setImagingUrls] = useState<Record<string, string>>({})
   const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({})
@@ -74,8 +77,9 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
       listNephroticEvents(patientId),
       listRemindersForPatient(patientId),
       listFollowUpItems(patientId),
+      listVaccinations(patientId),
     ])
-      .then(([growth, labs, meds, notesRows, imaging, docs, nephrotic, reminderRows, followUps]) => {
+      .then(([growth, labs, meds, notesRows, imaging, docs, nephrotic, reminderRows, followUps, vaccinationRows]) => {
         setGrowthEntries(growth)
         setLabEntries(labs)
         setMedications(meds)
@@ -85,6 +89,7 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
         setNephroticEvents(nephrotic)
         setReminders(reminderRows)
         setFollowUpItems(followUps)
+        setVaccinations(vaccinationRows)
         imaging.forEach((img) => {
           if (!img.storagePath) return
           getImagingSignedUrl(img.storagePath)
@@ -154,8 +159,9 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
         followUpItems,
         imagingEntries,
         reminders,
+        vaccinations,
       }),
-    [patient, labEntries, activeMeds, settings, followUpItems, imagingEntries, reminders]
+    [patient, labEntries, activeMeds, settings, followUpItems, imagingEntries, reminders, vaccinations]
   )
 
   if (loading) return <p>Loading…</p>

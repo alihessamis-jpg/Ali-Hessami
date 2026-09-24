@@ -8,9 +8,9 @@ import { ageInYears } from './growth'
 import { daysSince } from './dates'
 import { FOLLOW_UP_WINDOW_DAYS, procedureStatusesFor } from './procedureChecks'
 import { toShamsi } from './shamsi'
-import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, UserSettings } from '../types/domain'
+import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, UserSettings, Vaccination } from '../types/domain'
 
-export type AlertTab = 'labs' | 'followUp' | 'reminders'
+export type AlertTab = 'labs' | 'followUp' | 'reminders' | 'vaccinations'
 
 export interface PatientAlert {
   id: string
@@ -27,6 +27,7 @@ export interface PatientAlertsInput {
   followUpItems: FollowUpItem[]
   imagingEntries: ImagingEntry[]
   reminders: PatientReminder[]
+  vaccinations: Vaccination[]
 }
 
 // Pulls together the same pure detection logic already used by the Labs,
@@ -34,7 +35,7 @@ export interface PatientAlertsInput {
 // can surface everything that needs attention without re-deriving any of
 // the underlying clinical rules itself.
 export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] {
-  const { patient, labEntries, activeMedNames, settings, followUpItems, imagingEntries, reminders } = input
+  const { patient, labEntries, activeMedNames, settings, followUpItems, imagingEntries, reminders, vaccinations } = input
   const alerts: PatientAlert[] = []
 
   const hbEntries = labEntries.filter((e) => e.test === 'Hemoglobin' && e.value != null)
@@ -164,6 +165,16 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
         alerts.push({ id: `reminder-${r.id}-${status.text}`, severity: 'warning', text: `${r.title}: ${status.text}`, tab: 'reminders' })
       }
     }
+  }
+
+  const liveVaccinesGiven = vaccinations.filter((v) => v.isLive)
+  if (patient.transplantStatus && liveVaccinesGiven.length > 0) {
+    alerts.push({
+      id: 'live-vaccine-transplant',
+      severity: 'warning',
+      text: `Live vaccine(s) on record (${liveVaccinesGiven.map((v) => v.vaccineName).join(', ')}) — verify safety given transplant status (${patient.transplantStatus})`,
+      tab: 'vaccinations',
+    })
   }
 
   return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'warning' ? -1 : 1))

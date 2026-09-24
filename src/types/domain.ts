@@ -491,6 +491,18 @@ export interface PdPeritonitisEpisode {
 
 export type PdPeritonitisEpisodeDraft = Omit<PdPeritonitisEpisode, 'id' | 'createdAt'>
 
+export interface Vaccination {
+  id: string
+  patientId: string
+  vaccineName: string
+  isLive: boolean
+  doseNumber?: string | null
+  dateGiven: string
+  notes?: string | null
+  createdAt: string
+}
+export type VaccinationDraft = Omit<Vaccination, 'id' | 'createdAt'>
+
 export interface ReadingItem {
   id: string
   title: string

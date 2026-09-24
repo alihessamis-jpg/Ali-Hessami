@@ -282,6 +282,22 @@ create table public.pd_peritonitis_episodes (
 
 create index pd_peritonitis_episodes_patient_id_idx on public.pd_peritonitis_episodes (patient_id, onset_date desc);
 
+-- Vaccination / immunization log. is_live flags a live-attenuated vaccine --
+-- the distinction that matters for transplant timing (live vaccines must be
+-- completed pre-transplant and are generally contraindicated afterward,
+-- on immunosuppression).
+create table public.vaccinations (
+    id             uuid primary key default gen_random_uuid(),
+    patient_id     uuid not null references public.patients (id) on delete cascade,
+    vaccine_name   text not null,
+    is_live        boolean not null default false,
+    dose_number    text,
+    date_given     date not null,
+    notes          text,
+    created_at     timestamptz not null default now()
+);
+create index vaccinations_patient_id_idx on public.vaccinations (patient_id, date_given desc);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -690,6 +706,7 @@ alter table public.growth_entries enable row level security;
 alter table public.hd_sessions enable row level security;
 alter table public.pd_prescriptions enable row level security;
 alter table public.pd_peritonitis_episodes enable row level security;
+alter table public.vaccinations enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.follow_up_items enable row level security;
 alter table public.drug_reference enable row level security;
@@ -783,6 +800,12 @@ create policy pd_peritonitis_episodes_owner_access on public.pd_peritonitis_epis
     for all using (exists (
         select 1 from public.patients p
         where p.id = pd_peritonitis_episodes.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy vaccinations_owner_access on public.vaccinations
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = vaccinations.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders

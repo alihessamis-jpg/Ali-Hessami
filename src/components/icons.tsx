@@ -303,6 +303,15 @@ export function DialysisIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function VaccineIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M19.5 4.5l-2 2M13.5 6.5l4 4-8.3 8.3a1.5 1.5 0 01-2.1 0l-1.9-1.9a1.5 1.5 0 010-2.1L13.5 6.5z" />
+      <path d="M11 9l4 4M9 11l1.5 1.5M6.5 17.5L4 20" />
+    </Icon>
+  )
+}
+
 export function DocumentIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
