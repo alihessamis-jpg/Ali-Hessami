@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addProgressNote, deleteProgressNote, listProgressNotes } from '../../lib/api/notes'
+import { upsertGrowthMeasurement } from '../../lib/api/growth'
+import { updatePatient } from '../../lib/api/patients'
 import { toShamsi } from '../../lib/shamsi'
-import type { ProgressNote } from '../../types/domain'
+import type { Patient, ProgressNote } from '../../types/domain'
 
 interface Props {
   patientId: string
+  onPatientUpdated: (patient: Patient) => void
 }
 
 const emptyDraft = {
@@ -18,7 +21,7 @@ const emptyDraft = {
   P: '',
 }
 
-export function NotesTab({ patientId }: Props) {
+export function NotesTab({ patientId, onPatientUpdated }: Props) {
   const [notes, setNotes] = useState<ProgressNote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +58,10 @@ export function NotesTab({ patientId }: Props) {
         P: draft.P || null,
       })
       setNotes((prev) => [note, ...prev])
+      if (note.weight != null) {
+        upsertGrowthMeasurement(patientId, note.date, { weightKg: note.weight }).catch(() => undefined)
+        updatePatient(patientId, { weight: note.weight }).then(onPatientUpdated).catch(() => undefined)
+      }
       setDraft({ ...emptyDraft, date: draft.date })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add note')

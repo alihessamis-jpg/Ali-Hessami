@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { updatePatient } from '../../lib/api/patients'
+import { upsertGrowthMeasurement } from '../../lib/api/growth'
 import { bmiCalc, bsaMosteller, schwartzEGFR } from '../../lib/formulas'
 import type { Patient } from '../../types/domain'
 
@@ -105,6 +106,14 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
     try {
       const updated = await updatePatient(patient.id, form)
       onUpdated(updated)
+      const heightChanged = form.height != null && form.height !== patient.height
+      const weightChanged = form.weight != null && form.weight !== patient.weight
+      if (heightChanged || weightChanged) {
+        upsertGrowthMeasurement(patient.id, new Date().toISOString().slice(0, 10), {
+          ...(heightChanged ? { heightCm: form.height } : {}),
+          ...(weightChanged ? { weightKg: form.weight } : {}),
+        }).catch(() => undefined)
+      }
       setSavedAt(Date.now())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')

@@ -53,7 +53,42 @@ export async function addGrowthEntry(draft: GrowthEntryDraft): Promise<GrowthEnt
   return toDomain(data as GrowthEntryRow)
 }
 
+export async function updateGrowthEntry(id: string, patch: Partial<GrowthEntryDraft>): Promise<GrowthEntry> {
+  const payload: Record<string, unknown> = {}
+  if (patch.heightCm !== undefined) payload.height_cm = patch.heightCm
+  if (patch.weightKg !== undefined) payload.weight_kg = patch.weightKg
+  if (patch.headCircCm !== undefined) payload.head_circ_cm = patch.headCircCm
+  if (patch.bpSystolic !== undefined) payload.bp_systolic = patch.bpSystolic
+  if (patch.bpDiastolic !== undefined) payload.bp_diastolic = patch.bpDiastolic
+  const { data, error } = await supabase.from('growth_entries').update(payload).eq('id', id).select().single()
+  if (error) throw error
+  return toDomain(data as GrowthEntryRow)
+}
+
 export async function deleteGrowthEntry(id: string): Promise<void> {
   const { error } = await supabase.from('growth_entries').delete().eq('id', id)
   if (error) throw error
+}
+
+// Called whenever height/weight is captured somewhere other than the Growth
+// tab itself (Progress Notes, Assessment) so it lands in the same
+// percentile-tracking timeline instead of being a duplicate, disconnected
+// number. Merges into that date's existing entry if one exists.
+export async function upsertGrowthMeasurement(
+  patientId: string,
+  date: string,
+  patch: { heightCm?: number | null; weightKg?: number | null }
+): Promise<GrowthEntry> {
+  const existing = await listGrowthEntries(patientId)
+  const match = existing.find((e) => e.date === date)
+  if (match) return updateGrowthEntry(match.id, patch)
+  return addGrowthEntry({
+    patientId,
+    date,
+    heightCm: patch.heightCm ?? null,
+    weightKg: patch.weightKg ?? null,
+    headCircCm: null,
+    bpSystolic: null,
+    bpDiastolic: null,
+  })
 }

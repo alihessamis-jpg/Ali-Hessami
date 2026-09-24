@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addGrowthEntry, deleteGrowthEntry, listGrowthEntries } from '../../lib/api/growth'
+import { updatePatient } from '../../lib/api/patients'
 import {
   ageInMonths,
   ageInYears,
@@ -18,6 +19,7 @@ import type { GrowthEntry, Patient } from '../../types/domain'
 interface Props {
   patientId: string
   patient: Patient
+  onPatientUpdated: (patient: Patient) => void
 }
 
 function emptyDraft() {
@@ -39,7 +41,7 @@ interface RowComputed {
   bp: BpAssessment | null
 }
 
-export function GrowthTab({ patientId, patient }: Props) {
+export function GrowthTab({ patientId, patient, onPatientUpdated }: Props) {
   const [entries, setEntries] = useState<GrowthEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +87,14 @@ export function GrowthTab({ patientId, patient }: Props) {
         bpDiastolic: draft.bpDiastolic === '' ? null : Number(draft.bpDiastolic),
       })
       setEntries((prev) => [...prev, entry].sort((a, b) => a.date.localeCompare(b.date)))
+      if (entry.heightCm != null || entry.weightKg != null) {
+        updatePatient(patientId, {
+          ...(entry.heightCm != null ? { height: entry.heightCm } : {}),
+          ...(entry.weightKg != null ? { weight: entry.weightKg } : {}),
+        })
+          .then(onPatientUpdated)
+          .catch(() => undefined)
+      }
       setDraft(emptyDraft())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add entry')
