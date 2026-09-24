@@ -3,15 +3,21 @@ import type { UserSettings } from '../../types/domain'
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   anemiaHbThreshold: 8,
+  acidosisPhThreshold: 7.35,
+  acidosisHco3Threshold: 15,
 }
 
 interface UserSettingsRow {
   anemia_hb_threshold: number
+  acidosis_ph_threshold: number
+  acidosis_hco3_threshold: number
 }
 
 function toDomain(row: UserSettingsRow): UserSettings {
   return {
     anemiaHbThreshold: row.anemia_hb_threshold,
+    acidosisPhThreshold: row.acidosis_ph_threshold,
+    acidosisHco3Threshold: row.acidosis_hco3_threshold,
   }
 }
 
@@ -30,7 +36,15 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
   const next = { ...current, ...patch }
   const { data, error } = await supabase
     .from('user_settings')
-    .upsert({ owner_id: user.id, anemia_hb_threshold: next.anemiaHbThreshold }, { onConflict: 'owner_id' })
+    .upsert(
+      {
+        owner_id: user.id,
+        anemia_hb_threshold: next.anemiaHbThreshold,
+        acidosis_ph_threshold: next.acidosisPhThreshold,
+        acidosis_hco3_threshold: next.acidosisHco3Threshold,
+      },
+      { onConflict: 'owner_id' }
+    )
     .select()
     .single()
   if (error) throw error

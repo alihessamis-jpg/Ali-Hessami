@@ -66,7 +66,7 @@ export function LabsTab({ patientId, patient }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('All')
   const [activeMedNames, setActiveMedNames] = useState<string[]>([])
-  const [anemiaHbThreshold, setAnemiaHbThreshold] = useState(DEFAULT_USER_SETTINGS.anemiaHbThreshold)
+  const [settings, setSettings] = useState(DEFAULT_USER_SETTINGS)
 
   useEffect(() => {
     refresh()
@@ -74,7 +74,7 @@ export function LabsTab({ patientId, patient }: Props) {
 
   useEffect(() => {
     getUserSettings()
-      .then((s) => setAnemiaHbThreshold(s.anemiaHbThreshold))
+      .then(setSettings)
       .catch(() => undefined)
   }, [])
 
@@ -166,9 +166,9 @@ export function LabsTab({ patientId, patient }: Props) {
     const hbEntries = entries.filter((e) => e.test === 'Hemoglobin' && e.value != null)
     if (hbEntries.length === 0) return null
     const latest = hbEntries.reduce((a, b) => (b.date > a.date ? b : a))
-    if (latest.value == null || latest.value >= anemiaHbThreshold) return null
+    if (latest.value == null || latest.value >= settings.anemiaHbThreshold) return null
     return latest
-  }, [entries, anemiaHbThreshold])
+  }, [entries, settings.anemiaHbThreshold])
 
   const albuminByDate = useMemo(() => mapByDate(entries, 'Albumin'), [entries])
   const tibcByDate = useMemo(() => mapByDate(entries, 'TIBC'), [entries])
@@ -224,8 +224,8 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const acidBase = useMemo(() => {
     if (!renalFailure) return null
-    return assessAcidBase(entries)
-  }, [entries, renalFailure])
+    return assessAcidBase(entries, settings.acidosisPhThreshold, settings.acidosisHco3Threshold)
+  }, [entries, renalFailure, settings.acidosisPhThreshold, settings.acidosisHco3Threshold])
 
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
@@ -243,7 +243,7 @@ export function LabsTab({ patientId, patient }: Props) {
         <div className="aki-banner aki-banner--warning">
           <strong>⚠ Severe anemia — Hb {anemiaAlert.value} {anemiaAlert.unit || 'g/dL'}</strong>
           <span className="patient-meta">
-            Recorded {toShamsi(anemiaAlert.date)} — below your {anemiaHbThreshold} g/dL alert threshold. Consider
+            Recorded {toShamsi(anemiaAlert.date)} — below your {settings.anemiaHbThreshold} g/dL alert threshold. Consider
             transfusion and evaluate cause.
           </span>
         </div>
@@ -314,8 +314,8 @@ export function LabsTab({ patientId, patient }: Props) {
           </span>
           {acidBase.needsBicarbTherapy && (
             <span className="patient-meta">
-              pH acidic with HCO3 below 15 mEq/L — give sodium bicarbonate (IV or oral NaHCO3) toward the normal of{' '}
-              {NORMAL_HCO3_MEQ_L} mEq/L.
+              pH below {settings.acidosisPhThreshold} with HCO3 below {settings.acidosisHco3Threshold} mEq/L — give
+              sodium bicarbonate (IV or oral NaHCO3) toward the normal of {NORMAL_HCO3_MEQ_L} mEq/L.
             </span>
           )}
         </div>
@@ -591,7 +591,7 @@ export function LabsTab({ patientId, patient }: Props) {
                   (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
                   (tsat != null && tsat < 20) ||
                   (upcClass != null && upcClass !== 'normal') ||
-                  (e.test === 'Hemoglobin' && e.value != null && e.value < anemiaHbThreshold)
+                  (e.test === 'Hemoglobin' && e.value != null && e.value < settings.anemiaHbThreshold)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>

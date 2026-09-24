@@ -581,9 +581,11 @@ create index research_records_project_id_idx on public.research_records (project
 -- Per-clinician app preferences (e.g. lab alert thresholds). One row per user,
 -- created on first save; the app falls back to hardcoded defaults until then.
 create table public.user_settings (
-    owner_id             uuid primary key references auth.users (id) on delete cascade,
-    anemia_hb_threshold  numeric not null default 8,
-    updated_at           timestamptz not null default now()
+    owner_id                  uuid primary key references auth.users (id) on delete cascade,
+    anemia_hb_threshold       numeric not null default 8,
+    acidosis_ph_threshold     numeric not null default 7.35,
+    acidosis_hco3_threshold   numeric not null default 15,
+    updated_at                timestamptz not null default now()
 );
 
 -- ============================================================================
