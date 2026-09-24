@@ -154,7 +154,7 @@ export function PatientDetailPage() {
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
         {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
-        {tab === 'followUp' && <FollowUpTab patientId={id} />}
+        {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}
         {tab === 'document' && <DocumentTab patientId={id} />}
       </div>

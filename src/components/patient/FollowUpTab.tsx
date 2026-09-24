@@ -16,10 +16,11 @@ import { FOLLOW_UP_WINDOW_DAYS } from '../../lib/procedureChecks'
 import { daysSince } from '../../lib/dates'
 import { toShamsi } from '../../lib/shamsi'
 import { useAuth } from '../../context/AuthContext'
-import type { FollowUpCategory, FollowUpItem, ImagingEntry } from '../../types/domain'
+import type { FollowUpCategory, FollowUpItem, ImagingEntry, Patient } from '../../types/domain'
 
 interface Props {
   patientId: string
+  patient: Patient
 }
 
 export const CATEGORY_LABELS: Record<FollowUpCategory, string> = {
@@ -38,7 +39,7 @@ const emptyDraft = {
   notes: '',
 }
 
-export function FollowUpTab({ patientId }: Props) {
+export function FollowUpTab({ patientId, patient }: Props) {
   const { session } = useAuth()
   const [items, setItems] = useState<FollowUpItem[]>([])
   const [imagingEntries, setImagingEntries] = useState<ImagingEntry[]>([])
@@ -149,6 +150,7 @@ export function FollowUpTab({ patientId }: Props) {
   const pending = items.filter((i) => !i.resolved).sort((a, b) => a.orderedDate.localeCompare(b.orderedDate))
   const resolved = items.filter((i) => i.resolved).sort((a, b) => b.orderedDate.localeCompare(a.orderedDate))
   const unreportedImaging = imagingEntries.filter((e) => !e.report && !e.impression)
+  const showRejectionGuide = !!patient.transplantStatus && items.some((i) => i.category === 'pathology')
 
   return (
     <div>
@@ -263,6 +265,42 @@ export function FollowUpTab({ patientId }: Props) {
             })}
           </tbody>
         </table>
+      )}
+
+      {showRejectionGuide && (
+        <div className="dash-card" style={{ marginTop: 16 }}>
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">If the pathology shows rejection — pediatric treatment guide</h2>
+          </div>
+          <p className="patient-meta">
+            Transplant patient with a pathology result on file. Once the biopsy report is back, if it shows
+            rejection:
+          </p>
+          <ul className="study-link-list">
+            <li>
+              <strong>T-cell–mediated (acute cellular) rejection:</strong> first-line is IV methylprednisolone pulse
+              (10–30 mg/kg/day, max 1 g, x3 days). Steroid-resistant or Banff ≥IIA → anti-thymocyte globulin (ATG),
+              ~1.5 mg/kg/day for 5–14 days guided by response and lymphocyte counts.
+            </li>
+            <li>
+              <strong>Antibody-mediated rejection:</strong> plasmapheresis (PLEX) + IVIG, ± rituximab; bortezomib or
+              eculizumab reserved for refractory cases. Treat the underlying DSA and check for concurrent TCMR.
+            </li>
+            <li>
+              Before treating: check the current tacrolimus/FK trough and adherence — nonadherence (common in
+              adolescents) is a frequent cause of rejection and changes the plan.
+            </li>
+            <li>
+              Screen for infection (viral load, CBC) before pulse steroids/ATG — both raise the risk of opportunistic
+              infection in an already immunosuppressed child.
+            </li>
+            <li>Optimize maintenance immunosuppression (raise tacrolimus target, add/increase MMF) alongside acute therapy.</li>
+            <li>Consider repeat biopsy if there's no clinical/lab response to guide further therapy.</li>
+          </ul>
+          <p className="patient-meta">
+            This is a quick reference, not a substitute for the full Banff classification and center protocol.
+          </p>
+        </div>
       )}
 
       {unreportedImaging.length > 0 && (
