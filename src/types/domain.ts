@@ -150,6 +150,22 @@ export interface PatientReminder {
 
 export type PatientReminderDraft = Omit<PatientReminder, 'id'>
 
+export type FollowUpCategory = 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'other'
+
+export interface FollowUpItem {
+  id: string
+  patientId: string
+  category: FollowUpCategory
+  description: string
+  orderedDate: string
+  resolved: boolean
+  resolvedDate?: string | null
+  notes?: string | null
+  createdAt: string
+}
+
+export type FollowUpItemDraft = Omit<FollowUpItem, 'id' | 'createdAt'>
+
 export interface DrugRefEntry {
   id: string
   medication: string

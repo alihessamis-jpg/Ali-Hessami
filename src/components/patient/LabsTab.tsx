@@ -266,6 +266,13 @@ export function LabsTab({ patientId, patient }: Props) {
     return assessCkdScreening(entries)
   }, [entries, renalFailure])
 
+  const tacrolimusLevels = useMemo(() => {
+    if (!patient.transplantStatus) return []
+    return entries
+      .filter((e) => e.test === 'Tacrolimus (FK506) Level' && e.value != null)
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }, [entries, patient.transplantStatus])
+
   const visibleEntries = useMemo(() => {
     if (activeCategory === 'All') return entries
     if (activeCategory === 'Other') return entries.filter((e) => !e.category)
@@ -401,6 +408,35 @@ export function LabsTab({ patientId, patient }: Props) {
               {ckdScreening.mbdMissing.length > 0 ? `missing ${ckdScreening.mbdMissing.join(', ')}` : 'complete'}
             </li>
           </ul>
+        </div>
+      )}
+      {patient.transplantStatus && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Tacrolimus (FK506) level trend</h2>
+          </div>
+          {tacrolimusLevels.length === 0 ? (
+            <p className="empty-state">No Tacrolimus level recorded yet — add it under the Transplant category below.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tacrolimusLevels.map((e) => (
+                  <tr key={e.id}>
+                    <td>{toShamsi(e.date)}</td>
+                    <td>
+                      {e.value} {e.unit || 'ng/mL'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
       <datalist id="lab-test-options">

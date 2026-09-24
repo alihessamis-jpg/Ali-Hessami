@@ -249,6 +249,24 @@ create table public.patient_reminders (
 create index patient_reminders_patient_id_idx on public.patient_reminders (patient_id);
 create index patient_reminders_event_date_idx on public.patient_reminders (event_date);
 
+-- Pending orders awaiting results/reports -- distinct from patient_reminders
+-- (which are date-driven todos): this tracks things sent out that haven't
+-- come back yet (a culture, a specialized serology panel, an operative
+-- note), so nothing falls through the cracks.
+create table public.follow_up_items (
+    id             uuid primary key default gen_random_uuid(),
+    patient_id     uuid not null references public.patients (id) on delete cascade,
+    category       text not null, -- 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'other'
+    description    text not null,
+    ordered_date   date not null,
+    resolved       boolean not null default false,
+    resolved_date  date,
+    notes          text,
+    created_at     timestamptz not null default now()
+);
+
+create index follow_up_items_patient_id_idx on public.follow_up_items (patient_id);
+
 -- ----------------------------------------------------------------------------
 -- Phase 2: reference + calculators
 --
@@ -614,6 +632,7 @@ alter table public.urine_output_entries enable row level security;
 alter table public.nephrotic_events enable row level security;
 alter table public.growth_entries enable row level security;
 alter table public.patient_reminders enable row level security;
+alter table public.follow_up_items enable row level security;
 alter table public.drug_reference enable row level security;
 alter table public.dialysis_reference enable row level security;
 alter table public.reference_attachments enable row level security;
@@ -693,6 +712,12 @@ create policy patient_reminders_owner_access on public.patient_reminders
     for all using (exists (
         select 1 from public.patients p
         where p.id = patient_reminders.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy follow_up_items_owner_access on public.follow_up_items
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = follow_up_items.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy drug_reference_owner_access on public.drug_reference

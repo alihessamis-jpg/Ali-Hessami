@@ -206,6 +206,15 @@ export function RemindersIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function FollowUpIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3.5h12M6 20.5h12" />
+      <path d="M7.5 3.5v3.2c0 2 1.6 3.3 3 4.3.6.4.6 1.1 0 1.5-1.4 1-3 2.3-3 4.3v3.2M16.5 3.5v3.2c0 2-1.6 3.3-3 4.3-.6.4-.6 1.1 0 1.5 1.4 1 3 2.3 3 4.3v3.2" />
+    </Icon>
+  )
+}
+
 export function OverviewIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

@@ -38,6 +38,7 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
   Liver: ['ALT', 'AST'],
   'Iron studies': ['Ferritin', 'Iron', 'TIBC', 'Transferrin Saturation'],
   'Blood Gas': ['VBG - pH', 'VBG - pCO2', 'VBG - pO2', 'VBG - HCO3', 'VBG - Base Excess', 'Lactate'],
+  Transplant: ['Tacrolimus (FK506) Level', 'Cyclosporine Level'],
 }
 
 export const LAB_CATEGORIES = Object.keys(LAB_CATEGORY_TESTS)
