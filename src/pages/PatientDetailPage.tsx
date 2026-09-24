@@ -144,12 +144,12 @@ export function PatientDetailPage() {
       </nav>
 
       <div className="tab-panel">
-        {tab === 'overview' && <OverviewTab patientId={id} patient={patient} />}
+        {tab === 'overview' && <OverviewTab patientId={id} patient={patient} onNavigate={setTab} />}
         {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
         {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
-        {tab === 'growth' && <GrowthTab patientId={id} patient={patient} />}
+        {tab === 'growth' && <GrowthTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
         {tab === 'trends' && <TrendsTab patientId={id} />}
-        {tab === 'notes' && <NotesTab patientId={id} />}
+        {tab === 'notes' && <NotesTab patientId={id} onPatientUpdated={setPatient} />}
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}

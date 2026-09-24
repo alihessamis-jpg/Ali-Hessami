@@ -13,7 +13,7 @@ import {
   textValueOptions,
 } from '../../lib/labPresets'
 import { toShamsi } from '../../lib/shamsi'
-import { classifyUpcRatio, PROTEINURIA_CLASS_LABEL, type ProteinuriaClass } from '../../lib/proteinuria'
+import { assessProteinuriaStatus, classifyUpcRatio, PROTEINURIA_CLASS_LABEL } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
@@ -191,27 +191,7 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const firstMorningUpcByDate = useMemo(() => mapByDate(entries, 'Urine Pro/Cr - First Morning'), [entries])
 
-  const proteinuriaStatus = useMemo(() => {
-    const upcEntries = entries.filter((e) => e.test === 'Urine Protein/Creatinine Ratio' && e.value != null)
-    if (upcEntries.length === 0) return null
-    const sorted = [...upcEntries].sort((a, b) => a.date.localeCompare(b.date))
-    const latest = sorted[sorted.length - 1]
-    const latestClass = classifyUpcRatio(latest.value!)
-    if (latestClass === 'nephrotic-range') {
-      return { label: 'Nephrotic-range proteinuria', cls: latestClass as ProteinuriaClass }
-    }
-    const nonNormalDates = sorted.filter((e) => classifyUpcRatio(e.value!) !== 'normal').map((e) => e.date)
-    if (nonNormalDates.length >= 2) {
-      const spanDays =
-        (new Date(nonNormalDates[nonNormalDates.length - 1]).getTime() - new Date(nonNormalDates[0]).getTime()) /
-        (1000 * 60 * 60 * 24)
-      if (spanDays >= 7) return { label: 'Persistent proteinuria', cls: 'abnormal' as ProteinuriaClass }
-    }
-    if (latestClass === 'abnormal') {
-      return { label: 'Isolated abnormal proteinuria — recheck to confirm persistence', cls: latestClass }
-    }
-    return { label: 'Proteinuria: normal', cls: 'normal' as ProteinuriaClass }
-  }, [entries])
+  const proteinuriaStatus = useMemo(() => assessProteinuriaStatus(entries), [entries])
 
   const nephriticWorkup = useMemo(() => assessNephriticWorkup(entries), [entries])
 

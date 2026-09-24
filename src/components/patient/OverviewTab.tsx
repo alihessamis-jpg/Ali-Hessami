@@ -7,6 +7,8 @@ import { listImagingEntries } from '../../lib/api/imaging'
 import { listPatientDocuments } from '../../lib/api/patientDocuments'
 import { listNephroticEvents } from '../../lib/api/nephroticEvents'
 import { listRemindersForPatient } from '../../lib/api/reminders'
+import { listFollowUpItems } from '../../lib/api/followUps'
+import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import { getImagingSignedUrl, getPatientDocumentSignedUrl } from '../../lib/storage'
 import {
   ageInMonths,
@@ -18,8 +20,10 @@ import {
   weightForAgePercentile,
 } from '../../lib/growth'
 import { classifyNephroticSyndrome, NEPHROTIC_CLASSIFICATION_LABEL } from '../../lib/nephroticSyndrome'
+import { computePatientAlerts, type AlertTab } from '../../lib/patientAlerts'
 import { toShamsi } from '../../lib/shamsi'
 import type {
+  FollowUpItem,
   GrowthEntry,
   ImagingEntry,
   LabEntry,
@@ -34,13 +38,14 @@ import type {
 interface Props {
   patientId: string
   patient: Patient
+  onNavigate?: (tab: AlertTab) => void
 }
 
 function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
 }
 
-export function OverviewTab({ patientId, patient }: Props) {
+export function OverviewTab({ patientId, patient, onNavigate }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [growthEntries, setGrowthEntries] = useState<GrowthEntry[]>([])
@@ -51,6 +56,8 @@ export function OverviewTab({ patientId, patient }: Props) {
   const [documents, setDocuments] = useState<PatientDocument[]>([])
   const [nephroticEvents, setNephroticEvents] = useState<NephroticEvent[]>([])
   const [reminders, setReminders] = useState<PatientReminder[]>([])
+  const [followUpItems, setFollowUpItems] = useState<FollowUpItem[]>([])
+  const [settings, setSettings] = useState(DEFAULT_USER_SETTINGS)
   const [imagingUrls, setImagingUrls] = useState<Record<string, string>>({})
   const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({})
 
@@ -66,8 +73,9 @@ export function OverviewTab({ patientId, patient }: Props) {
       listPatientDocuments(patientId),
       listNephroticEvents(patientId),
       listRemindersForPatient(patientId),
+      listFollowUpItems(patientId),
     ])
-      .then(([growth, labs, meds, notesRows, imaging, docs, nephrotic, reminderRows]) => {
+      .then(([growth, labs, meds, notesRows, imaging, docs, nephrotic, reminderRows, followUps]) => {
         setGrowthEntries(growth)
         setLabEntries(labs)
         setMedications(meds)
@@ -76,6 +84,7 @@ export function OverviewTab({ patientId, patient }: Props) {
         setDocuments(docs)
         setNephroticEvents(nephrotic)
         setReminders(reminderRows)
+        setFollowUpItems(followUps)
         imaging.forEach((img) => {
           if (!img.storagePath) return
           getImagingSignedUrl(img.storagePath)
@@ -91,6 +100,12 @@ export function OverviewTab({ patientId, patient }: Props) {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load overview'))
       .finally(() => setLoading(false))
   }, [patientId])
+
+  useEffect(() => {
+    getUserSettings()
+      .then(setSettings)
+      .catch(() => undefined)
+  }, [])
 
   const sex = normalizeSex(patient.sex)
   const dob = patient.dob
@@ -129,11 +144,50 @@ export function OverviewTab({ patientId, patient }: Props) {
     .slice(0, 5)
   const nephroticClass = nephroticEvents.length > 0 ? classifyNephroticSyndrome(nephroticEvents) : null
 
+  const alerts = useMemo(
+    () =>
+      computePatientAlerts({
+        patient,
+        labEntries,
+        activeMedNames: activeMeds.map((m) => m.name.toLowerCase()),
+        settings,
+        followUpItems,
+        imagingEntries,
+        reminders,
+      }),
+    [patient, labEntries, activeMeds, settings, followUpItems, imagingEntries, reminders]
+  )
+
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
 
   return (
     <div>
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Alerts & follow-ups</h2>
+        </div>
+        {alerts.length === 0 ? (
+          <p className="empty-state">Nothing needs attention right now.</p>
+        ) : (
+          <ul className="study-link-list">
+            {alerts.map((a) => (
+              <li key={a.id} className={a.severity === 'warning' ? 'value-abnormal' : undefined}>
+                <span>
+                  {a.severity === 'warning' ? '⚠ ' : ''}
+                  {a.text}
+                </span>
+                {onNavigate && (
+                  <button type="button" className="link-button" onClick={() => onNavigate(a.tab)}>
+                    Open
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <div className="calc-strip">
         <div>
           <span className="calc-label">Diagnosis</span>

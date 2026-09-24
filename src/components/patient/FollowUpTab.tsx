@@ -6,6 +6,7 @@ import {
   setFollowUpResolved,
 } from '../../lib/api/followUps'
 import { listImagingEntries } from '../../lib/api/imaging'
+import { daysSince } from '../../lib/dates'
 import { toShamsi } from '../../lib/shamsi'
 import type { FollowUpCategory, FollowUpItem, ImagingEntry } from '../../types/domain'
 
@@ -13,7 +14,7 @@ interface Props {
   patientId: string
 }
 
-const CATEGORY_LABELS: Record<FollowUpCategory, string> = {
+export const CATEGORY_LABELS: Record<FollowUpCategory, string> = {
   culture: 'Culture',
   imaging: 'Imaging (CT/MRI/US)',
   document: 'Document (e.g. operative note)',
@@ -21,18 +22,13 @@ const CATEGORY_LABELS: Record<FollowUpCategory, string> = {
   other: 'Other',
 }
 
-const CULTURE_FOLLOW_UP_DAYS = 2
+export const CULTURE_FOLLOW_UP_DAYS = 2
 
 const emptyDraft = {
   category: 'culture' as FollowUpCategory,
   description: '',
   orderedDate: new Date().toISOString().slice(0, 10),
   notes: '',
-}
-
-function daysSince(dateStr: string): number {
-  const ms = new Date().setHours(0, 0, 0, 0) - new Date(dateStr).setHours(0, 0, 0, 0)
-  return Math.round(ms / (1000 * 60 * 60 * 24))
 }
 
 export function FollowUpTab({ patientId }: Props) {

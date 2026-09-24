@@ -2,9 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { addReminder, deleteReminder, listRemindersForPatient, setReminderDone } from '../../lib/api/reminders'
 import { listLabEntries } from '../../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
-import { isPositiveCulture } from '../../lib/labPresets'
+import { procedureStatusesFor } from '../../lib/procedureChecks'
 import { toShamsi } from '../../lib/shamsi'
-import type { LabEntry, PatientReminder, ReminderType, UserSettings } from '../../types/domain'
+import type { LabEntry, PatientReminder, ReminderType } from '../../types/domain'
 
 interface Props {
   patientId: string
@@ -17,75 +17,6 @@ const TYPE_LABELS: Record<ReminderType, string> = {
 }
 
 const emptyDraft = { type: 'follow_up' as ReminderType, title: '', note: '', eventDate: new Date().toISOString().slice(0, 10) }
-
-type PrerequisiteCheck =
-  | { kind: 'culture'; test: string }
-  | { kind: 'min'; test: string; unit: string; threshold: (s: UserSettings) => number }
-  | { kind: 'max'; test: string; unit: string; threshold: (s: UserSettings) => number }
-
-interface ProcedureRule {
-  match: RegExp
-  label: string
-  checks: PrerequisiteCheck[]
-}
-
-// Procedures that have lab prerequisites worth flagging inline when the
-// reminder's own title mentions them, so the check surfaces right where the
-// clinician is scheduling the thing rather than only in the Labs tab.
-const PROCEDURE_RULES: ProcedureRule[] = [
-  { match: /vcug/i, label: 'VCUG', checks: [{ kind: 'culture', test: 'Urine Culture' }] },
-  {
-    match: /biopsy/i,
-    label: 'biopsy',
-    checks: [
-      { kind: 'min', test: 'Platelets', unit: 'x10³/µL', threshold: (s) => s.biopsyPlateletMin },
-      { kind: 'max', test: 'INR', unit: '', threshold: (s) => s.biopsyInrMax },
-    ],
-  },
-]
-
-type CheckStatus = { text: string; cls: 'value-abnormal' | undefined }
-
-function latestWithMicro(entries: LabEntry[], test: string): LabEntry | null {
-  const matches = entries.filter((e) => e.test === test && e.microDetails)
-  if (matches.length === 0) return null
-  return matches.reduce((latest, e) => (e.date > latest.date ? e : latest))
-}
-
-function latestNumeric(entries: LabEntry[], test: string): LabEntry | null {
-  const matches = entries.filter((e) => e.test === test && e.value != null)
-  if (matches.length === 0) return null
-  return matches.reduce((latest, e) => (e.date > latest.date ? e : latest))
-}
-
-function evaluateCheck(check: PrerequisiteCheck, entries: LabEntry[], settings: UserSettings, procedureLabel: string): CheckStatus {
-  if (check.kind === 'culture') {
-    const culture = latestWithMicro(entries, check.test)
-    if (!culture) return { text: `⚠ No ${check.test} on file — must be negative before ${procedureLabel}`, cls: 'value-abnormal' }
-    if (isPositiveCulture(culture.microDetails!.organism)) {
-      return {
-        text: `⚠ Latest ${check.test} (${toShamsi(culture.date)}) is POSITIVE — hold ${procedureLabel} until it's negative`,
-        cls: 'value-abnormal',
-      }
-    }
-    return { text: `✓ Latest ${check.test} (${toShamsi(culture.date)}) is negative — OK for ${procedureLabel}`, cls: undefined }
-  }
-
-  const entry = latestNumeric(entries, check.test)
-  const threshold = check.threshold(settings)
-  if (!entry || entry.value == null) {
-    return { text: `⚠ No ${check.test} recorded — check before ${procedureLabel}`, cls: 'value-abnormal' }
-  }
-  const ok = check.kind === 'min' ? entry.value >= threshold : entry.value <= threshold
-  const comparator = check.kind === 'min' ? '≥' : '≤'
-  const unitSuffix = check.unit ? ` ${check.unit}` : ''
-  return {
-    text: `${ok ? '✓' : '⚠'} ${check.test}: ${entry.value}${unitSuffix} (${toShamsi(entry.date)}) — needs ${comparator} ${threshold}${unitSuffix}${
-      ok ? '' : ` — hold ${procedureLabel}`
-    }`,
-    cls: ok ? undefined : 'value-abnormal',
-  }
-}
 
 export function RemindersTab({ patientId }: Props) {
   const [reminders, setReminders] = useState<PatientReminder[]>([])
@@ -116,14 +47,8 @@ export function RemindersTab({ patientId }: Props) {
       .catch(() => undefined)
   }
 
-  function matchingRule(title: string) {
-    return PROCEDURE_RULES.find((r) => r.match.test(title))
-  }
-
-  function statusesFor(title: string): CheckStatus[] {
-    const rule = matchingRule(title)
-    if (!rule) return []
-    return rule.checks.map((check) => evaluateCheck(check, labEntries, settings, rule.label))
+  function statusesFor(title: string) {
+    return procedureStatusesFor(title, labEntries, settings)
   }
 
   const draftStatuses = statusesFor(draft.title)
