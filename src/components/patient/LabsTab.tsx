@@ -218,8 +218,29 @@ export function LabsTab({ patientId, patient }: Props) {
   const ckdMbd = useMemo(() => {
     if (!patient.baselineCr && !patient.baselineEGFR) return null
     const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
-    return assessCkdMbd(entries, ageYears, activeMedNames)
-  }, [entries, patient.baselineCr, patient.baselineEGFR, patient.dob, activeMedNames])
+    return assessCkdMbd(entries, ageYears, activeMedNames, {
+      caLowMgDl: settings.ckdMbdCaLow,
+      caHighMgDl: settings.ckdMbdCaHigh,
+      pthHighPgMl: settings.ckdMbdPthHigh,
+      pthLowPgMl: settings.ckdMbdPthLow,
+      vitDDeficientNgMl: settings.ckdMbdVitDDeficient,
+      vitDInsufficientNgMl: settings.ckdMbdVitDInsufficient,
+      bicarbLowMeqL: settings.ckdMbdBicarbLow,
+    })
+  }, [
+    entries,
+    patient.baselineCr,
+    patient.baselineEGFR,
+    patient.dob,
+    activeMedNames,
+    settings.ckdMbdCaLow,
+    settings.ckdMbdCaHigh,
+    settings.ckdMbdPthHigh,
+    settings.ckdMbdPthLow,
+    settings.ckdMbdVitDDeficient,
+    settings.ckdMbdVitDInsufficient,
+    settings.ckdMbdBicarbLow,
+  ])
 
   const renalFailure = !!patient.baselineCr || !!patient.baselineEGFR
 

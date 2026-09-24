@@ -20,13 +20,25 @@ function phosphateUpperLimit(ageYears: number | null): number {
   return 4.5
 }
 
-const CA_LOW_MG_DL = 8.5
-const CA_HIGH_MG_DL = 10.5
-const PTH_HIGH_PG_ML = 65
-const PTH_LOW_PG_ML = 10
-const VITD_DEFICIENT_NG_ML = 20
-const VITD_INSUFFICIENT_NG_ML = 30
-const BICARB_LOW_MEQ_L = 22
+export interface CkdMbdThresholds {
+  caLowMgDl: number
+  caHighMgDl: number
+  pthHighPgMl: number
+  pthLowPgMl: number
+  vitDDeficientNgMl: number
+  vitDInsufficientNgMl: number
+  bicarbLowMeqL: number
+}
+
+export const DEFAULT_CKD_MBD_THRESHOLDS: CkdMbdThresholds = {
+  caLowMgDl: 8.5,
+  caHighMgDl: 10.5,
+  pthHighPgMl: 65,
+  pthLowPgMl: 10,
+  vitDDeficientNgMl: 20,
+  vitDInsufficientNgMl: 30,
+  bicarbLowMeqL: 22,
+}
 
 const CALCIUM_BINDER = /calcium carbonate|calcium acetate/i
 const NONCALCIUM_BINDER = /sevelamer|lanthanum|renagel|renvela|fosrenol/i
@@ -55,7 +67,12 @@ export interface CkdMbdAssessment {
 // watch for oversuppressed PTH (adynamic bone disease), and treat chronic
 // acidosis. `activeMedNames` (lowercased medication names) lets the
 // messages say "increase the dose" instead of "start" when already treated.
-export function assessCkdMbd(entries: LabEntry[], ageYears: number | null, activeMedNames: string[]): CkdMbdAssessment | null {
+export function assessCkdMbd(
+  entries: LabEntry[],
+  ageYears: number | null,
+  activeMedNames: string[],
+  thresholds: CkdMbdThresholds = DEFAULT_CKD_MBD_THRESHOLDS
+): CkdMbdAssessment | null {
   const ca = latestByTest(entries, 'Calcium')
   const albumin = latestByTest(entries, 'Albumin')
   const phosphate = latestByTest(entries, 'Phosphorus')
@@ -72,8 +89,8 @@ export function assessCkdMbd(entries: LabEntry[], ageYears: number | null, activ
   const flags: CkdMbdFlag[] = []
 
   const phosHigh = phosphate?.value != null && phosphate.value > phosphateUpperLimit(ageYears)
-  const caLow = correctedCa != null && correctedCa < CA_LOW_MG_DL
-  const caHigh = correctedCa != null && correctedCa > CA_HIGH_MG_DL
+  const caLow = correctedCa != null && correctedCa < thresholds.caLowMgDl
+  const caHigh = correctedCa != null && correctedCa > thresholds.caHighMgDl
 
   if (phosHigh && caHigh) {
     flags.push({
@@ -111,10 +128,10 @@ export function assessCkdMbd(entries: LabEntry[], ageYears: number | null, activ
     })
   }
 
-  const pthHigh = pth?.value != null && pth.value > PTH_HIGH_PG_ML
-  const pthLow = pth?.value != null && pth.value < PTH_LOW_PG_ML
-  const vitDDeficient = vitD?.value != null && vitD.value < VITD_DEFICIENT_NG_ML
-  const vitDInsufficient = !vitDDeficient && vitD?.value != null && vitD.value < VITD_INSUFFICIENT_NG_ML
+  const pthHigh = pth?.value != null && pth.value > thresholds.pthHighPgMl
+  const pthLow = pth?.value != null && pth.value < thresholds.pthLowPgMl
+  const vitDDeficient = vitD?.value != null && vitD.value < thresholds.vitDDeficientNgMl
+  const vitDInsufficient = !vitDDeficient && vitD?.value != null && vitD.value < thresholds.vitDInsufficientNgMl
 
   if (pthHigh && (vitDDeficient || vitDInsufficient)) {
     flags.push({
@@ -140,12 +157,12 @@ export function assessCkdMbd(entries: LabEntry[], ageYears: number | null, activ
     })
   }
 
-  if (bicarb?.value != null && bicarb.value < BICARB_LOW_MEQ_L) {
+  if (bicarb?.value != null && bicarb.value < thresholds.bicarbLowMeqL) {
     flags.push({
       key: 'acidosis',
       message: onMed(ALKALI)
         ? 'Bicarbonate remains below target on alkali therapy — consider increasing the dose.'
-        : 'Metabolic acidosis (bicarbonate below 22 mEq/L) — consider starting alkali therapy (sodium bicarbonate/citrate); chronic acidosis worsens bone disease and growth in CKD.',
+        : `Metabolic acidosis (bicarbonate below ${thresholds.bicarbLowMeqL} mEq/L) — consider starting alkali therapy (sodium bicarbonate/citrate); chronic acidosis worsens bone disease and growth in CKD.`,
     })
   }
 

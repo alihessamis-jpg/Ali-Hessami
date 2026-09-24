@@ -494,4 +494,11 @@ export interface UserSettings {
   anemiaHbThreshold: number
   acidosisPhThreshold: number
   acidosisHco3Threshold: number
+  ckdMbdCaLow: number
+  ckdMbdCaHigh: number
+  ckdMbdPthHigh: number
+  ckdMbdPthLow: number
+  ckdMbdVitDDeficient: number
+  ckdMbdVitDInsufficient: number
+  ckdMbdBicarbLow: number
 }
