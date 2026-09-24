@@ -41,6 +41,16 @@ export async function listLabEntries(patientId: string): Promise<LabEntry[]> {
   return (data as LabEntryRow[]).map(toDomain)
 }
 
+export async function listLabEntriesByTest(test: string): Promise<LabEntry[]> {
+  const { data, error } = await supabase
+    .from('lab_entries')
+    .select('*')
+    .eq('test', test)
+    .order('date', { ascending: true })
+  if (error) throw error
+  return (data as LabEntryRow[]).map(toDomain)
+}
+
 export async function addLabEntry(draft: LabEntryDraft): Promise<LabEntry> {
   const { data, error } = await supabase
     .from('lab_entries')

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
+import { listLabEntriesByTest } from '../lib/api/labs'
 import { PatientsIcon } from '../components/icons'
 import type { Patient, PatientCareStatus } from '../types/domain'
+
+const ANEMIA_ALERT_THRESHOLD = 8
 
 const WARDS: Array<{ id: PatientCareStatus; label: string }> = [
   { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)' },
@@ -18,6 +21,7 @@ export function PatientsListPage() {
   const [creating, setCreating] = useState(false)
   const [ward, setWard] = useState<PatientCareStatus>('inpatient')
   const [query, setQuery] = useState('')
+  const [lowHbByPatient, setLowHbByPatient] = useState<Record<string, number>>({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -30,6 +34,21 @@ export function PatientsListPage() {
       .then(setPatients)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load patients'))
       .finally(() => setLoading(false))
+    listLabEntriesByTest('Hemoglobin')
+      .then((entries) => {
+        const latestByPatient = new Map<string, { date: string; value: number }>()
+        for (const e of entries) {
+          if (e.value == null) continue
+          const current = latestByPatient.get(e.patientId)
+          if (!current || e.date >= current.date) latestByPatient.set(e.patientId, { date: e.date, value: e.value })
+        }
+        const alerts: Record<string, number> = {}
+        for (const [patientId, latest] of latestByPatient) {
+          if (latest.value < ANEMIA_ALERT_THRESHOLD) alerts[patientId] = latest.value
+        }
+        setLowHbByPatient(alerts)
+      })
+      .catch(() => undefined)
   }
 
   async function handleCreate(e: FormEvent) {
@@ -154,11 +173,14 @@ export function PatientsListPage() {
                   <td>{p.bed || '—'}</td>
                   <td>{p.diagnosis || '—'}</td>
                   <td>
+                    {lowHbByPatient[p.id] != null && (
+                      <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
+                    )}
                     {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
                     {p.transplantStatus && (
                       <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
                     )}
-                    {!p.dialysisStatus && !p.transplantStatus && '—'}
+                    {!p.dialysisStatus && !p.transplantStatus && lowHbByPatient[p.id] == null && '—'}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     {p.careStatus === 'inpatient' ? (

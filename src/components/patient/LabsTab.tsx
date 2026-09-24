@@ -153,6 +153,14 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const uncategorizedCount = useMemo(() => entries.some((e) => !e.category), [entries])
 
+  const anemiaAlert = useMemo(() => {
+    const hbEntries = entries.filter((e) => e.test === 'Hemoglobin' && e.value != null)
+    if (hbEntries.length === 0) return null
+    const latest = hbEntries.reduce((a, b) => (b.date > a.date ? b : a))
+    if (latest.value == null || latest.value >= 8) return null
+    return latest
+  }, [entries])
+
   const albuminByDate = useMemo(() => mapByDate(entries, 'Albumin'), [entries])
   const tibcByDate = useMemo(() => mapByDate(entries, 'TIBC'), [entries])
   const sodiumByDate = useMemo(() => mapByDate(entries, 'Sodium'), [entries])
@@ -215,6 +223,14 @@ export function LabsTab({ patientId, patient }: Props) {
 
   return (
     <div>
+      {anemiaAlert && (
+        <div className="aki-banner aki-banner--warning">
+          <strong>⚠ Severe anemia — Hb {anemiaAlert.value} {anemiaAlert.unit || 'g/dL'}</strong>
+          <span className="patient-meta">
+            Recorded {toShamsi(anemiaAlert.date)} — below 8 g/dL. Consider transfusion and evaluate cause.
+          </span>
+        </div>
+      )}
       {patient.baselineCr && latestCreatinine?.value != null && (
         <div className={`aki-banner ${akiStage ? 'aki-banner--warning' : ''}`}>
           <strong>{akiStage ? `AKI Stage ${akiStage} (KDIGO)` : 'No AKI by creatinine criteria'}</strong>
@@ -537,7 +553,8 @@ export function LabsTab({ patientId, patient }: Props) {
                   (!!e.valueText && e.valueText !== 'Negative') ||
                   (!!e.microDetails?.organism && isPositiveCulture(e.microDetails.organism)) ||
                   (tsat != null && tsat < 20) ||
-                  (upcClass != null && upcClass !== 'normal')
+                  (upcClass != null && upcClass !== 'normal') ||
+                  (e.test === 'Hemoglobin' && e.value != null && e.value < 8)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
                     <td>{toShamsi(e.date)}</td>

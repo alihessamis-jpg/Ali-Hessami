@@ -848,6 +848,11 @@ legend {
   color: var(--danger);
 }
 
+.status-badge--alert {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 /* ---- Imaging: drag-and-drop upload zone ---- */
 
 .dropzone {
