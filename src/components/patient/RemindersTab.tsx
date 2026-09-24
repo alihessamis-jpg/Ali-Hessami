@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addReminder, deleteReminder, listRemindersForPatient, setReminderDone } from '../../lib/api/reminders'
+import { addFollowUpItem, listFollowUpItems } from '../../lib/api/followUps'
 import { listLabEntries } from '../../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
-import { procedureStatusesFor } from '../../lib/procedureChecks'
+import { matchingProcedureRule, procedureStatusesFor } from '../../lib/procedureChecks'
 import { toShamsi } from '../../lib/shamsi'
 import type { LabEntry, PatientReminder, ReminderType } from '../../types/domain'
 
@@ -55,17 +56,45 @@ export function RemindersTab({ patientId }: Props) {
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
-    if (!draft.title.trim()) return
+    const title = draft.title.trim()
+    if (!title) return
     try {
       const reminder = await addReminder({
         patientId,
         type: draft.type,
-        title: draft.title.trim(),
+        title,
         note: draft.note || null,
         eventDate: draft.eventDate,
         done: false,
       })
       setReminders((prev) => [...prev, reminder].sort((a, b) => a.eventDate.localeCompare(b.eventDate)))
+
+      const rule = matchingProcedureRule(title)
+      if (rule?.followUp) {
+        const fu = rule.followUp
+        try {
+          const existingFollowUps = await listFollowUpItems(patientId)
+          const alreadyTracked = existingFollowUps.some(
+            (i) => !i.resolved && i.category === fu.category && i.orderedDate === draft.eventDate
+          )
+          if (!alreadyTracked) {
+            await addFollowUpItem({
+              patientId,
+              category: fu.category,
+              description: fu.description(title),
+              orderedDate: draft.eventDate,
+              resolved: false,
+              resolvedDate: null,
+              notes: null,
+              storagePath: null,
+              filename: null,
+            })
+          }
+        } catch {
+          // best-effort — the reminder itself is already saved
+        }
+      }
+
       setDraft({ ...emptyDraft, eventDate: draft.eventDate })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add reminder')
@@ -96,7 +125,8 @@ export function RemindersTab({ patientId }: Props) {
         For "Surgery date", set the actual OT date — the Dashboard will remind you the day before
         so pre-op labs/coordination happen on time. For "Follow-up"/"Custom", the date is when the
         task itself is due. A title mentioning "VCUG" or "biopsy" gets an automatic prerequisite
-        check against the patient's latest labs.
+        check against the patient's latest labs. A "biopsy" reminder also creates a pathology
+        follow-up in the Follow-up tab, due 2 days after the biopsy date.
       </p>
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value as ReminderType })}>

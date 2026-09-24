@@ -150,7 +150,7 @@ export interface PatientReminder {
 
 export type PatientReminderDraft = Omit<PatientReminder, 'id'>
 
-export type FollowUpCategory = 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'other'
+export type FollowUpCategory = 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'pathology' | 'other'
 
 export interface FollowUpItem {
   id: string
@@ -161,6 +161,8 @@ export interface FollowUpItem {
   resolved: boolean
   resolvedDate?: string | null
   notes?: string | null
+  storagePath?: string | null
+  filename?: string | null
   createdAt: string
 }
 

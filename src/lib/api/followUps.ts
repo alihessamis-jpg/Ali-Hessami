@@ -10,6 +10,8 @@ interface FollowUpItemRow {
   resolved: boolean
   resolved_date: string | null
   notes: string | null
+  storage_path: string | null
+  filename: string | null
   created_at: string
 }
 
@@ -23,6 +25,8 @@ function toDomain(row: FollowUpItemRow): FollowUpItem {
     resolved: row.resolved,
     resolvedDate: row.resolved_date,
     notes: row.notes,
+    storagePath: row.storage_path,
+    filename: row.filename,
     createdAt: row.created_at,
   }
 }
@@ -48,6 +52,8 @@ export async function addFollowUpItem(draft: FollowUpItemDraft): Promise<FollowU
       resolved: draft.resolved,
       resolved_date: draft.resolvedDate,
       notes: draft.notes,
+      storage_path: draft.storagePath,
+      filename: draft.filename,
     })
     .select()
     .single()
@@ -60,6 +66,11 @@ export async function setFollowUpResolved(id: string, resolved: boolean): Promis
     .from('follow_up_items')
     .update({ resolved, resolved_date: resolved ? new Date().toISOString().slice(0, 10) : null })
     .eq('id', id)
+  if (error) throw error
+}
+
+export async function setFollowUpAttachment(id: string, storagePath: string | null, filename: string | null): Promise<void> {
+  const { error } = await supabase.from('follow_up_items').update({ storage_path: storagePath, filename }).eq('id', id)
   if (error) throw error
 }
 

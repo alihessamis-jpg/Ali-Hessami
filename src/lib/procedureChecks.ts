@@ -1,16 +1,26 @@
 import { isPositiveCulture } from './labPresets'
 import { toShamsi } from './shamsi'
-import type { LabEntry, UserSettings } from '../types/domain'
+import type { FollowUpCategory, LabEntry, UserSettings } from '../types/domain'
 
 export type PrerequisiteCheck =
   | { kind: 'culture'; test: string }
   | { kind: 'min'; test: string; unit: string; threshold: (s: UserSettings) => number }
   | { kind: 'max'; test: string; unit: string; threshold: (s: UserSettings) => number }
 
+export interface ProcedureFollowUp {
+  category: FollowUpCategory
+  description: (reminderTitle: string) => string
+  daysAfter: number
+}
+
 export interface ProcedureRule {
   match: RegExp
   label: string
   checks: PrerequisiteCheck[]
+  // When set, saving a reminder matching this rule also creates a
+  // Follow-up item due `daysAfter` days from the reminder's own date (e.g.
+  // the biopsy itself), instead of making the clinician add it separately.
+  followUp?: ProcedureFollowUp
 }
 
 // Procedures that have lab prerequisites worth flagging inline wherever a
@@ -26,8 +36,21 @@ export const PROCEDURE_RULES: ProcedureRule[] = [
       { kind: 'min', test: 'Platelets', unit: 'x10³/µL', threshold: (s) => s.biopsyPlateletMin },
       { kind: 'max', test: 'INR', unit: '', threshold: (s) => s.biopsyInrMax },
     ],
+    followUp: {
+      category: 'pathology',
+      description: (title) => `Pathology result — ${title}`,
+      daysAfter: 2,
+    },
   },
 ]
+
+// Categories that get an automatic "overdue" flag (Follow-up tab, Overview
+// alerts) once this many days have passed since they were ordered.
+// Categories left out just show elapsed time and rely on clinical judgement.
+export const FOLLOW_UP_WINDOW_DAYS: Partial<Record<FollowUpCategory, number>> = {
+  culture: 2,
+  pathology: PROCEDURE_RULES.find((r) => r.followUp?.category === 'pathology')?.followUp?.daysAfter ?? 2,
+}
 
 export type CheckStatus = { text: string; cls: 'value-abnormal' | undefined }
 

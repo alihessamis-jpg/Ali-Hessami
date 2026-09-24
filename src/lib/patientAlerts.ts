@@ -6,7 +6,7 @@ import { assessProteinuriaStatus } from './proteinuria'
 import { assessNephriticWorkup } from './nephriticWorkup'
 import { ageInYears } from './growth'
 import { daysSince } from './dates'
-import { procedureStatusesFor } from './procedureChecks'
+import { FOLLOW_UP_WINDOW_DAYS, procedureStatusesFor } from './procedureChecks'
 import { toShamsi } from './shamsi'
 import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, UserSettings } from '../types/domain'
 
@@ -118,16 +118,19 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   }
 
   const pendingFollowUps = followUpItems.filter((i) => !i.resolved)
-  const overdueCultures = pendingFollowUps.filter((i) => i.category === 'culture' && daysSince(i.orderedDate) >= 2)
-  for (const item of overdueCultures) {
+  const overdueFollowUps = pendingFollowUps.filter((i) => {
+    const windowDays = FOLLOW_UP_WINDOW_DAYS[i.category]
+    return windowDays != null && daysSince(i.orderedDate) >= windowDays
+  })
+  for (const item of overdueFollowUps) {
     alerts.push({
       id: `followup-${item.id}`,
       severity: 'warning',
-      text: `Follow up culture — ${item.description} (sent ${daysSince(item.orderedDate)}d ago)`,
+      text: `Follow up ${item.category} — ${item.description} (sent ${daysSince(item.orderedDate)}d ago)`,
       tab: 'followUp',
     })
   }
-  const otherPending = pendingFollowUps.length - overdueCultures.length
+  const otherPending = pendingFollowUps.length - overdueFollowUps.length
   if (otherPending > 0) {
     alerts.push({
       id: 'followup-pending',

@@ -81,3 +81,24 @@ export async function deleteReferenceAttachmentFile(path: string): Promise<void>
   const { error } = await supabase.storage.from(IMAGING_BUCKET).remove([path])
   if (error) throw error
 }
+
+// Same bucket again, under a followup-attachments path segment (pathology
+// reports and other result documents attached to a Follow-up item).
+export async function uploadFollowUpAttachmentFile(userId: string, followUpId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${userId}/followup-attachments/${followUpId}-${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+  const { error } = await supabase.storage.from(IMAGING_BUCKET).upload(path, file)
+  if (error) throw error
+  return path
+}
+
+export async function getFollowUpAttachmentSignedUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(IMAGING_BUCKET).createSignedUrl(path, 60 * 60)
+  if (error) throw error
+  return data.signedUrl
+}
+
+export async function deleteFollowUpAttachmentFile(path: string): Promise<void> {
+  const { error } = await supabase.storage.from(IMAGING_BUCKET).remove([path])
+  if (error) throw error
+}

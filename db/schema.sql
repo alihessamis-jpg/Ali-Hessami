@@ -256,12 +256,14 @@ create index patient_reminders_event_date_idx on public.patient_reminders (event
 create table public.follow_up_items (
     id             uuid primary key default gen_random_uuid(),
     patient_id     uuid not null references public.patients (id) on delete cascade,
-    category       text not null, -- 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'other'
+    category       text not null, -- 'culture' | 'imaging' | 'document' | 'specialized_lab' | 'pathology' | 'other'
     description    text not null,
     ordered_date   date not null,
     resolved       boolean not null default false,
     resolved_date  date,
     notes          text,
+    storage_path   text,
+    filename       text,
     created_at     timestamptz not null default now()
 );
 
