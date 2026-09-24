@@ -592,6 +592,24 @@ create table public.board_question_attempts (
 );
 create index board_question_attempts_owner_id_idx on public.board_question_attempts (owner_id, attempted_at);
 
+-- Fellowship academic activity tracker: conferences, journal club,
+-- presentations/posters, and manuscripts in progress -- a personal record
+-- for fellowship milestone/portfolio review, distinct from case_log_entries
+-- (which tracks clinical exposure, not academic output).
+create table public.academic_activities (
+    id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null references auth.users (id) on delete cascade,
+    category    text not null,
+    title       text not null,
+    role        text,
+    venue       text,
+    date        date not null,
+    status      text,
+    notes       text,
+    created_at  timestamptz not null default now()
+);
+create index academic_activities_owner_id_idx on public.academic_activities (owner_id, date desc);
+
 create table public.knowledge_gaps (
     id          uuid primary key default gen_random_uuid(),
     user_id     uuid not null references auth.users (id) on delete cascade,
@@ -752,6 +770,7 @@ alter table public.lab_challenges enable row level security;
 alter table public.imaging_challenges enable row level security;
 alter table public.board_questions enable row level security;
 alter table public.board_question_attempts enable row level security;
+alter table public.academic_activities enable row level security;
 alter table public.knowledge_gaps enable row level security;
 alter table public.case_log_entries enable row level security;
 alter table public.personal_cases enable row level security;
@@ -912,6 +931,9 @@ create policy imaging_challenges_owner_access on public.imaging_challenges
 
 create policy knowledge_gaps_self_access on public.knowledge_gaps
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy academic_activities_owner_access on public.academic_activities
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy board_questions_owner_access on public.board_questions
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());

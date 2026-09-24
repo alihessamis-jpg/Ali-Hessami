@@ -414,6 +414,28 @@ export interface CaseLogEntry {
 
 export type CaseLogEntryDraft = Omit<CaseLogEntry, 'id'>
 
+export type AcademicActivityStatus =
+  | 'planned'
+  | 'completed'
+  | 'submitted'
+  | 'under_review'
+  | 'revision_requested'
+  | 'accepted'
+  | 'published'
+  | 'rejected'
+
+export interface AcademicActivity {
+  id: string
+  category: string
+  title: string
+  role?: string | null
+  venue?: string | null
+  date: string
+  status?: AcademicActivityStatus | null
+  notes?: string | null
+}
+export type AcademicActivityDraft = Omit<AcademicActivity, 'id'>
+
 export interface PatientDocument {
   id: string
   patientId: string
