@@ -7,17 +7,33 @@ function latestByTest(entries: LabEntry[], testName: string): LabEntry | null {
   return matches.reduce((latest, e) => (e.date > latest.date ? e : latest))
 }
 
+export interface PhosphateThresholds {
+  under1yMgDl: number
+  age1to3MgDl: number
+  age3to10MgDl: number
+  age10to17MgDl: number
+  adultMgDl: number
+}
+
 // Pediatric phosphate reference ranges are strongly age-dependent (much
 // higher in infancy than in adults) -- these bands are approximate and
 // lab-dependent, same caveat as the other rough screening cutoffs in this
 // app (see nephriticWorkup.ts).
-function phosphateUpperLimit(ageYears: number | null): number {
-  if (ageYears == null) return 4.5
-  if (ageYears < 1) return 8.1
-  if (ageYears < 3) return 6.5
-  if (ageYears < 10) return 5.8
-  if (ageYears < 17) return 5.4
-  return 4.5
+export const DEFAULT_PHOSPHATE_THRESHOLDS: PhosphateThresholds = {
+  under1yMgDl: 8.1,
+  age1to3MgDl: 6.5,
+  age3to10MgDl: 5.8,
+  age10to17MgDl: 5.4,
+  adultMgDl: 4.5,
+}
+
+function phosphateUpperLimit(ageYears: number | null, phosphate: PhosphateThresholds): number {
+  if (ageYears == null) return phosphate.adultMgDl
+  if (ageYears < 1) return phosphate.under1yMgDl
+  if (ageYears < 3) return phosphate.age1to3MgDl
+  if (ageYears < 10) return phosphate.age3to10MgDl
+  if (ageYears < 17) return phosphate.age10to17MgDl
+  return phosphate.adultMgDl
 }
 
 export interface CkdMbdThresholds {
@@ -28,6 +44,7 @@ export interface CkdMbdThresholds {
   vitDDeficientNgMl: number
   vitDInsufficientNgMl: number
   bicarbLowMeqL: number
+  phosphate: PhosphateThresholds
 }
 
 export const DEFAULT_CKD_MBD_THRESHOLDS: CkdMbdThresholds = {
@@ -38,6 +55,7 @@ export const DEFAULT_CKD_MBD_THRESHOLDS: CkdMbdThresholds = {
   vitDDeficientNgMl: 20,
   vitDInsufficientNgMl: 30,
   bicarbLowMeqL: 22,
+  phosphate: DEFAULT_PHOSPHATE_THRESHOLDS,
 }
 
 const CALCIUM_BINDER = /calcium carbonate|calcium acetate/i
@@ -88,7 +106,7 @@ export function assessCkdMbd(
   const onMed = (pattern: RegExp) => activeMedNames.some((n) => pattern.test(n))
   const flags: CkdMbdFlag[] = []
 
-  const phosHigh = phosphate?.value != null && phosphate.value > phosphateUpperLimit(ageYears)
+  const phosHigh = phosphate?.value != null && phosphate.value > phosphateUpperLimit(ageYears, thresholds.phosphate)
   const caLow = correctedCa != null && correctedCa < thresholds.caLowMgDl
   const caHigh = correctedCa != null && correctedCa > thresholds.caHighMgDl
 

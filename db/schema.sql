@@ -592,6 +592,11 @@ create table public.user_settings (
     ckd_mbd_vitd_deficient        numeric not null default 20,
     ckd_mbd_vitd_insufficient     numeric not null default 30,
     ckd_mbd_bicarb_low            numeric not null default 22,
+    phosphate_under_1y            numeric not null default 8.1,
+    phosphate_age_1to3            numeric not null default 6.5,
+    phosphate_age_3to10           numeric not null default 5.8,
+    phosphate_age_10to17          numeric not null default 5.4,
+    phosphate_adult               numeric not null default 4.5,
     updated_at                    timestamptz not null default now()
 );
 

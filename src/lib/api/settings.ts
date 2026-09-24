@@ -12,6 +12,11 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   ckdMbdVitDDeficient: 20,
   ckdMbdVitDInsufficient: 30,
   ckdMbdBicarbLow: 22,
+  phosphateUnder1y: 8.1,
+  phosphateAge1to3: 6.5,
+  phosphateAge3to10: 5.8,
+  phosphateAge10to17: 5.4,
+  phosphateAdult: 4.5,
 }
 
 interface UserSettingsRow {
@@ -25,6 +30,11 @@ interface UserSettingsRow {
   ckd_mbd_vitd_deficient: number
   ckd_mbd_vitd_insufficient: number
   ckd_mbd_bicarb_low: number
+  phosphate_under_1y: number
+  phosphate_age_1to3: number
+  phosphate_age_3to10: number
+  phosphate_age_10to17: number
+  phosphate_adult: number
 }
 
 function toDomain(row: UserSettingsRow): UserSettings {
@@ -39,6 +49,11 @@ function toDomain(row: UserSettingsRow): UserSettings {
     ckdMbdVitDDeficient: row.ckd_mbd_vitd_deficient,
     ckdMbdVitDInsufficient: row.ckd_mbd_vitd_insufficient,
     ckdMbdBicarbLow: row.ckd_mbd_bicarb_low,
+    phosphateUnder1y: row.phosphate_under_1y,
+    phosphateAge1to3: row.phosphate_age_1to3,
+    phosphateAge3to10: row.phosphate_age_3to10,
+    phosphateAge10to17: row.phosphate_age_10to17,
+    phosphateAdult: row.phosphate_adult,
   }
 }
 
@@ -70,6 +85,11 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         ckd_mbd_vitd_deficient: next.ckdMbdVitDDeficient,
         ckd_mbd_vitd_insufficient: next.ckdMbdVitDInsufficient,
         ckd_mbd_bicarb_low: next.ckdMbdBicarbLow,
+        phosphate_under_1y: next.phosphateUnder1y,
+        phosphate_age_1to3: next.phosphateAge1to3,
+        phosphate_age_3to10: next.phosphateAge3to10,
+        phosphate_age_10to17: next.phosphateAge10to17,
+        phosphate_adult: next.phosphateAdult,
       },
       { onConflict: 'owner_id' }
     )

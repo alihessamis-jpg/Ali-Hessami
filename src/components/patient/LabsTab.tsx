@@ -226,6 +226,13 @@ export function LabsTab({ patientId, patient }: Props) {
       vitDDeficientNgMl: settings.ckdMbdVitDDeficient,
       vitDInsufficientNgMl: settings.ckdMbdVitDInsufficient,
       bicarbLowMeqL: settings.ckdMbdBicarbLow,
+      phosphate: {
+        under1yMgDl: settings.phosphateUnder1y,
+        age1to3MgDl: settings.phosphateAge1to3,
+        age3to10MgDl: settings.phosphateAge3to10,
+        age10to17MgDl: settings.phosphateAge10to17,
+        adultMgDl: settings.phosphateAdult,
+      },
     })
   }, [
     entries,
@@ -240,6 +247,11 @@ export function LabsTab({ patientId, patient }: Props) {
     settings.ckdMbdVitDDeficient,
     settings.ckdMbdVitDInsufficient,
     settings.ckdMbdBicarbLow,
+    settings.phosphateUnder1y,
+    settings.phosphateAge1to3,
+    settings.phosphateAge3to10,
+    settings.phosphateAge10to17,
+    settings.phosphateAdult,
   ])
 
   const renalFailure = !!patient.baselineCr || !!patient.baselineEGFR

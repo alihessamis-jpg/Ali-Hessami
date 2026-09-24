@@ -32,7 +32,15 @@ const CKD_MBD_FIELDS: FieldConfig[] = [
   { key: 'ckdMbdBicarbLow', label: 'Bicarbonate low (mEq/L)', step: '0.5' },
 ]
 
-const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS]
+const PHOSPHATE_FIELDS: FieldConfig[] = [
+  { key: 'phosphateUnder1y', label: 'Phosphorus upper limit — under 1 year (mg/dL)', step: '0.1' },
+  { key: 'phosphateAge1to3', label: 'Phosphorus upper limit — 1 to 3 years (mg/dL)', step: '0.1' },
+  { key: 'phosphateAge3to10', label: 'Phosphorus upper limit — 3 to 10 years (mg/dL)', step: '0.1' },
+  { key: 'phosphateAge10to17', label: 'Phosphorus upper limit — 10 to 17 years (mg/dL)', step: '0.1' },
+  { key: 'phosphateAdult', label: 'Phosphorus upper limit — 17 years and up (mg/dL)', step: '0.1' },
+]
+
+const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS]
 
 export function SettingsPage() {
   const [form, setForm] = useState<FormState>(toFormState(DEFAULT_USER_SETTINGS))
@@ -124,6 +132,12 @@ export function SettingsPage() {
             <p className="patient-meta">
               Used by the CKD-MBD banner's flags (phosphate binder, calcium, PTH/vitamin D, and acidosis
               recommendations) in the Labs tab for CKD patients.
+            </p>
+
+            {PHOSPHATE_FIELDS.map(renderField)}
+            <p className="patient-meta">
+              Phosphorus is age-dependent in children — these age-band upper limits decide when the phosphate binder
+              flag above triggers, instead of one fixed adult number.
             </p>
 
             {error && <p className="form-error">{error}</p>}

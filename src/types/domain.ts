@@ -501,4 +501,9 @@ export interface UserSettings {
   ckdMbdVitDDeficient: number
   ckdMbdVitDInsufficient: number
   ckdMbdBicarbLow: number
+  phosphateUnder1y: number
+  phosphateAge1to3: number
+  phosphateAge3to10: number
+  phosphateAge10to17: number
+  phosphateAdult: number
 }
