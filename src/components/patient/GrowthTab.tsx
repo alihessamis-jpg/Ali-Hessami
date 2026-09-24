@@ -179,7 +179,12 @@ export function GrowthTab({ patientId, patient }: Props) {
       )}
 
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
-        <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
+        <input
+          type="date"
+          value={draft.date}
+          onChange={(e) => setDraft({ ...draft, date: e.target.value || new Date().toISOString().slice(0, 10) })}
+          required
+        />
         <input
           placeholder="Height/length (cm)"
           type="number"

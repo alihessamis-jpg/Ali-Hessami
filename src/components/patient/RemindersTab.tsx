@@ -84,7 +84,12 @@ export function RemindersTab({ patientId }: Props) {
           <option value="custom">Custom</option>
         </select>
         <input placeholder="Title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
-        <input type="date" value={draft.eventDate} onChange={(e) => setDraft({ ...draft, eventDate: e.target.value })} required />
+        <input
+          type="date"
+          value={draft.eventDate}
+          onChange={(e) => setDraft({ ...draft, eventDate: e.target.value || new Date().toISOString().slice(0, 10) })}
+          required
+        />
         <input placeholder="Note" value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
         <button type="submit">Add</button>
       </form>

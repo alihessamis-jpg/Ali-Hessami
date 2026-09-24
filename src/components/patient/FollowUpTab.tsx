@@ -124,7 +124,7 @@ export function FollowUpTab({ patientId }: Props) {
         <input
           type="date"
           value={draft.orderedDate}
-          onChange={(e) => setDraft({ ...draft, orderedDate: e.target.value })}
+          onChange={(e) => setDraft({ ...draft, orderedDate: e.target.value || new Date().toISOString().slice(0, 10) })}
           required
         />
         <input placeholder="Notes" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />

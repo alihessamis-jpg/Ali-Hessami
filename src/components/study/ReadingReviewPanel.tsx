@@ -113,7 +113,12 @@ export function ReadingReviewPanel() {
           value={draft.source}
           onChange={(e) => setDraft({ ...draft, source: e.target.value })}
         />
-        <input type="date" value={draft.dateRead} onChange={(e) => setDraft({ ...draft, dateRead: e.target.value })} required />
+        <input
+          type="date"
+          value={draft.dateRead}
+          onChange={(e) => setDraft({ ...draft, dateRead: e.target.value || new Date().toISOString().slice(0, 10) })}
+          required
+        />
         <select value={draft.topicId} onChange={(e) => setDraft({ ...draft, topicId: e.target.value })}>
           <option value="">No topic</option>
           {topics.map((t) => (

@@ -101,7 +101,12 @@ export function ImagingTab({ patientId }: Props) {
           </label>
           <label>
             Date
-            <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} required />
+            <input
+              type="date"
+              value={draft.date}
+              onChange={(e) => setDraft({ ...draft, date: e.target.value || new Date().toISOString().slice(0, 10) })}
+              required
+            />
           </label>
         </div>
         <div
