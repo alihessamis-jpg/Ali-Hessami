@@ -19,6 +19,7 @@ import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdScreening } from '../../lib/ckdScreening'
+import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from '../../lib/clinicalFlags'
 import { ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
@@ -190,6 +191,11 @@ export function LabsTab({ patientId, patient }: Props) {
     return kdigoStage(patient.baselineCr, latestCreatinine.value, !!patient.dialysisStatus)
   }, [patient.baselineCr, patient.dialysisStatus, latestCreatinine])
 
+  const obstructiveCrTrend = useMemo(() => {
+    if (!hasVurPuvOrObstruction(patient)) return null
+    return assessObstructiveCreatinineTrend(entries, patient.baselineCr)
+  }, [entries, patient])
+
   const firstMorningUpcByDate = useMemo(() => mapByDate(entries, 'Urine Pro/Cr - First Morning'), [entries])
 
   const proteinuriaStatus = useMemo(() => assessProteinuriaStatus(entries), [entries])
@@ -280,6 +286,28 @@ export function LabsTab({ patientId, patient }: Props) {
           <strong>{akiStage ? `AKI Stage ${akiStage} (KDIGO)` : 'No AKI by creatinine criteria'}</strong>
           <span className="patient-meta">
             Baseline {patient.baselineCr} → {latestCreatinine.value} mg/dL ({toShamsi(latestCreatinine.date)})
+          </span>
+        </div>
+      )}
+      {obstructiveCrTrend && (
+        <div className={`aki-banner ${obstructiveCrTrend.trend !== 'falling' ? 'aki-banner--warning' : ''}`}>
+          <strong>
+            {obstructiveCrTrend.trend === 'rising'
+              ? '⚠ VUR/PUV/urinary obstruction — Cr rising'
+              : obstructiveCrTrend.trend === 'flat'
+                ? '⚠ VUR/PUV/urinary obstruction — Cr unchanged'
+                : 'VUR/PUV/urinary obstruction — Cr improving'}
+          </strong>
+          <span className="patient-meta">
+            {obstructiveCrTrend.previousValue} → {obstructiveCrTrend.latestValue} mg/dL ({toShamsi(obstructiveCrTrend.latestDate)}, vs.{' '}
+            {obstructiveCrTrend.previousLabel === 'baseline' ? 'baseline' : toShamsi(obstructiveCrTrend.previousDate!)})
+          </span>
+          <span className="patient-meta">
+            {obstructiveCrTrend.trend === 'rising'
+              ? 'Rising Cr in VUR/PUV/obstruction — place or fix a Foley catheter to relieve the obstruction, then follow the Cr trend.'
+              : obstructiveCrTrend.trend === 'falling'
+                ? 'Cr trending down — favorable prognosis (injury likely reversible).'
+                : 'Cr stuck at this level instead of improving — concerning for permanent renal damage.'}
           </span>
         </div>
       )}

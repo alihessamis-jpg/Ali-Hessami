@@ -1,4 +1,5 @@
 import { kdigoStage } from './formulas'
+import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from './clinicalFlags'
 import { assessCkdMbd } from './ckdMbd'
 import { assessAcidBase } from './acidBase'
 import { assessCkdScreening } from './ckdScreening'
@@ -56,6 +57,34 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
     const latestCr = crEntries.reduce((a, b) => (b.date > a.date ? b : a))
     const stage = kdigoStage(patient.baselineCr, latestCr.value!, !!patient.dialysisStatus)
     if (stage) alerts.push({ id: 'aki', severity: 'warning', text: `AKI Stage ${stage} (KDIGO)`, tab: 'labs' })
+  }
+
+  if (hasVurPuvOrObstruction(patient)) {
+    const crTrend = assessObstructiveCreatinineTrend(labEntries, patient.baselineCr)
+    if (crTrend) {
+      if (crTrend.trend === 'rising') {
+        alerts.push({
+          id: 'obstructive-cr-rising',
+          severity: 'warning',
+          text: `VUR/PUV/urinary obstruction — Cr rising (${crTrend.previousValue} → ${crTrend.latestValue} mg/dL, ${toShamsi(crTrend.latestDate)}) — place/fix a Foley catheter to relieve the obstruction, then follow the Cr trend`,
+          tab: 'labs',
+        })
+      } else if (crTrend.trend === 'falling') {
+        alerts.push({
+          id: 'obstructive-cr-falling',
+          severity: 'info',
+          text: `VUR/PUV/urinary obstruction — Cr improving (${crTrend.previousValue} → ${crTrend.latestValue} mg/dL) — favorable sign`,
+          tab: 'labs',
+        })
+      } else {
+        alerts.push({
+          id: 'obstructive-cr-flat',
+          severity: 'warning',
+          text: `VUR/PUV/urinary obstruction — Cr unchanged at ${crTrend.latestValue} mg/dL rather than improving — concerning for permanent renal damage`,
+          tab: 'labs',
+        })
+      }
+    }
   }
 
   const proteinuria = assessProteinuriaStatus(labEntries)
