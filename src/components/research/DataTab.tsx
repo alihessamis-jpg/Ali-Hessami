@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addResearchRecord, deleteResearchRecord, listResearchFields, listResearchRecords } from '../../lib/api/research'
 import { toShamsi } from '../../lib/shamsi'
+import { computeResearchValues } from '../../lib/researchFormula'
 import type { ResearchField, ResearchRecord } from '../../types/domain'
 
 interface Props {
@@ -41,13 +42,15 @@ export function DataTab({ projectId }: Props) {
       .finally(() => setLoading(false))
   }, [projectId])
 
+  const liveValues = useMemo(() => computeResearchValues(fields, draft), [fields, draft])
+
   async function handleAdd(e: FormEvent) {
     e.preventDefault()
     try {
       const record = await addResearchRecord({
         projectId,
         date: new Date().toISOString().slice(0, 10),
-        values: draft,
+        values: computeResearchValues(fields, draft),
       })
       setRecords((prev) => [record, ...prev])
       setDraft({})
@@ -81,7 +84,9 @@ export function DataTab({ projectId }: Props) {
           {fields.map((f) => (
             <label key={f.id}>
               {f.label}
-              {f.type === 'Dropdown' || f.type === 'Radio' ? (
+              {f.type === 'Calculated Field' ? (
+                <input type="text" value={liveValues[f.id] ?? ''} disabled placeholder="Calculated automatically" />
+              ) : f.type === 'Dropdown' || f.type === 'Radio' ? (
                 <select
                   value={draft[f.id] ?? ''}
                   onChange={(e) => setDraft({ ...draft, [f.id]: e.target.value })}

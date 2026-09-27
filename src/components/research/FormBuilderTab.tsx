@@ -86,7 +86,11 @@ export function FormBuilderTab({ projectId }: Props) {
           <input placeholder="Options, comma separated" value={options} onChange={(e) => setOptions(e.target.value)} />
         )}
         {type === 'Calculated Field' && (
-          <input placeholder="Formula" value={formula} onChange={(e) => setFormula(e.target.value)} />
+          <input
+            placeholder="Formula, e.g. {Pre weight} - {Post weight}"
+            value={formula}
+            onChange={(e) => setFormula(e.target.value)}
+          />
         )}
         <label style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />
@@ -94,6 +98,9 @@ export function FormBuilderTab({ projectId }: Props) {
         </label>
         <button type="submit">Add field</button>
       </form>
+      {type === 'Calculated Field' && fields.length > 0 && (
+        <p className="patient-meta">Reference an earlier field as {'{'}{fields.map((f) => f.label).join('}, {')}{'}'}.</p>
+      )}
 
       {error && <p className="form-error">{error}</p>}
       {loading ? (
