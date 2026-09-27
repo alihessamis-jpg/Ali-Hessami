@@ -2,7 +2,7 @@
 // so existing formulas/logic (e.g. scheduleReview, schwartzEGFR) can be
 // reused as-is against these types.
 
-export type PatientCareStatus = 'inpatient' | 'discharged'
+export type PatientCareStatus = 'inpatient' | 'outpatient' | 'discharged'
 
 export interface Patient {
   id: string

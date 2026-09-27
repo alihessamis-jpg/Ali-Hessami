@@ -8,8 +8,15 @@ import type { Patient, PatientCareStatus } from '../types/domain'
 
 const WARDS: Array<{ id: PatientCareStatus; label: string }> = [
   { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)' },
+  { id: 'outpatient', label: 'Outpatient / Dialysis clinic' },
   { id: 'discharged', label: 'Discharged patients' },
 ]
+
+const CARE_STATUS_LABELS: Record<PatientCareStatus, string> = {
+  inpatient: 'Inpatient',
+  outpatient: 'Outpatient',
+  discharged: 'Discharged',
+}
 
 export function PatientsListPage() {
   const [patients, setPatients] = useState<Patient[]>([])
@@ -192,15 +199,13 @@ export function PatientsListPage() {
                     {!p.dialysisStatus && !p.transplantStatus && lowHbByPatient[p.id] == null && '—'}
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    {p.careStatus === 'inpatient' ? (
-                      <button className="link-button" onClick={() => void handleSetCareStatus(p, 'discharged')}>
-                        Discharge
-                      </button>
-                    ) : (
-                      <button className="link-button" onClick={() => void handleSetCareStatus(p, 'inpatient')}>
-                        Re-admit
-                      </button>
-                    )}
+                    <select value={p.careStatus} onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}>
+                      {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
+                        <option key={status} value={status}>
+                          {CARE_STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                 </tr>
               ))}
