@@ -126,6 +126,51 @@ export function isHighPercentile(pct: number): boolean {
   return pct > 97
 }
 
+// --- Reference percentile curves (for charting) ---
+// Reverses the LMS transform to get the measurement value at a fixed
+// percentile, for the standard growth-chart bands (3rd/15th/50th/85th/97th).
+
+export type GrowthMeasurement = 'weight' | 'height' | 'headCirc'
+
+export const REFERENCE_PERCENTILES = [3, 15, 50, 85, 97] as const
+
+const PERCENTILE_Z: Record<number, number> = {
+  3: -1.8808,
+  15: -1.0364,
+  50: 0,
+  85: 1.0364,
+  97: 1.8808,
+}
+
+function valueAtZ(L: number, M: number, S: number, z: number): number {
+  if (Math.abs(L) < 1e-9) return M * Math.exp(S * z)
+  return M * Math.pow(1 + L * S * z, 1 / L)
+}
+
+export interface ReferenceCurvePoint {
+  ageMonths: number
+  values: Record<number, number>
+}
+
+function referenceTableFor(measurement: GrowthMeasurement, sex: Sex): LmsPoint[] {
+  if (measurement === 'headCirc') return WHO_HEAD_CIRCUMFERENCE_FOR_AGE[sex]
+  const whoTable = measurement === 'weight' ? WHO_WEIGHT_FOR_AGE[sex] : WHO_LENGTH_FOR_AGE[sex]
+  const cdcTable = measurement === 'weight' ? CDC_WEIGHT_FOR_AGE[sex] : CDC_STATURE_FOR_AGE[sex]
+  const whoPart = whoTable.filter((p) => p.m < WHO_CDC_HANDOFF_MONTHS)
+  return [...whoPart, ...cdcTable]
+}
+
+export function buildReferenceCurve(measurement: GrowthMeasurement, sex: Sex): ReferenceCurvePoint[] {
+  const table = referenceTableFor(measurement, sex)
+  return table.map((p) => {
+    const values: Record<number, number> = {}
+    for (const pct of REFERENCE_PERCENTILES) {
+      values[pct] = valueAtZ(p.L, p.M, p.S, PERCENTILE_Z[pct])
+    }
+    return { ageMonths: p.m, values }
+  })
+}
+
 // --- Growth faltering / failure-to-thrive screening ---
 // Based on commonly used pediatric FTT screening criteria: weight-for-age
 // persistently below the 5th percentile, or a downward crossing of roughly

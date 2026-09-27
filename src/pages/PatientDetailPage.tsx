@@ -18,6 +18,7 @@ import { FollowUpTab } from '../components/patient/FollowUpTab'
 import { DialysisTab } from '../components/patient/DialysisTab'
 import { VaccinationTab } from '../components/patient/VaccinationTab'
 import { LusStudyTab } from '../components/patient/LusStudyTab'
+import { TimelineTab } from '../components/patient/TimelineTab'
 import { LinkedTopicsWidget } from '../components/patient/LinkedTopicsWidget'
 import {
   AssessmentIcon,
@@ -30,6 +31,7 @@ import {
   KidneyIcon,
   LabsIcon,
   MedicationsIcon,
+  MilestoneIcon,
   NotesIcon,
   RemindersIcon,
   TrendsIcon,
@@ -41,6 +43,7 @@ import type { ComponentType, SVGProps } from 'react'
 
 type Tab =
   | 'overview'
+  | 'timeline'
   | 'assessment'
   | 'labs'
   | 'trends'
@@ -59,6 +62,7 @@ type Tab =
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'overview', label: 'Overview', icon: KidneyIcon },
+  { id: 'timeline', label: 'Timeline', icon: MilestoneIcon },
   { id: 'assessment', label: 'Assessment', icon: AssessmentIcon },
   { id: 'labs', label: 'Labs', icon: LabsIcon },
   { id: 'growth', label: 'Growth & BP', icon: GrowthIcon },
@@ -178,6 +182,7 @@ export function PatientDetailPage() {
 
       <div className="tab-panel">
         {tab === 'overview' && <OverviewTab patientId={id} patient={patient} onNavigate={setTab} />}
+        {tab === 'timeline' && <TimelineTab patientId={id} />}
         {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
         {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
         {tab === 'growth' && <GrowthTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}

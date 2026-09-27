@@ -14,6 +14,7 @@ import {
   type BpAssessment,
 } from '../../lib/growth'
 import { toShamsi } from '../../lib/shamsi'
+import { GrowthChart } from './GrowthChart'
 import type { GrowthEntry, Patient } from '../../types/domain'
 
 interface Props {
@@ -147,6 +148,21 @@ export function GrowthTab({ patientId, patient, onPatientUpdated }: Props) {
   const latestComputed = latest ? computed.get(latest.id) : undefined
   const latestBpFlag = latestComputed?.bp && latestComputed.bp.category !== 'normal' && latestComputed.bp.category !== 'indeterminate'
 
+  const chartPoints = useMemo(() => {
+    const height: Array<{ ageMonths: number; value: number; date: string }> = []
+    const weight: Array<{ ageMonths: number; value: number; date: string }> = []
+    const headCirc: Array<{ ageMonths: number; value: number; date: string }> = []
+    if (!dob) return { height, weight, headCirc }
+    for (const e of entries) {
+      const ageMonths = ageInMonths(dob, e.date)
+      if (ageMonths == null) continue
+      if (e.heightCm != null) height.push({ ageMonths, value: e.heightCm, date: e.date })
+      if (e.weightKg != null) weight.push({ ageMonths, value: e.weightKg, date: e.date })
+      if (e.headCircCm != null) headCirc.push({ ageMonths, value: e.headCircCm, date: e.date })
+    }
+    return { height, weight, headCirc }
+  }, [entries, dob])
+
   return (
     <div>
       {(!dob || !sex) && (
@@ -186,6 +202,26 @@ export function GrowthTab({ patientId, patient, onPatientUpdated }: Props) {
           <strong>{latestComputed.bp.label}</strong>
           <span className="patient-meta">{latestComputed.bp.note}</span>
         </div>
+      )}
+
+      {sex && (chartPoints.weight.length > 0 || chartPoints.height.length > 0 || chartPoints.headCirc.length > 0) && (
+        <>
+          {chartPoints.weight.length > 0 && (
+            <GrowthChart measurement="weight" sex={sex} unit="kg" title="Weight-for-age" patientPoints={chartPoints.weight} />
+          )}
+          {chartPoints.height.length > 0 && (
+            <GrowthChart measurement="height" sex={sex} unit="cm" title="Height/length-for-age" patientPoints={chartPoints.height} />
+          )}
+          {chartPoints.headCirc.length > 0 && (
+            <GrowthChart
+              measurement="headCirc"
+              sex={sex}
+              unit="cm"
+              title="Head circumference-for-age"
+              patientPoints={chartPoints.headCirc}
+            />
+          )}
+        </>
       )}
 
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
