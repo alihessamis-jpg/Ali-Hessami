@@ -69,7 +69,16 @@ Deno.serve(async (req) => {
 
   const reminderRows = reminders ?? []
 
-  if (overdueFollowUps.length === 0 && reminderRows.length === 0) {
+  const { data: settingsRows, error: settingsError } = await supabase
+    .from('user_settings')
+    .select('last_backup_at')
+    .limit(1)
+  if (settingsError) return new Response(settingsError.message, { status: 500 })
+  const lastBackupAt = (settingsRows?.[0]?.last_backup_at as string | null | undefined) ?? null
+  const daysSinceBackup = lastBackupAt ? daysSince(lastBackupAt.slice(0, 10)) : null
+  const backupOverdue = daysSinceBackup == null || daysSinceBackup >= 7
+
+  if (overdueFollowUps.length === 0 && reminderRows.length === 0 && !backupOverdue) {
     return new Response(JSON.stringify({ sent: false, reason: 'nothing due' }), { status: 200 })
   }
 
@@ -98,6 +107,15 @@ Deno.serve(async (req) => {
       .join('')
     sections.push(`<h3>Reminders due or overdue</h3><ul>${items}</ul>`)
   }
+  if (backupOverdue) {
+    const message =
+      daysSinceBackup == null
+        ? 'No full backup has ever been taken.'
+        : `Last full backup was ${daysSinceBackup} day(s) ago.`
+    sections.push(
+      `<h3>Backup reminder</h3><p>${message} Download a full backup from the Export page in Nephron.</p>`
+    )
+  }
 
   const html = `<div>${sections.join('')}</div>`
 
@@ -110,7 +128,7 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       from: 'Nephron <onboarding@resend.dev>',
       to: [DIGEST_TO_EMAIL],
-      subject: `Nephron: ${overdueFollowUps.length + reminderRows.length} item(s) need attention`,
+      subject: `Nephron: ${overdueFollowUps.length + reminderRows.length + (backupOverdue ? 1 : 0)} item(s) need attention`,
       html,
     }),
   })
@@ -121,7 +139,12 @@ Deno.serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ sent: true, followUps: overdueFollowUps.length, reminders: reminderRows.length }),
+    JSON.stringify({
+      sent: true,
+      followUps: overdueFollowUps.length,
+      reminders: reminderRows.length,
+      backupOverdue,
+    }),
     { status: 200 }
   )
 })

@@ -632,4 +632,5 @@ export interface UserSettings {
   phosphateAdult: number
   biopsyPlateletMin: number
   biopsyInrMax: number
+  lastBackupAt?: string | null
 }

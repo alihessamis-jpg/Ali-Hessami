@@ -19,6 +19,7 @@ import { listResearchProjects } from '../lib/api/research'
 import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/caseLog'
 import { listReadingItems } from '../lib/api/readingItems'
 import { listDueCheckpoints } from '../lib/readingReview'
+import { getUserSettings } from '../lib/api/settings'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
@@ -136,6 +137,7 @@ export function DashboardPage() {
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [uropathyWatches, setUropathyWatches] = useState<UropathyWatch[]>([])
   const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,6 +155,7 @@ export function DashboardPage() {
       listCaseLogEntries(),
       listObstructiveUropathyWatches(),
       listReadingItems(),
+      getUserSettings(),
     ])
       .then(
         async ([
@@ -166,6 +169,7 @@ export function DashboardPage() {
           caseLogRows,
           watchRows,
           readingRows,
+          settings,
         ]) => {
           setLabs(labRows)
           setReminders(reminderRows)
@@ -177,6 +181,7 @@ export function DashboardPage() {
           setCaseLogEntries(caseLogRows)
           setUropathyWatches(watchRows)
           setReadingItems(readingRows)
+          setLastBackupAt(settings.lastBackupAt ?? null)
 
           const today = new Date().toISOString().slice(0, 10)
           const tomorrow = addDays(today, 1)
@@ -245,8 +250,22 @@ export function DashboardPage() {
 
   const uropathyAlerts = uropathyWatches.map(uropathyWatchToAlert)
 
+  const daysSinceBackup = lastBackupAt ? Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / (1000 * 60 * 60 * 24)) : null
+  const backupAlerts: AlertItem[] =
+    daysSinceBackup == null || daysSinceBackup >= 7
+      ? [
+          {
+            id: 'backup-overdue',
+            severity: 'warning',
+            title: daysSinceBackup == null ? 'No backup on record' : `No backup in ${daysSinceBackup} days`,
+            detail: 'Download a full backup from the Export page',
+            to: '/export',
+          },
+        ]
+      : []
+
   const critical = [...labAlerts, ...reminderAlerts.filter((a) => a.severity === 'critical')]
-  const warning = [...reminderAlerts.filter((a) => a.severity === 'warning'), ...uropathyAlerts]
+  const warning = [...reminderAlerts.filter((a) => a.severity === 'warning'), ...uropathyAlerts, ...backupAlerts]
   const alerts = [...critical, ...warning, ...studyAlerts]
 
   const openGaps = knowledgeGaps.filter((g) => g.status !== 'resolved')

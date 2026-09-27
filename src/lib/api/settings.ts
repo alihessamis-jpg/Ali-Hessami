@@ -19,6 +19,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   phosphateAdult: 4.5,
   biopsyPlateletMin: 50,
   biopsyInrMax: 1.5,
+  lastBackupAt: null,
 }
 
 interface UserSettingsRow {
@@ -39,6 +40,7 @@ interface UserSettingsRow {
   phosphate_adult: number
   biopsy_platelet_min: number
   biopsy_inr_max: number
+  last_backup_at: string | null
 }
 
 function toDomain(row: UserSettingsRow): UserSettings {
@@ -60,6 +62,7 @@ function toDomain(row: UserSettingsRow): UserSettings {
     phosphateAdult: row.phosphate_adult,
     biopsyPlateletMin: row.biopsy_platelet_min,
     biopsyInrMax: row.biopsy_inr_max,
+    lastBackupAt: row.last_backup_at,
   }
 }
 
@@ -105,4 +108,18 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
     .single()
   if (error) throw error
   return toDomain(data as UserSettingsRow)
+}
+
+// Lightweight stamp -- called right after a successful full backup download,
+// separate from updateUserSettings so it never has to round-trip the whole
+// settings row just to record a timestamp.
+export async function markBackupTaken(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({ owner_id: user.id, last_backup_at: new Date().toISOString() }, { onConflict: 'owner_id' })
+  if (error) throw error
 }
