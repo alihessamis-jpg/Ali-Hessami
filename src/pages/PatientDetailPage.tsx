@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPatient } from '../lib/api/patients'
+import { getLusStudyEnrollment } from '../lib/api/lusStudy'
 import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
 import { LabsTab } from '../components/patient/LabsTab'
@@ -81,6 +82,8 @@ export function PatientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
+  const [lusEnrolled, setLusEnrolled] = useState(false)
+  const [wantsLusStudy, setWantsLusStudy] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -89,7 +92,13 @@ export function PatientDetailPage() {
       .then(setPatient)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load patient'))
       .finally(() => setLoading(false))
+    getLusStudyEnrollment(id)
+      .then((e) => setLusEnrolled(!!e))
+      .catch(() => undefined)
   }, [id])
+
+  const showLusStudyTab = lusEnrolled || wantsLusStudy
+  const visibleTabs = useMemo(() => TABS.filter((t) => t.id !== 'lusStudy' || showLusStudyTab), [showLusStudyTab])
 
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
@@ -131,6 +140,18 @@ export function PatientDetailPage() {
           <Link to={`/study/personal-cases/new?patientId=${id}`} className="button-link">
             Build teaching case
           </Link>
+          {!showLusStudyTab && (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                setWantsLusStudy(true)
+                setTab('lusStudy')
+              }}
+            >
+              Enroll in LUS Study
+            </button>
+          )}
           <button type="button" className="button-secondary" onClick={() => window.print()}>
             Print
           </button>
@@ -140,7 +161,7 @@ export function PatientDetailPage() {
       <LinkedTopicsWidget patientId={id} />
 
       <nav className="tab-bar">
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           const TabIcon = t.icon
           return (
             <button
