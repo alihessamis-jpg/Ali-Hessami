@@ -34,6 +34,8 @@ const BACKUP_TABLES: TableSpec[] = [
   { name: 'pd_prescriptions', ownerColumn: null, conflictKey: 'id' },
   { name: 'pd_peritonitis_episodes', ownerColumn: null, conflictKey: 'id' },
   { name: 'vaccinations', ownerColumn: null, conflictKey: 'id' },
+  { name: 'lus_study_enrollments', ownerColumn: null, conflictKey: 'id' },
+  { name: 'lus_study_sessions', ownerColumn: null, conflictKey: 'id' },
   { name: 'patient_reminders', ownerColumn: null, conflictKey: 'id' },
   { name: 'follow_up_items', ownerColumn: null, conflictKey: 'id' },
   { name: 'drug_reference', ownerColumn: 'owner_id', conflictKey: 'id' },

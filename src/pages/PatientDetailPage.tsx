@@ -16,6 +16,7 @@ import { GrowthTab } from '../components/patient/GrowthTab'
 import { FollowUpTab } from '../components/patient/FollowUpTab'
 import { DialysisTab } from '../components/patient/DialysisTab'
 import { VaccinationTab } from '../components/patient/VaccinationTab'
+import { LusStudyTab } from '../components/patient/LusStudyTab'
 import { LinkedTopicsWidget } from '../components/patient/LinkedTopicsWidget'
 import {
   AssessmentIcon,
@@ -31,6 +32,7 @@ import {
   NotesIcon,
   RemindersIcon,
   TrendsIcon,
+  UltrasoundIcon,
   VaccineIcon,
 } from '../components/icons'
 import type { Patient } from '../types/domain'
@@ -52,6 +54,7 @@ type Tab =
   | 'followUp'
   | 'dialysis'
   | 'vaccinations'
+  | 'lusStudy'
 
 const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { id: 'overview', label: 'Overview', icon: KidneyIcon },
@@ -65,6 +68,7 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
   { id: 'urineOutput', label: 'Urine Output', icon: DropletIcon },
   { id: 'dialysis', label: 'Dialysis', icon: DialysisIcon },
   { id: 'vaccinations', label: 'Vaccinations', icon: VaccineIcon },
+  { id: 'lusStudy', label: 'LUS Study', icon: UltrasoundIcon },
   { id: 'nephroticSyndrome', label: 'Nephrotic Syndrome', icon: KidneyIcon },
   { id: 'followUp', label: 'Follow-up', icon: FollowUpIcon },
   { id: 'reminders', label: 'Reminders', icon: RemindersIcon },
@@ -163,6 +167,7 @@ export function PatientDetailPage() {
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
         {tab === 'dialysis' && <DialysisTab patientId={id} />}
         {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
+        {tab === 'lusStudy' && <LusStudyTab patientId={id} patient={patient} />}
         {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
         {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
         {tab === 'reminders' && <RemindersTab patientId={id} />}

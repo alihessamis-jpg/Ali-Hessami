@@ -298,6 +298,108 @@ create table public.vaccinations (
 );
 create index vaccinations_patient_id_idx on public.vaccinations (patient_id, date_given desc);
 
+-- Pediatric HD lung-ultrasound volume-assessment study (interventional).
+-- A patient is enrolled once (group assignment); a session row is then
+-- logged for each dialysis session with pre/post 12-zone LUS (0-3 x12,
+-- max 36 per timepoint), IVC, BP, and dialysis session data. Group 2
+-- ("group2_lus_guided") sessions additionally record the LUS/IVC-guided
+-- dry-weight decision. Pre-HD fields are saved when the session starts;
+-- post-HD fields are added later (same row, updated) once dialysis ends --
+-- post_hd_weight_kg is null on an in-progress session. All derived values
+-- (BSA, LUS totals, UF rate, weight-loss %, IVC/BSA-normalized diameters)
+-- are computed client-side at save time and stored, so a saved row is a
+-- fixed, auditable record rather than one that silently recomputes if a
+-- formula changes later.
+create table public.lus_study_enrollments (
+    id               uuid primary key default gen_random_uuid(),
+    patient_id       uuid not null references public.patients (id) on delete cascade,
+    study_group      text not null, -- 'group1_standard' | 'group2_lus_guided'
+    enrollment_date  date not null default current_date,
+    notes            text,
+    created_at       timestamptz not null default now(),
+    unique (patient_id)
+);
+
+create table public.lus_study_sessions (
+    id                              uuid primary key default gen_random_uuid(),
+    patient_id                      uuid not null references public.patients (id) on delete cascade,
+    session_date                    date not null default current_date,
+    height_cm                       numeric,
+    bsa_m2                          numeric,
+
+    pre_hd_weight_kg                numeric,
+    target_weight_kg                numeric,
+    pre_hd_weight_above_target_kg   numeric,
+    pre_hd_edema                    boolean,
+    pre_hd_dyspnea                  boolean,
+    pre_hd_crackles                 boolean,
+
+    pre_lus_r1 smallint, pre_lus_r2 smallint, pre_lus_r3 smallint,
+    pre_lus_r4 smallint, pre_lus_r5 smallint, pre_lus_r6 smallint,
+    pre_lus_l1 smallint, pre_lus_l2 smallint, pre_lus_l3 smallint,
+    pre_lus_l4 smallint, pre_lus_l5 smallint, pre_lus_l6 smallint,
+    pre_lus_total                   smallint,
+
+    pre_ivc_max_mm                  numeric,
+    pre_ivc_min_mm                  numeric,
+    pre_ivc_resp_variation_pct      numeric,
+    pre_ivc_max_bsa                 numeric,
+    pre_hd_sbp                      numeric,
+    pre_hd_dbp                      numeric,
+    residual_urine_output_ml        numeric,
+
+    dialysis_duration_hours         numeric,
+    uf_volume_ml                    numeric,
+    uf_rate_ml_kg_h                 numeric,
+    previous_post_hd_weight_kg      numeric,
+    interdialytic_weight_gain_kg    numeric,
+    intradialytic_hypotension       boolean,
+    intradialytic_muscle_cramp      boolean,
+    saline_bolus_required           boolean,
+    uf_interruption                 boolean,
+    early_termination               boolean,
+
+    post_hd_weight_kg               numeric,
+    weight_loss_kg                  numeric,
+    weight_loss_pct                 numeric,
+    post_hd_weight_vs_dry_kg        numeric,
+
+    post_lus_r1 smallint, post_lus_r2 smallint, post_lus_r3 smallint,
+    post_lus_r4 smallint, post_lus_r5 smallint, post_lus_r6 smallint,
+    post_lus_l1 smallint, post_lus_l2 smallint, post_lus_l3 smallint,
+    post_lus_l4 smallint, post_lus_l5 smallint, post_lus_l6 smallint,
+    post_lus_total                  smallint,
+    lus_change                      smallint,
+    lus_change_pct                  numeric,
+
+    post_ivc_max_mm                 numeric,
+    post_ivc_min_mm                 numeric,
+    post_ivc_resp_variation_pct     numeric,
+    post_ivc_max_bsa                numeric,
+    ivc_max_change_mm               numeric,
+    ivc_min_change_mm               numeric,
+    ivc_resp_variation_change_pct   numeric,
+    post_hd_sbp                     numeric,
+    post_hd_dbp                     numeric,
+
+    post_hd_edema                   boolean,
+    post_hd_dyspnea                 boolean,
+    post_hd_crackles                boolean,
+    investigator_volume_assessment  text, -- 'euvolemia' | 'persistent_overload' | 'possible_hypovolemia' | 'indeterminate'
+
+    dry_weight_reassessment_needed  boolean,
+    suggested_decision              text, -- 'decrease' | 'increase' | 'no_change' | 'review'
+    lus_guided_decision             text, -- 'decrease' | 'increase' | 'no_change'
+    dry_weight_adjustment_kg        numeric,
+    adjustment_reason               jsonb not null default '[]'::jsonb,
+    safety_check                    text, -- 'stable' | 'concern' | 'indeterminate'
+    physician_confirmation          text, -- 'confirmed' | 'not_confirmed' | 'required_review'
+
+    notes                           text,
+    created_at                      timestamptz not null default now()
+);
+create index lus_study_sessions_patient_id_idx on public.lus_study_sessions (patient_id, session_date desc);
+
 -- Care reminders driving the Dashboard's alerts. `event_date` means different
 -- things per type: for 'follow_up'/'custom' it's the day the task is due; for
 -- 'surgery' it's the surgery date itself, and the dashboard alerts the day
@@ -777,6 +879,8 @@ alter table public.hd_sessions enable row level security;
 alter table public.pd_prescriptions enable row level security;
 alter table public.pd_peritonitis_episodes enable row level security;
 alter table public.vaccinations enable row level security;
+alter table public.lus_study_enrollments enable row level security;
+alter table public.lus_study_sessions enable row level security;
 alter table public.patient_reminders enable row level security;
 alter table public.follow_up_items enable row level security;
 alter table public.drug_reference enable row level security;
@@ -880,6 +984,18 @@ create policy vaccinations_owner_access on public.vaccinations
     for all using (exists (
         select 1 from public.patients p
         where p.id = vaccinations.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy lus_study_enrollments_owner_access on public.lus_study_enrollments
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = lus_study_enrollments.patient_id and p.owner_id = auth.uid()
+    ));
+
+create policy lus_study_sessions_owner_access on public.lus_study_sessions
+    for all using (exists (
+        select 1 from public.patients p
+        where p.id = lus_study_sessions.patient_id and p.owner_id = auth.uid()
     ));
 
 create policy patient_reminders_owner_access on public.patient_reminders

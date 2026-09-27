@@ -418,6 +418,113 @@ export interface AttendingConsult {
 }
 export type AttendingConsultDraft = Omit<AttendingConsult, 'id'>
 
+// Pediatric HD lung-ultrasound volume-assessment study
+export type LusStudyGroup = 'group1_standard' | 'group2_lus_guided'
+
+export interface LusStudyEnrollment {
+  id: string
+  patientId: string
+  studyGroup: LusStudyGroup
+  enrollmentDate: string
+  notes?: string | null
+}
+export type LusStudyEnrollmentDraft = Omit<LusStudyEnrollment, 'id'>
+
+export type InvestigatorVolumeAssessment = 'euvolemia' | 'persistent_overload' | 'possible_hypovolemia' | 'indeterminate'
+export type LusGuidedDecision = 'decrease' | 'increase' | 'no_change'
+export type SuggestedLusDecision = 'decrease' | 'increase' | 'no_change' | 'review'
+export type SafetyCheck = 'stable' | 'concern' | 'indeterminate'
+export type PhysicianConfirmation = 'confirmed' | 'not_confirmed' | 'required_review'
+
+export interface LusZoneScores {
+  r1: number | null
+  r2: number | null
+  r3: number | null
+  r4: number | null
+  r5: number | null
+  r6: number | null
+  l1: number | null
+  l2: number | null
+  l3: number | null
+  l4: number | null
+  l5: number | null
+  l6: number | null
+}
+
+export interface LusStudySession {
+  id: string
+  patientId: string
+  sessionDate: string
+  heightCm?: number | null
+  bsaM2?: number | null
+
+  preHdWeightKg?: number | null
+  targetWeightKg?: number | null
+  preHdWeightAboveTargetKg?: number | null
+  preHdEdema?: boolean | null
+  preHdDyspnea?: boolean | null
+  preHdCrackles?: boolean | null
+
+  preLus: LusZoneScores
+  preLusTotal?: number | null
+
+  preIvcMaxMm?: number | null
+  preIvcMinMm?: number | null
+  preIvcRespVariationPct?: number | null
+  preIvcMaxBsa?: number | null
+  preHdSbp?: number | null
+  preHdDbp?: number | null
+  residualUrineOutputMl?: number | null
+
+  dialysisDurationHours?: number | null
+  ufVolumeMl?: number | null
+  ufRateMlKgH?: number | null
+  previousPostHdWeightKg?: number | null
+  interdialyticWeightGainKg?: number | null
+  intradialyticHypotension?: boolean | null
+  intradialyticMuscleCramp?: boolean | null
+  salineBolusRequired?: boolean | null
+  ufInterruption?: boolean | null
+  earlyTermination?: boolean | null
+
+  postHdWeightKg?: number | null
+  weightLossKg?: number | null
+  weightLossPct?: number | null
+  postHdWeightVsDryKg?: number | null
+
+  postLus: LusZoneScores
+  postLusTotal?: number | null
+  lusChange?: number | null
+  lusChangePct?: number | null
+
+  postIvcMaxMm?: number | null
+  postIvcMinMm?: number | null
+  postIvcRespVariationPct?: number | null
+  postIvcMaxBsa?: number | null
+  ivcMaxChangeMm?: number | null
+  ivcMinChangeMm?: number | null
+  ivcRespVariationChangePct?: number | null
+  postHdSbp?: number | null
+  postHdDbp?: number | null
+
+  postHdEdema?: boolean | null
+  postHdDyspnea?: boolean | null
+  postHdCrackles?: boolean | null
+  investigatorVolumeAssessment?: InvestigatorVolumeAssessment | null
+
+  dryWeightReassessmentNeeded?: boolean | null
+  suggestedDecision?: SuggestedLusDecision | null
+  lusGuidedDecision?: LusGuidedDecision | null
+  dryWeightAdjustmentKg?: number | null
+  adjustmentReason: string[]
+  safetyCheck?: SafetyCheck | null
+  physicianConfirmation?: PhysicianConfirmation | null
+
+  notes?: string | null
+  createdAt: string
+}
+export type LusStudySessionDraft = Omit<LusStudySession, 'id' | 'createdAt'>
+
 export type CaseLogRole = 'managed' | 'performed' | 'assisted' | 'observed' | 'consulted'
 
 export interface CaseLogEntry {

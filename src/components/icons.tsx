@@ -331,6 +331,16 @@ export function ConsultIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function UltrasoundIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20c3-1 4-4 4-7a4 4 0 118 0c0 4-2 5-2 8" />
+      <path d="M14.5 5.5a7 7 0 013 5.7" />
+      <path d="M17 3.2a10 10 0 014 8" />
+    </Icon>
+  )
+}
+
 export function VaccineIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
