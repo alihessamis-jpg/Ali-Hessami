@@ -58,6 +58,7 @@ const BACKUP_TABLES: TableSpec[] = [
   { name: 'knowledge_gaps', ownerColumn: 'user_id', conflictKey: 'id' },
   { name: 'case_log_entries', ownerColumn: 'owner_id', conflictKey: 'id' },
   { name: 'personal_cases', ownerColumn: 'user_id', conflictKey: 'id' },
+  { name: 'attending_consults', ownerColumn: 'owner_id', conflictKey: 'id' },
   { name: 'research_projects', ownerColumn: 'owner_id', conflictKey: 'id' },
   { name: 'research_fields', ownerColumn: null, conflictKey: 'id' },
   { name: 'research_records', ownerColumn: null, conflictKey: 'id' },

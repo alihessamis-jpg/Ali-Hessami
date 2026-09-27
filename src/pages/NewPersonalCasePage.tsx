@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getPatient } from '../lib/api/patients'
 import { listLabEntries } from '../lib/api/labs'
 import { addPersonalCase } from '../lib/api/personalCases'
+import { getAttendingConsult, markConsultCaseBuilt } from '../lib/api/attendingConsults'
 
 interface LabSummarySource {
   test: string
@@ -25,20 +26,44 @@ function summarizeLabs(entries: LabSummarySource[]): string {
 export function NewPersonalCasePage() {
   const [params] = useSearchParams()
   const patientId = params.get('patientId')
+  const consultId = params.get('consultId')
   const navigate = useNavigate()
 
   const [title, setTitle] = useState('')
   const [diagnosisContext, setDiagnosisContext] = useState('')
   const [presentation, setPresentation] = useState('')
+  const [findings, setFindings] = useState('')
   const [labPattern, setLabPattern] = useState('')
   const [workingDx, setWorkingDx] = useState('')
   const [pearls, setPearls] = useState('')
   const [whatLearned, setWhatLearned] = useState('')
-  const [loading, setLoading] = useState(Boolean(patientId))
+  const [sourcePatientId, setSourcePatientId] = useState<string | null>(patientId)
+  const [loading, setLoading] = useState(Boolean(patientId || consultId))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (consultId) {
+      setLoading(true)
+      getAttendingConsult(consultId)
+        .then((consult) => {
+          setSourcePatientId(consult.patientId ?? null)
+          setDiagnosisContext(consult.diagnosisFinal ?? '')
+          setPresentation([consult.chiefComplaint, consult.historySummary].filter(Boolean).join('\n\n'))
+          setFindings(consult.examSummary ?? '')
+          setLabPattern(consult.labsSummary ?? '')
+          setWorkingDx(consult.attendingApproach ?? '')
+          setPearls(
+            consult.yourAssessment
+              ? `Your initial assessment: ${consult.yourAssessment}\n\nAttending's approach: ${consult.attendingApproach ?? ''}`
+              : consult.attendingApproach ?? ''
+          )
+          setTitle(consult.diagnosisFinal ? `Consult: ${consult.diagnosisFinal}` : 'Untitled consult case')
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load consult'))
+        .finally(() => setLoading(false))
+      return
+    }
     if (!patientId) return
     setLoading(true)
     Promise.all([getPatient(patientId), listLabEntries(patientId)])
@@ -49,7 +74,7 @@ export function NewPersonalCasePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load patient data'))
       .finally(() => setLoading(false))
-  }, [patientId])
+  }, [patientId, consultId])
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
@@ -57,13 +82,13 @@ export function NewPersonalCasePage() {
     setSaving(true)
     setError(null)
     try {
-      await addPersonalCase({
-        sourcePatientId: patientId,
+      const created = await addPersonalCase({
+        sourcePatientId,
         title: title.trim(),
         createdDate: new Date().toISOString().slice(0, 10),
         diagnosisContext: diagnosisContext || null,
         presentation: presentation || null,
-        findings: null,
+        findings: findings || null,
         labPattern: labPattern || null,
         imaging: null,
         workingDx: workingDx || null,
@@ -71,6 +96,7 @@ export function NewPersonalCasePage() {
         whatLearned: whatLearned || null,
         questionsForFurtherStudy: null,
       })
+      if (consultId) await markConsultCaseBuilt(consultId, created.id)
       navigate('/study')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save case')
@@ -82,12 +108,20 @@ export function NewPersonalCasePage() {
   return (
     <div>
       <h1>Build teaching case</h1>
-      {patientId && (
+      {consultId ? (
         <p className="empty-state">
-          Pre-filled from the patient's diagnosis and latest labs. <strong>No name, MRN, bed, or date of
-          birth was copied</strong> — review everything below and remove any other identifying detail
-          before saving.
+          Pre-filled from this consult, including the attending's approach under "Working diagnosis" and a
+          comparison against your own assessment under "Pearls". <strong>No name, MRN, bed, or date of birth
+          was copied</strong> — review everything below and remove any other identifying detail before saving.
         </p>
+      ) : (
+        patientId && (
+          <p className="empty-state">
+            Pre-filled from the patient's diagnosis and latest labs. <strong>No name, MRN, bed, or date of
+            birth was copied</strong> — review everything below and remove any other identifying detail
+            before saving.
+          </p>
+        )
       )}
 
       {loading ? (
@@ -105,6 +139,10 @@ export function NewPersonalCasePage() {
           <label>
             Presentation (de-identified)
             <textarea value={presentation} onChange={(e) => setPresentation(e.target.value)} />
+          </label>
+          <label>
+            Exam findings
+            <textarea value={findings} onChange={(e) => setFindings(e.target.value)} />
           </label>
           <label>
             Lab pattern

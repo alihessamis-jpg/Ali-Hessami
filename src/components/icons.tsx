@@ -322,6 +322,15 @@ export function QuizIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function ConsultIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M3.5 6.5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H8l-3 3v-3H5.5a2 2 0 01-2-2v-4z" />
+      <path d="M13.5 8.7h3a2 2 0 012 2v3.5a2 2 0 01-2 2H16v2.6l-2.7-2.6" />
+    </Icon>
+  )
+}
+
 export function VaccineIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

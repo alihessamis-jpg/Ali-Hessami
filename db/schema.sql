@@ -663,6 +663,32 @@ create table public.personal_cases (
     questions_for_further_study text
 );
 
+-- Logs a consult encounter (inpatient or outpatient) -- what you presented to
+-- the attending (history/exam/labs, your own assessment) and the approach the
+-- attending gave back. built_case_id tracks whether a teaching case has
+-- already been built from this consult, so the UI doesn't invite building a
+-- duplicate; the personal_case itself becomes fully independent of this row
+-- once built (its own de-identified copy of the useful fields).
+create table public.attending_consults (
+    id                  uuid primary key default gen_random_uuid(),
+    owner_id            uuid not null references auth.users (id) on delete cascade,
+    patient_id          uuid references public.patients (id) on delete set null,
+    consult_date        date not null default current_date,
+    setting             text, -- 'inpatient' | 'outpatient'
+    chief_complaint     text,
+    history_summary     text,
+    exam_summary        text,
+    labs_summary        text,
+    your_assessment     text,
+    attending_name      text,
+    attending_approach  text,
+    diagnosis_final     text,
+    notes               text,
+    built_case_id       uuid references public.personal_cases (id) on delete set null,
+    created_at          timestamptz not null default now()
+);
+create index attending_consults_owner_id_idx on public.attending_consults (owner_id, consult_date desc);
+
 -- ----------------------------------------------------------------------------
 -- Phase 4: Research & Thesis Center
 -- ----------------------------------------------------------------------------
@@ -775,6 +801,7 @@ alter table public.academic_activities enable row level security;
 alter table public.knowledge_gaps enable row level security;
 alter table public.case_log_entries enable row level security;
 alter table public.personal_cases enable row level security;
+alter table public.attending_consults enable row level security;
 alter table public.research_projects enable row level security;
 alter table public.research_fields enable row level security;
 alter table public.research_records enable row level security;
@@ -947,6 +974,9 @@ create policy case_log_entries_owner_access on public.case_log_entries
 
 create policy personal_cases_self_access on public.personal_cases
     for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create policy attending_consults_owner_access on public.attending_consults
+    for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 create policy research_projects_owner_access on public.research_projects
     for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());

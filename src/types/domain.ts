@@ -398,6 +398,26 @@ export interface PersonalCase {
 
 export type PersonalCaseDraft = Omit<PersonalCase, 'id'>
 
+export type ConsultSetting = 'inpatient' | 'outpatient'
+
+export interface AttendingConsult {
+  id: string
+  patientId?: string | null
+  consultDate: string
+  setting?: ConsultSetting | null
+  chiefComplaint?: string | null
+  historySummary?: string | null
+  examSummary?: string | null
+  labsSummary?: string | null
+  yourAssessment?: string | null
+  attendingName?: string | null
+  attendingApproach?: string | null
+  diagnosisFinal?: string | null
+  notes?: string | null
+  builtCaseId?: string | null
+}
+export type AttendingConsultDraft = Omit<AttendingConsult, 'id'>
+
 export type CaseLogRole = 'managed' | 'performed' | 'assisted' | 'observed' | 'consulted'
 
 export interface CaseLogEntry {
