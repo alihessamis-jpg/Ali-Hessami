@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addLabChallenge, deleteLabChallenge, listLabChallenges } from '../../lib/api/labChallenges'
+import { matchesSearch } from '../../lib/textFilter'
 import type { LabChallenge } from '../../types/domain'
 
 export function LabChallengesPanel() {
@@ -12,6 +13,7 @@ export function LabChallengesPanel() {
   const [prompt, setPrompt] = useState('')
   const [discussion, setDiscussion] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listLabChallenges()
@@ -71,6 +73,13 @@ export function LabChallengesPanel() {
         </form>
       )}
 
+      <input
+        placeholder="Search challenges…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -78,7 +87,9 @@ export function LabChallengesPanel() {
         <p className="empty-state">No lab challenges yet.</p>
       ) : (
         <ul className="note-timeline">
-          {challenges.map((c) => (
+          {challenges
+            .filter((c) => matchesSearch([c.title, c.prompt, c.discussion, ...c.values.flat()], search))
+            .map((c) => (
             <li key={c.id}>
               <div className="note-header">
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>

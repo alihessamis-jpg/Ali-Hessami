@@ -10,6 +10,7 @@ import {
 import { listAcademyTopics } from '../../lib/api/academy'
 import { checkpointDueDate, REVIEW_CHECKPOINTS } from '../../lib/readingReview'
 import { toShamsi } from '../../lib/shamsi'
+import { matchesSearch } from '../../lib/textFilter'
 import type { AcademyTopic, ReadingItem, ReviewCheckpointKey } from '../../types/domain'
 
 function emptyDraft() {
@@ -23,6 +24,7 @@ export function ReadingReviewPanel() {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     refresh()
@@ -133,6 +135,13 @@ export function ReadingReviewPanel() {
         </button>
       </form>
 
+      <input
+        placeholder="Search reading list…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -140,7 +149,7 @@ export function ReadingReviewPanel() {
         <p className="empty-state">Nothing logged yet.</p>
       ) : (
         <ul className="reading-item-list">
-          {items.map((item) => (
+          {items.filter((item) => matchesSearch([item.title, item.source], search)).map((item) => (
             <li key={item.id} className="dash-card">
               <div className="dash-card-header">
                 <div>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { addFlashcard, deleteFlashcard, listFlashcards, updateFlashcardSrs } from '../../lib/api/flashcards'
 import { scheduleReview } from '../../lib/srs'
 import { toShamsi } from '../../lib/shamsi'
+import { matchesSearch } from '../../lib/textFilter'
 import type { Flashcard } from '../../types/domain'
 
 export function FlashcardsPanel() {
@@ -13,6 +14,7 @@ export function FlashcardsPanel() {
   const [deck, setDeck] = useState('')
   const [reviewIndex, setReviewIndex] = useState(0)
   const [showBack, setShowBack] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listFlashcards()
@@ -90,6 +92,13 @@ export function FlashcardsPanel() {
         <p className="empty-state">Nothing due for review.</p>
       )}
 
+      <input
+        placeholder="Search cards…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {loading ? (
         <p>Loading…</p>
       ) : (
@@ -104,7 +113,7 @@ export function FlashcardsPanel() {
             </tr>
           </thead>
           <tbody>
-            {cards.map((c) => (
+            {cards.filter((c) => matchesSearch([c.front, c.back, c.deck], search)).map((c) => (
               <tr key={c.id}>
                 <td>{c.front}</td>
                 <td>{c.back}</td>

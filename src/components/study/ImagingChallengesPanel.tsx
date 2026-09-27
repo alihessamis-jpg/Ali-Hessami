@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { addImagingChallenge, deleteImagingChallenge, listImagingChallenges } from '../../lib/api/imagingChallenges'
 import { getImagingSignedUrl, uploadImagingFile } from '../../lib/storage'
 import { useAuth } from '../../context/AuthContext'
+import { matchesSearch } from '../../lib/textFilter'
 import type { ImagingChallenge } from '../../types/domain'
 
 export function ImagingChallengesPanel() {
@@ -17,6 +18,7 @@ export function ImagingChallengesPanel() {
   const [discussion, setDiscussion] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listImagingChallenges()
@@ -83,6 +85,13 @@ export function ImagingChallengesPanel() {
         </form>
       )}
 
+      <input
+        placeholder="Search challenges…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -90,7 +99,9 @@ export function ImagingChallengesPanel() {
         <p className="empty-state">No imaging challenges yet.</p>
       ) : (
         <ul className="note-timeline">
-          {challenges.map((c) => (
+          {challenges
+            .filter((c) => matchesSearch([c.category, c.context, c.questions, c.discussion], search))
+            .map((c) => (
             <li key={c.id}>
               <div className="note-header">
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>

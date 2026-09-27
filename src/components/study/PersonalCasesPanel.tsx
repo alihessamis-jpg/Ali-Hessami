@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deletePersonalCase, listPersonalCases } from '../../lib/api/personalCases'
 import { toShamsi } from '../../lib/shamsi'
+import { matchesSearch } from '../../lib/textFilter'
 import type { PersonalCase } from '../../types/domain'
 
 export function PersonalCasesPanel() {
@@ -9,6 +10,7 @@ export function PersonalCasesPanel() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     refresh()
@@ -39,6 +41,13 @@ export function PersonalCasesPanel() {
         </Link>
       </div>
 
+      <input
+        placeholder="Search teaching cases…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -49,7 +58,14 @@ export function PersonalCasesPanel() {
         </p>
       ) : (
         <ul className="note-timeline">
-          {cases.map((c) => (
+          {cases
+            .filter((c) =>
+              matchesSearch(
+                [c.title, c.presentation, c.findings, c.labPattern, c.imaging, c.workingDx, c.pearls, c.whatLearned],
+                search
+              )
+            )
+            .map((c) => (
             <li key={c.id}>
               <div className="note-header">
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>

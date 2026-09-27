@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addStudyNote, deleteStudyNote, listStudyNotes } from '../../lib/api/studyNotes'
+import { matchesSearch } from '../../lib/textFilter'
 import type { StudyNote } from '../../types/domain'
 
 export function StudyNotesPanel() {
@@ -8,6 +9,7 @@ export function StudyNotesPanel() {
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listStudyNotes()
@@ -48,6 +50,13 @@ export function StudyNotesPanel() {
         </div>
       </form>
 
+      <input
+        placeholder="Search notes…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -55,7 +64,7 @@ export function StudyNotesPanel() {
         <p className="empty-state">No study notes yet.</p>
       ) : (
         <ul className="note-timeline">
-          {notes.map((n) => (
+          {notes.filter((n) => matchesSearch([n.title, n.content], search)).map((n) => (
             <li key={n.id}>
               <div className="note-header">
                 <strong>{n.title || 'Untitled'}</strong>

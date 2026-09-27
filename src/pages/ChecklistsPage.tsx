@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { ChecklistIcon } from '../components/icons'
 import { protectNumberRanges } from '../lib/bidiText'
+import { matchesSearch } from '../lib/textFilter'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
 
 export function ChecklistsPage() {
@@ -23,6 +24,8 @@ export function ChecklistsPage() {
   const [newItemLabel, setNewItemLabel] = useState('')
   const [newItemSection, setNewItemSection] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [templateSearch, setTemplateSearch] = useState('')
+  const [itemSearch, setItemSearch] = useState('')
 
   useEffect(() => {
     listChecklistTemplates()
@@ -90,6 +93,8 @@ export function ChecklistsPage() {
   }
 
   const checkedCount = items.filter((i) => completions[i.id]).length
+  const visibleTemplates = templates.filter((t) => matchesSearch([t.name, t.description], templateSearch))
+  const visibleItems = items.filter((i) => matchesSearch([i.label, i.section], itemSearch))
 
   return (
     <div>
@@ -113,8 +118,14 @@ export function ChecklistsPage() {
             />
             <button type="submit">Add</button>
           </form>
+          <input
+            placeholder="Search checklists…"
+            value={templateSearch}
+            onChange={(e) => setTemplateSearch(e.target.value)}
+            style={{ margin: '8px 0', width: '100%' }}
+          />
           <ul className="patient-list">
-            {templates.map((t) => (
+            {visibleTemplates.map((t) => (
               <li key={t.id}>
                 <button
                   className={t.id === selectedId ? 'tab active' : 'tab'}
@@ -139,9 +150,15 @@ export function ChecklistsPage() {
                   Delete checklist
                 </button>
               </div>
+              <input
+                placeholder="Search items…"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                style={{ margin: '8px 0', width: '100%', maxWidth: 360 }}
+              />
               <ul className="patient-list">
-                {items.map((item, i) => {
-                  const showHeader = item.section && item.section !== items[i - 1]?.section
+                {visibleItems.map((item, i) => {
+                  const showHeader = item.section && item.section !== visibleItems[i - 1]?.section
                   return (
                     <li key={item.id}>
                       {showHeader && (

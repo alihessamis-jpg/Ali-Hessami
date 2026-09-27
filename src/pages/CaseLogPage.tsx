@@ -5,6 +5,7 @@ import { addCaseLogEntry, deleteCaseLogEntry, listCaseLogEntries, type CaseLogEn
 import { listPatients } from '../lib/api/patients'
 import { CASE_LOG_CATEGORIES, CASE_LOG_ROLES, CASE_LOG_SETTINGS } from '../lib/caseLogPresets'
 import { toShamsi } from '../lib/shamsi'
+import { matchesSearch } from '../lib/textFilter'
 import { CaseLogIcon } from '../components/icons'
 import type { Patient } from '../types/domain'
 
@@ -27,6 +28,7 @@ export function CaseLogPage() {
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState('All')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -91,7 +93,9 @@ export function CaseLogPage() {
 
   const unexposedCount = categoryCounts.filter((c) => c.count === 0).length
 
-  const visibleEntries = activeCategory === 'All' ? entries : entries.filter((e) => e.category === activeCategory)
+  const visibleEntries = entries
+    .filter((e) => activeCategory === 'All' || e.category === activeCategory)
+    .filter((e) => matchesSearch([e.diagnosis, e.procedure, e.setting, e.notes, e.patientName], search))
 
   return (
     <div>
@@ -201,6 +205,12 @@ export function CaseLogPage() {
         <p className="empty-state">No case log entries yet.</p>
       ) : (
         <>
+          <input
+            placeholder="Search entries…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+          />
           <div className="category-pills">
             <button
               type="button"

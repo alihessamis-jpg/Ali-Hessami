@@ -4,6 +4,7 @@ import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions } from '../..
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
+import { matchesSearch } from '../../lib/textFilter'
 import type { BoardQuestion, BoardQuestionAttempt } from '../../types/domain'
 
 type Mode = 'practice' | 'progress' | 'manage'
@@ -37,6 +38,7 @@ export function BoardQuestionsPanel() {
   // Manage state
   const [draft, setDraft] = useState(emptyDraft)
   const [manageTopicFilter, setManageTopicFilter] = useState('All')
+  const [manageSearch, setManageSearch] = useState('')
 
   useEffect(() => {
     refresh()
@@ -119,7 +121,9 @@ export function BoardQuestionsPanel() {
   const trend = useMemo(() => dailyAccuracyTrend(attempts), [attempts])
   const overallAccuracy = attempts.length > 0 ? Math.round((attempts.filter((a) => a.isCorrect).length / attempts.length) * 100) : null
 
-  const visibleQuestions = manageTopicFilter === 'All' ? questions : questions.filter((q) => q.topic === manageTopicFilter)
+  const visibleQuestions = questions
+    .filter((q) => manageTopicFilter === 'All' || q.topic === manageTopicFilter)
+    .filter((q) => matchesSearch([q.topic, q.question, q.explanation, ...q.options], manageSearch))
 
   if (loading) return <p>Loading…</p>
 
@@ -371,6 +375,12 @@ export function BoardQuestionsPanel() {
           <div className="dash-card-header" style={{ marginTop: 24 }}>
             <h2 className="dash-card-title">Question bank</h2>
           </div>
+          <input
+            placeholder="Search questions…"
+            value={manageSearch}
+            onChange={(e) => setManageSearch(e.target.value)}
+            style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+          />
           {questions.length > 0 && (
             <div className="category-pills">
               <button type="button" className={`category-pill ${manageTopicFilter === 'All' ? 'active' : ''}`} onClick={() => setManageTopicFilter('All')}>

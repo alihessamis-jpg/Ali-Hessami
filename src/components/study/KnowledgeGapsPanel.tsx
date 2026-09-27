@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addKnowledgeGap, deleteKnowledgeGap, listKnowledgeGaps, updateKnowledgeGap } from '../../lib/api/knowledgeGaps'
 import { toShamsi } from '../../lib/shamsi'
+import { matchesSearch } from '../../lib/textFilter'
 import type { KnowledgeGap } from '../../types/domain'
 
 export function KnowledgeGapsPanel() {
@@ -10,6 +11,7 @@ export function KnowledgeGapsPanel() {
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listKnowledgeGaps()
@@ -69,6 +71,13 @@ export function KnowledgeGapsPanel() {
         <button type="submit">Add</button>
       </form>
 
+      <input
+        placeholder="Search knowledge gaps…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -87,7 +96,7 @@ export function KnowledgeGapsPanel() {
             </tr>
           </thead>
           <tbody>
-            {gaps.map((g) => (
+            {gaps.filter((g) => matchesSearch([g.topic, g.description], search)).map((g) => (
               <tr key={g.id} style={{ opacity: g.status === 'resolved' ? 0.5 : 1 }}>
                 <td>{g.topic}</td>
                 <td>{g.description}</td>

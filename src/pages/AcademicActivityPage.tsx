@@ -8,6 +8,7 @@ import {
   MANUSCRIPT_IN_PROGRESS_STATUSES,
 } from '../lib/academicActivityPresets'
 import { toShamsi } from '../lib/shamsi'
+import { matchesSearch } from '../lib/textFilter'
 import { MilestoneIcon } from '../components/icons'
 import type { AcademicActivity, AcademicActivityStatus } from '../types/domain'
 
@@ -36,6 +37,7 @@ export function AcademicActivityPage() {
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState('All')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -94,7 +96,9 @@ export function AcademicActivityPage() {
   const publishedCount = activities.filter((a) => a.status === 'published').length
   const conferenceCount = activities.filter((a) => a.category === 'Conference').length
 
-  const visibleActivities = activeCategory === 'All' ? activities : activities.filter((a) => a.category === activeCategory)
+  const visibleActivities = activities
+    .filter((a) => activeCategory === 'All' || a.category === activeCategory)
+    .filter((a) => matchesSearch([a.title, a.venue, a.notes, roleLabel(a.role), statusLabel(a.status)], search))
 
   return (
     <div>
@@ -194,6 +198,12 @@ export function AcademicActivityPage() {
         <p className="empty-state">No academic activity logged yet.</p>
       ) : (
         <>
+          <input
+            placeholder="Search activities…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+          />
           <div className="category-pills">
             <button
               type="button"

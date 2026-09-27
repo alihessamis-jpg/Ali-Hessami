@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { addResearchProject, listResearchProjects } from '../lib/api/research'
 import { ResearchIcon } from '../components/icons'
+import { matchesSearch } from '../lib/textFilter'
 import type { ResearchProject } from '../types/domain'
 
 export function ResearchProjectsPage() {
@@ -10,6 +11,7 @@ export function ResearchProjectsPage() {
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
+  const [search, setSearch] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -61,6 +63,13 @@ export function ResearchProjectsPage() {
         </form>
       )}
 
+      <input
+        placeholder="Search projects…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -68,7 +77,9 @@ export function ResearchProjectsPage() {
         <p className="empty-state">No research projects yet.</p>
       ) : (
         <ul className="patient-list">
-          {projects.map((p) => (
+          {projects
+            .filter((p) => matchesSearch([p.name, p.researchQuestion, p.overview, p.studyDesign], search))
+            .map((p) => (
             <li key={p.id}>
               <Link to={`/research/${p.id}`}>
                 <span className="patient-name">{p.name}</span>

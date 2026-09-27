@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { addAcademyTopic, listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { useAuth } from '../context/AuthContext'
 import { AcademyIcon } from '../components/icons'
+import { matchesSearch } from '../lib/textFilter'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
 
 export function AcademyPage() {
@@ -14,6 +15,7 @@ export function AcademyPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!session) return
@@ -80,6 +82,28 @@ export function AcademyPage() {
     return filled.length > 0 ? filled.join(' · ') : 'No content yet'
   }
 
+  const visibleTopics = topics.filter((t) =>
+    matchesSearch(
+      [
+        t.name,
+        t.category,
+        t.summary,
+        t.presentation,
+        t.reasoning,
+        t.tests,
+        t.interpretation,
+        t.imaging,
+        t.treatment,
+        t.redFlags,
+        t.pearls,
+        t.selfTest,
+        t.caseStem,
+        t.keyPoints.join(' '),
+      ],
+      search
+    )
+  )
+
   return (
     <div>
       <div className="page-header">
@@ -106,14 +130,23 @@ export function AcademyPage() {
         </form>
       )}
 
+      <input
+        placeholder="Search topics… (e.g. vaccinations in dialysis patients)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 420 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
       ) : topics.length === 0 ? (
         <p className="empty-state">No topics yet.</p>
+      ) : visibleTopics.length === 0 ? (
+        <p className="empty-state">No topics match your search.</p>
       ) : (
         <div className="topic-grid">
-          {topics.map((t) => {
+          {visibleTopics.map((t) => {
             const p = progress[t.id]
             const due = !p || !p.nextReview || p.nextReview <= today
             return (

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addReasoningCase, deleteReasoningCase, listReasoningCases } from '../../lib/api/reasoningCases'
+import { matchesSearch } from '../../lib/textFilter'
 import type { ReasoningCase } from '../../types/domain'
 
 const emptyDraft = { title: '', chief: '', history: '', vitals: '', exam: '', labs: '', imaging: '', discussion: '' }
@@ -11,6 +12,7 @@ export function ReasoningCasesPanel() {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     listReasoningCases()
@@ -74,6 +76,13 @@ export function ReasoningCasesPanel() {
         </form>
       )}
 
+      <input
+        placeholder="Search cases…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
+      />
+
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
@@ -81,7 +90,11 @@ export function ReasoningCasesPanel() {
         <p className="empty-state">No reasoning cases yet.</p>
       ) : (
         <ul className="note-timeline">
-          {cases.map((c) => (
+          {cases
+            .filter((c) =>
+              matchesSearch([c.title, c.chief, c.history, c.vitals, c.exam, c.labs, c.imaging, c.discussion], search)
+            )
+            .map((c) => (
             <li key={c.id}>
               <div className="note-header">
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>
