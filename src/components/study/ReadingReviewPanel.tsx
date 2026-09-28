@@ -6,6 +6,7 @@ import {
   listReadingItems,
   setReadingItemCheckpoint,
   setReadingItemTopic,
+  updateReadingItem,
 } from '../../lib/api/readingItems'
 import { listAcademyTopics } from '../../lib/api/academy'
 import { checkpointDueDate, REVIEW_CHECKPOINTS } from '../../lib/readingReview'
@@ -25,6 +26,8 @@ export function ReadingReviewPanel() {
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
   const [search, setSearch] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState({ title: '', source: '', dateRead: '' })
 
   useEffect(() => {
     refresh()
@@ -82,6 +85,26 @@ export function ReadingReviewPanel() {
       setItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update')
+    }
+  }
+
+  function startEdit(item: ReadingItem) {
+    setEditingId(item.id)
+    setEditDraft({ title: item.title, source: item.source ?? '', dateRead: item.dateRead })
+  }
+
+  async function handleSaveEdit(id: string) {
+    if (!editDraft.title.trim()) return
+    try {
+      const updated = await updateReadingItem(id, {
+        title: editDraft.title.trim(),
+        source: editDraft.source || null,
+        dateRead: editDraft.dateRead,
+      })
+      setItems((prev) => prev.map((i) => (i.id === id ? updated : i)))
+      setEditingId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes')
     }
   }
 
@@ -151,24 +174,53 @@ export function ReadingReviewPanel() {
         <ul className="reading-item-list">
           {items.filter((item) => matchesSearch([item.title, item.source], search)).map((item) => (
             <li key={item.id} className="dash-card">
-              <div className="dash-card-header">
-                <div>
-                  <h3 style={{ margin: 0 }}>{item.title}</h3>
-                  <span className="patient-meta">
-                    {[item.source, `Read ${toShamsi(item.dateRead)}`].filter(Boolean).join(' · ')}
-                  </span>
-                  {item.topicId && (
-                    <div>
-                      <Link to={`/academy/${item.topicId}`} className="study-link">
-                        {topics.find((t) => t.id === item.topicId)?.name ?? 'Topic'}
-                      </Link>
-                    </div>
-                  )}
+              {editingId === item.id ? (
+                <div className="inline-form" style={{ marginBottom: 8 }}>
+                  <input
+                    value={editDraft.title}
+                    onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                    placeholder="Title"
+                  />
+                  <input
+                    value={editDraft.source}
+                    onChange={(e) => setEditDraft({ ...editDraft, source: e.target.value })}
+                    placeholder="Source / link"
+                  />
+                  <input
+                    type="date"
+                    value={editDraft.dateRead}
+                    onChange={(e) => setEditDraft({ ...editDraft, dateRead: e.target.value })}
+                  />
+                  <button type="button" onClick={() => void handleSaveEdit(item.id)}>
+                    Save
+                  </button>
+                  <button type="button" className="button-secondary" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </button>
                 </div>
-                <button className="link-button" onClick={() => void handleDelete(item.id)}>
-                  Delete
-                </button>
-              </div>
+              ) : (
+                <div className="dash-card-header">
+                  <div>
+                    <h3 style={{ margin: 0 }}>{item.title}</h3>
+                    <span className="patient-meta">
+                      {[item.source, `Read ${toShamsi(item.dateRead)}`].filter(Boolean).join(' · ')}
+                    </span>
+                    {item.topicId && (
+                      <div>
+                        <Link to={`/academy/${item.topicId}`} className="study-link">
+                          {topics.find((t) => t.id === item.topicId)?.name ?? 'Topic'}
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                  <button className="link-button" onClick={() => startEdit(item)}>
+                    Edit
+                  </button>
+                  <button className="link-button" onClick={() => void handleDelete(item.id)}>
+                    Delete
+                  </button>
+                </div>
+              )}
               <div className="form-actions" style={{ marginBottom: 8 }}>
                 <select value={item.topicId ?? ''} onChange={(e) => void handleTopicChange(item, e.target.value)}>
                   <option value="">No topic</option>

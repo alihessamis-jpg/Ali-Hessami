@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getPatient } from '../lib/api/patients'
 import { listLabEntries } from '../lib/api/labs'
-import { addPersonalCase } from '../lib/api/personalCases'
+import { addPersonalCase, getPersonalCase, updatePersonalCase } from '../lib/api/personalCases'
 import { getAttendingConsult, markConsultCaseBuilt } from '../lib/api/attendingConsults'
 
 interface LabSummarySource {
@@ -27,6 +27,7 @@ export function NewPersonalCasePage() {
   const [params] = useSearchParams()
   const patientId = params.get('patientId')
   const consultId = params.get('consultId')
+  const editId = params.get('id')
   const navigate = useNavigate()
 
   const [title, setTitle] = useState('')
@@ -37,12 +38,32 @@ export function NewPersonalCasePage() {
   const [workingDx, setWorkingDx] = useState('')
   const [pearls, setPearls] = useState('')
   const [whatLearned, setWhatLearned] = useState('')
+  const [createdDate, setCreatedDate] = useState<string | null>(null)
   const [sourcePatientId, setSourcePatientId] = useState<string | null>(patientId)
-  const [loading, setLoading] = useState(Boolean(patientId || consultId))
+  const [loading, setLoading] = useState(Boolean(patientId || consultId || editId))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (editId) {
+      setLoading(true)
+      getPersonalCase(editId)
+        .then((c) => {
+          setSourcePatientId(c.sourcePatientId ?? null)
+          setTitle(c.title)
+          setCreatedDate(c.createdDate)
+          setDiagnosisContext(c.diagnosisContext ?? '')
+          setPresentation(c.presentation ?? '')
+          setFindings(c.findings ?? '')
+          setLabPattern(c.labPattern ?? '')
+          setWorkingDx(c.workingDx ?? '')
+          setPearls(c.pearls ?? '')
+          setWhatLearned(c.whatLearned ?? '')
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load case'))
+        .finally(() => setLoading(false))
+      return
+    }
     if (consultId) {
       setLoading(true)
       getAttendingConsult(consultId)
@@ -74,7 +95,7 @@ export function NewPersonalCasePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load patient data'))
       .finally(() => setLoading(false))
-  }, [patientId, consultId])
+  }, [patientId, consultId, editId])
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
@@ -82,10 +103,10 @@ export function NewPersonalCasePage() {
     setSaving(true)
     setError(null)
     try {
-      const created = await addPersonalCase({
+      const draft = {
         sourcePatientId,
         title: title.trim(),
-        createdDate: new Date().toISOString().slice(0, 10),
+        createdDate: createdDate ?? new Date().toISOString().slice(0, 10),
         diagnosisContext: diagnosisContext || null,
         presentation: presentation || null,
         findings: findings || null,
@@ -95,8 +116,9 @@ export function NewPersonalCasePage() {
         pearls: pearls || null,
         whatLearned: whatLearned || null,
         questionsForFurtherStudy: null,
-      })
-      if (consultId) await markConsultCaseBuilt(consultId, created.id)
+      }
+      const saved = editId ? await updatePersonalCase(editId, draft) : await addPersonalCase(draft)
+      if (consultId) await markConsultCaseBuilt(consultId, saved.id)
       navigate('/study')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save case')
@@ -107,8 +129,8 @@ export function NewPersonalCasePage() {
 
   return (
     <div>
-      <h1>Build teaching case</h1>
-      {consultId ? (
+      <h1>{editId ? 'Edit teaching case' : 'Build teaching case'}</h1>
+      {editId ? null : consultId ? (
         <p className="empty-state">
           Pre-filled from this consult, including the attending's approach under "Working diagnosis" and a
           comparison against your own assessment under "Pearls". <strong>No name, MRN, bed, or date of birth
@@ -163,7 +185,7 @@ export function NewPersonalCasePage() {
           {error && <p className="form-error">{error}</p>}
           <div className="form-actions">
             <button type="submit" disabled={saving}>
-              Save case
+              {editId ? 'Save changes' : 'Save case'}
             </button>
           </div>
         </form>

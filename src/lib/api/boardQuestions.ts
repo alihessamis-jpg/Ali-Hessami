@@ -50,6 +50,23 @@ export async function addBoardQuestion(draft: BoardQuestionDraft): Promise<Board
   return toDomain(data as BoardQuestionRow)
 }
 
+export async function updateBoardQuestion(id: string, draft: BoardQuestionDraft): Promise<BoardQuestion> {
+  const { data, error } = await supabase
+    .from('board_questions')
+    .update({
+      topic: draft.topic,
+      question: draft.question,
+      options: draft.options,
+      correct_index: draft.correctIndex,
+      explanation: draft.explanation,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as BoardQuestionRow)
+}
+
 export async function deleteBoardQuestion(id: string): Promise<void> {
   const { error } = await supabase.from('board_questions').delete().eq('id', id)
   if (error) throw error

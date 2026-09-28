@@ -63,6 +63,20 @@ export async function addReadingItem(draft: ReadingItemDraft): Promise<ReadingIt
   return toDomain(data as ReadingItemRow)
 }
 
+export async function updateReadingItem(
+  id: string,
+  patch: { title: string; source: string | null; dateRead: string }
+): Promise<ReadingItem> {
+  const { data, error } = await supabase
+    .from('reading_items')
+    .update({ title: patch.title, source: patch.source, date_read: patch.dateRead })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ReadingItemRow)
+}
+
 export async function setReadingItemTopic(id: string, topicId: string | null): Promise<ReadingItem> {
   const { data, error } = await supabase
     .from('reading_items')

@@ -45,6 +45,22 @@ export async function addLabChallenge(draft: LabChallengeDraft): Promise<LabChal
   return toDomain(data as LabChallengeRow)
 }
 
+export async function updateLabChallenge(id: string, draft: LabChallengeDraft): Promise<LabChallenge> {
+  const { data, error } = await supabase
+    .from('lab_challenges')
+    .update({
+      title: draft.title,
+      values: draft.values,
+      prompt: draft.prompt,
+      discussion: draft.discussion,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as LabChallengeRow)
+}
+
 export async function deleteLabChallenge(id: string): Promise<void> {
   const { error } = await supabase.from('lab_challenges').delete().eq('id', id)
   if (error) throw error

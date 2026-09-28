@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { addLabChallenge, deleteLabChallenge, listLabChallenges } from '../../lib/api/labChallenges'
+import { addLabChallenge, deleteLabChallenge, listLabChallenges, updateLabChallenge } from '../../lib/api/labChallenges'
 import { matchesSearch } from '../../lib/textFilter'
 import type { LabChallenge } from '../../types/domain'
 
@@ -13,6 +13,7 @@ export function LabChallengesPanel() {
   const [prompt, setPrompt] = useState('')
   const [discussion, setDiscussion] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export function LabChallengesPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleAdd(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
     const values = rows
@@ -31,16 +32,32 @@ export function LabChallengesPanel() {
       .filter((parts) => parts[0])
       .map((parts) => [parts[0] ?? '', parts[1] ?? '', parts[2] ?? ''] as [string, string, string])
     try {
-      const created = await addLabChallenge({ title: title.trim(), values, prompt: prompt || null, discussion: discussion || null })
-      setChallenges((prev) => [...prev, created])
+      const payload = { title: title.trim(), values, prompt: prompt || null, discussion: discussion || null }
+      if (editingId) {
+        const updated = await updateLabChallenge(editingId, payload)
+        setChallenges((prev) => prev.map((c) => (c.id === editingId ? updated : c)))
+      } else {
+        const created = await addLabChallenge(payload)
+        setChallenges((prev) => [...prev, created])
+      }
       setTitle('')
       setRows('')
       setPrompt('')
       setDiscussion('')
+      setEditingId(null)
       setShowForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add challenge')
+      setError(err instanceof Error ? err.message : 'Failed to save challenge')
     }
+  }
+
+  function handleEdit(c: LabChallenge) {
+    setTitle(c.title)
+    setRows(c.values.map(([test, value, unit]) => [test, value, unit].filter(Boolean).join(', ')).join('\n'))
+    setPrompt(c.prompt ?? '')
+    setDiscussion(c.discussion ?? '')
+    setEditingId(c.id)
+    setShowForm(true)
   }
 
   async function handleDelete(id: string) {
@@ -55,11 +72,24 @@ export function LabChallengesPanel() {
   return (
     <div>
       <div className="form-actions" style={{ marginBottom: 16 }}>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New challenge'}</button>
+        <button
+          onClick={() => {
+            if (showForm) {
+              setTitle('')
+              setRows('')
+              setPrompt('')
+              setDiscussion('')
+              setEditingId(null)
+            }
+            setShowForm((v) => !v)
+          }}
+        >
+          {showForm ? 'Cancel' : 'New challenge'}
+        </button>
       </div>
 
       {showForm && (
-        <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
+        <form className="soap-form" onSubmit={(e) => void handleSave(e)}>
           <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           <label>
             Values — one per line: test, value, unit
@@ -68,7 +98,7 @@ export function LabChallengesPanel() {
           <textarea placeholder="Prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           <textarea placeholder="Discussion" value={discussion} onChange={(e) => setDiscussion(e.target.value)} />
           <div className="form-actions">
-            <button type="submit">Save</button>
+            <button type="submit">{editingId ? 'Save changes' : 'Save'}</button>
           </div>
         </form>
       )}
@@ -95,6 +125,9 @@ export function LabChallengesPanel() {
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>
                   {c.title}
                 </strong>
+                <button className="link-button" onClick={() => handleEdit(c)}>
+                  Edit
+                </button>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>

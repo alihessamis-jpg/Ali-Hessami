@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { addReasoningCase, deleteReasoningCase, listReasoningCases } from '../../lib/api/reasoningCases'
+import { addReasoningCase, deleteReasoningCase, listReasoningCases, updateReasoningCase } from '../../lib/api/reasoningCases'
 import { matchesSearch } from '../../lib/textFilter'
 import type { ReasoningCase } from '../../types/domain'
 
@@ -12,6 +12,7 @@ export function ReasoningCasesPanel() {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -21,11 +22,11 @@ export function ReasoningCasesPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleAdd(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!draft.title.trim()) return
     try {
-      const created = await addReasoningCase({
+      const payload = {
         title: draft.title.trim(),
         age: null,
         sex: null,
@@ -37,13 +38,35 @@ export function ReasoningCasesPanel() {
         imaging: draft.imaging || null,
         questions: [],
         discussion: draft.discussion || null,
-      })
-      setCases((prev) => [...prev, created])
+      }
+      if (editingId) {
+        const updated = await updateReasoningCase(editingId, payload)
+        setCases((prev) => prev.map((c) => (c.id === editingId ? updated : c)))
+      } else {
+        const created = await addReasoningCase(payload)
+        setCases((prev) => [...prev, created])
+      }
       setDraft(emptyDraft)
+      setEditingId(null)
       setShowForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add case')
+      setError(err instanceof Error ? err.message : 'Failed to save case')
     }
+  }
+
+  function handleEdit(c: ReasoningCase) {
+    setDraft({
+      title: c.title,
+      chief: c.chief ?? '',
+      history: c.history ?? '',
+      vitals: c.vitals ?? '',
+      exam: c.exam ?? '',
+      labs: c.labs ?? '',
+      imaging: c.imaging ?? '',
+      discussion: c.discussion ?? '',
+    })
+    setEditingId(c.id)
+    setShowForm(true)
   }
 
   async function handleDelete(id: string) {
@@ -58,11 +81,21 @@ export function ReasoningCasesPanel() {
   return (
     <div>
       <div className="form-actions" style={{ marginBottom: 16 }}>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New case'}</button>
+        <button
+          onClick={() => {
+            if (showForm) {
+              setDraft(emptyDraft)
+              setEditingId(null)
+            }
+            setShowForm((v) => !v)
+          }}
+        >
+          {showForm ? 'Cancel' : 'New case'}
+        </button>
       </div>
 
       {showForm && (
-        <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
+        <form className="soap-form" onSubmit={(e) => void handleSave(e)}>
           <input placeholder="Title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
           <input placeholder="Chief complaint" value={draft.chief} onChange={(e) => setDraft({ ...draft, chief: e.target.value })} />
           <textarea placeholder="History" value={draft.history} onChange={(e) => setDraft({ ...draft, history: e.target.value })} />
@@ -71,7 +104,7 @@ export function ReasoningCasesPanel() {
           <textarea placeholder="Imaging" value={draft.imaging} onChange={(e) => setDraft({ ...draft, imaging: e.target.value })} />
           <textarea placeholder="Discussion" value={draft.discussion} onChange={(e) => setDraft({ ...draft, discussion: e.target.value })} />
           <div className="form-actions">
-            <button type="submit">Save</button>
+            <button type="submit">{editingId ? 'Save changes' : 'Save'}</button>
           </div>
         </form>
       )}
@@ -101,6 +134,9 @@ export function ReasoningCasesPanel() {
                   {c.title}
                 </strong>
                 <span>{c.chief}</span>
+                <button className="link-button" onClick={() => handleEdit(c)}>
+                  Edit
+                </button>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>

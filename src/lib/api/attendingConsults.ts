@@ -81,6 +81,30 @@ export async function addAttendingConsult(draft: AttendingConsultDraft): Promise
   return toDomain(data as AttendingConsultRow)
 }
 
+export async function updateAttendingConsult(id: string, draft: AttendingConsultDraft): Promise<AttendingConsult> {
+  const { data, error } = await supabase
+    .from('attending_consults')
+    .update({
+      patient_id: draft.patientId || null,
+      consult_date: draft.consultDate,
+      setting: draft.setting || null,
+      chief_complaint: draft.chiefComplaint || null,
+      history_summary: draft.historySummary || null,
+      exam_summary: draft.examSummary || null,
+      labs_summary: draft.labsSummary || null,
+      your_assessment: draft.yourAssessment || null,
+      attending_name: draft.attendingName || null,
+      attending_approach: draft.attendingApproach || null,
+      diagnosis_final: draft.diagnosisFinal || null,
+      notes: draft.notes || null,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as AttendingConsultRow)
+}
+
 export async function markConsultCaseBuilt(id: string, caseId: string): Promise<void> {
   const { error } = await supabase.from('attending_consults').update({ built_case_id: caseId }).eq('id', id)
   if (error) throw error

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions } from '../../lib/api/boardQuestions'
+import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
@@ -37,6 +37,7 @@ export function BoardQuestionsPanel() {
 
   // Manage state
   const [draft, setDraft] = useState(emptyDraft)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [manageTopicFilter, setManageTopicFilter] = useState('All')
   const [manageSearch, setManageSearch] = useState('')
 
@@ -87,24 +88,48 @@ export function BoardQuestionsPanel() {
     setSubmitted(false)
   }
 
-  async function handleAddQuestion(e: FormEvent) {
+  async function handleSaveQuestion(e: FormEvent) {
     e.preventDefault()
     const options = draft.options.map((o) => o.trim()).filter(Boolean)
     if (!draft.topic.trim() || !draft.question.trim() || options.length < 2) return
     if (draft.correctIndex >= options.length) return
     try {
-      const created = await addBoardQuestion({
+      const payload = {
         topic: draft.topic.trim(),
         question: draft.question.trim(),
         options,
         correctIndex: draft.correctIndex,
         explanation: draft.explanation || null,
-      })
-      setQuestions((prev) => [...prev, created])
-      setDraft({ ...emptyDraft, topic: draft.topic })
+      }
+      if (editingId) {
+        const updated = await updateBoardQuestion(editingId, payload)
+        setQuestions((prev) => prev.map((q) => (q.id === editingId ? updated : q)))
+        setDraft({ ...emptyDraft, topic: draft.topic })
+        setEditingId(null)
+      } else {
+        const created = await addBoardQuestion(payload)
+        setQuestions((prev) => [...prev, created])
+        setDraft({ ...emptyDraft, topic: draft.topic })
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add question')
+      setError(err instanceof Error ? err.message : 'Failed to save question')
     }
+  }
+
+  function handleEditQuestion(q: BoardQuestion) {
+    setDraft({
+      topic: q.topic,
+      question: q.question,
+      options: q.options.length >= 2 ? [...q.options] : [...q.options, ''],
+      correctIndex: q.correctIndex,
+      explanation: q.explanation ?? '',
+    })
+    setEditingId(q.id)
+  }
+
+  function handleCancelEditQuestion() {
+    setDraft({ ...emptyDraft, topic: draft.topic })
+    setEditingId(null)
   }
 
   async function handleDeleteQuestion(id: string) {
@@ -305,9 +330,9 @@ export function BoardQuestionsPanel() {
       {mode === 'manage' && (
         <div className="dash-card">
           <div className="dash-card-header">
-            <h2 className="dash-card-title">Add a question</h2>
+            <h2 className="dash-card-title">{editingId ? 'Edit question' : 'Add a question'}</h2>
           </div>
-          <form className="soap-form" onSubmit={(e) => void handleAddQuestion(e)}>
+          <form className="soap-form" onSubmit={(e) => void handleSaveQuestion(e)}>
             <div className="field-grid">
               <label>
                 Topic
@@ -368,7 +393,12 @@ export function BoardQuestionsPanel() {
               <textarea value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} placeholder="Shown after answering" />
             </label>
             <div className="form-actions">
-              <button type="submit">Save question</button>
+              <button type="submit">{editingId ? 'Save changes' : 'Save question'}</button>
+              {editingId && (
+                <button type="button" className="button-secondary" onClick={handleCancelEditQuestion}>
+                  Cancel edit
+                </button>
+              )}
             </div>
           </form>
 
@@ -406,6 +436,9 @@ export function BoardQuestionsPanel() {
                 <li key={q.id}>
                   <div className="note-header">
                     <strong>{q.question}</strong>
+                    <button className="link-button" onClick={() => handleEditQuestion(q)}>
+                      Edit
+                    </button>
                     <button className="link-button" onClick={() => void handleDeleteQuestion(q.id)}>
                       Delete
                     </button>

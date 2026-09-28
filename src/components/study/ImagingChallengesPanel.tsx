@@ -1,5 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { addImagingChallenge, deleteImagingChallenge, listImagingChallenges } from '../../lib/api/imagingChallenges'
+import {
+  addImagingChallenge,
+  deleteImagingChallenge,
+  listImagingChallenges,
+  updateImagingChallenge,
+} from '../../lib/api/imagingChallenges'
 import { getImagingSignedUrl, uploadImagingFile } from '../../lib/storage'
 import { useAuth } from '../../context/AuthContext'
 import { matchesSearch } from '../../lib/textFilter'
@@ -18,6 +23,8 @@ export function ImagingChallengesPanel() {
   const [discussion, setDiscussion] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [existingStoragePath, setExistingStoragePath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -32,29 +39,49 @@ export function ImagingChallengesPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleAdd(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!category.trim() || !session) return
     try {
-      const storagePath = file ? await uploadImagingFile(session.user.id, file) : null
-      const created = await addImagingChallenge({
+      const storagePath = file ? await uploadImagingFile(session.user.id, file) : existingStoragePath
+      const payload = {
         category: category.trim(),
         context: context || null,
         questions: questions || null,
         discussion: discussion || null,
         storagePath,
-      })
-      setChallenges((prev) => [...prev, created])
-      if (storagePath) getImagingSignedUrl(storagePath).then((url) => setUrls((prev) => ({ ...prev, [created.id]: url })))
+      }
+      let saved: ImagingChallenge
+      if (editingId) {
+        saved = await updateImagingChallenge(editingId, payload)
+        setChallenges((prev) => prev.map((c) => (c.id === editingId ? saved : c)))
+      } else {
+        saved = await addImagingChallenge(payload)
+        setChallenges((prev) => [...prev, saved])
+      }
+      if (storagePath) getImagingSignedUrl(storagePath).then((url) => setUrls((prev) => ({ ...prev, [saved.id]: url })))
       setCategory('')
       setContext('')
       setQuestions('')
       setDiscussion('')
       setFile(null)
+      setEditingId(null)
+      setExistingStoragePath(null)
       setShowForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add challenge')
+      setError(err instanceof Error ? err.message : 'Failed to save challenge')
     }
+  }
+
+  function handleEdit(c: ImagingChallenge) {
+    setCategory(c.category ?? '')
+    setContext(c.context ?? '')
+    setQuestions(c.questions ?? '')
+    setDiscussion(c.discussion ?? '')
+    setFile(null)
+    setExistingStoragePath(c.storagePath ?? null)
+    setEditingId(c.id)
+    setShowForm(true)
   }
 
   async function handleDelete(id: string) {
@@ -69,18 +96,36 @@ export function ImagingChallengesPanel() {
   return (
     <div>
       <div className="form-actions" style={{ marginBottom: 16 }}>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New challenge'}</button>
+        <button
+          onClick={() => {
+            if (showForm) {
+              setCategory('')
+              setContext('')
+              setQuestions('')
+              setDiscussion('')
+              setFile(null)
+              setEditingId(null)
+              setExistingStoragePath(null)
+            }
+            setShowForm((v) => !v)
+          }}
+        >
+          {showForm ? 'Cancel' : 'New challenge'}
+        </button>
       </div>
 
       {showForm && (
-        <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
+        <form className="soap-form" onSubmit={(e) => void handleSave(e)}>
           <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} required />
+          {editingId && existingStoragePath && !file && (
+            <p className="patient-meta">An image is already attached — choose a file only to replace it.</p>
+          )}
           <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <textarea placeholder="Clinical context" value={context} onChange={(e) => setContext(e.target.value)} />
           <textarea placeholder="Questions" value={questions} onChange={(e) => setQuestions(e.target.value)} />
           <textarea placeholder="Discussion" value={discussion} onChange={(e) => setDiscussion(e.target.value)} />
           <div className="form-actions">
-            <button type="submit">Save</button>
+            <button type="submit">{editingId ? 'Save changes' : 'Save'}</button>
           </div>
         </form>
       )}
@@ -107,6 +152,9 @@ export function ImagingChallengesPanel() {
                 <strong onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>
                   {c.category}
                 </strong>
+                <button className="link-button" onClick={() => handleEdit(c)}>
+                  Edit
+                </button>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>

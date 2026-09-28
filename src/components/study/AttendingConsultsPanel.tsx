@@ -4,6 +4,7 @@ import {
   addAttendingConsult,
   deleteAttendingConsult,
   listAttendingConsults,
+  updateAttendingConsult,
 } from '../../lib/api/attendingConsults'
 import { listPatients } from '../../lib/api/patients'
 import { toShamsi } from '../../lib/shamsi'
@@ -35,6 +36,7 @@ export function AttendingConsultsPanel() {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export function AttendingConsultsPanel() {
       .finally(() => setLoading(false))
   }
 
-  async function handleAdd(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!draft.chiefComplaint.trim() && !draft.diagnosisFinal.trim()) return
     try {
@@ -71,13 +73,44 @@ export function AttendingConsultsPanel() {
         notes: draft.notes || null,
         builtCaseId: null,
       }
-      const created = await addAttendingConsult(payload)
-      setConsults((prev) => [created, ...prev])
+      if (editingId) {
+        const updated = await updateAttendingConsult(editingId, payload)
+        setConsults((prev) => prev.map((c) => (c.id === editingId ? updated : c)))
+      } else {
+        const created = await addAttendingConsult(payload)
+        setConsults((prev) => [created, ...prev])
+      }
       setDraft({ ...emptyDraft, consultDate: draft.consultDate, setting: draft.setting, attendingName: draft.attendingName })
+      setEditingId(null)
       setShowForm(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add consult')
+      setError(err instanceof Error ? err.message : 'Failed to save consult')
     }
+  }
+
+  function handleEdit(c: AttendingConsult) {
+    setDraft({
+      patientId: c.patientId ?? '',
+      consultDate: c.consultDate,
+      setting: c.setting ?? 'inpatient',
+      chiefComplaint: c.chiefComplaint ?? '',
+      historySummary: c.historySummary ?? '',
+      examSummary: c.examSummary ?? '',
+      labsSummary: c.labsSummary ?? '',
+      yourAssessment: c.yourAssessment ?? '',
+      attendingName: c.attendingName ?? '',
+      attendingApproach: c.attendingApproach ?? '',
+      diagnosisFinal: c.diagnosisFinal ?? '',
+      notes: c.notes ?? '',
+    })
+    setEditingId(c.id)
+    setShowForm(true)
+  }
+
+  function handleCancel() {
+    setDraft({ ...emptyDraft, consultDate: draft.consultDate, setting: draft.setting, attendingName: draft.attendingName })
+    setEditingId(null)
+    setShowForm(false)
   }
 
   async function handleDelete(id: string) {
@@ -115,11 +148,18 @@ export function AttendingConsultsPanel() {
       </p>
 
       <div className="form-actions" style={{ marginBottom: 16 }}>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New consult'}</button>
+        <button
+          onClick={() => {
+            if (showForm) handleCancel()
+            else setShowForm(true)
+          }}
+        >
+          {showForm ? 'Cancel' : 'New consult'}
+        </button>
       </div>
 
       {showForm && (
-        <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
+        <form className="soap-form" onSubmit={(e) => void handleSave(e)}>
           <div className="field-grid">
             <label>
               Date
@@ -190,7 +230,7 @@ export function AttendingConsultsPanel() {
             <textarea value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
           </label>
           <div className="form-actions">
-            <button type="submit">Save consult</button>
+            <button type="submit">{editingId ? 'Save changes' : 'Save consult'}</button>
           </div>
         </form>
       )}
@@ -219,6 +259,9 @@ export function AttendingConsultsPanel() {
                   {toShamsi(c.consultDate)} · {c.setting}
                   {c.attendingName ? ` · ${c.attendingName}` : ''}
                 </span>
+                <button className="link-button" onClick={() => handleEdit(c)}>
+                  Edit
+                </button>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>

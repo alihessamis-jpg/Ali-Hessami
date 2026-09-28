@@ -44,6 +44,12 @@ export async function listPersonalCases(): Promise<PersonalCase[]> {
   return (data as PersonalCaseRow[]).map(toDomain)
 }
 
+export async function getPersonalCase(id: string): Promise<PersonalCase> {
+  const { data, error } = await supabase.from('personal_cases').select('*').eq('id', id).single()
+  if (error) throw error
+  return toDomain(data as PersonalCaseRow)
+}
+
 export async function addPersonalCase(draft: PersonalCaseDraft): Promise<PersonalCase> {
   const {
     data: { user },
@@ -66,6 +72,30 @@ export async function addPersonalCase(draft: PersonalCaseDraft): Promise<Persona
       questions_for_further_study: draft.questionsForFurtherStudy,
       user_id: user.id,
     })
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as PersonalCaseRow)
+}
+
+export async function updatePersonalCase(id: string, draft: PersonalCaseDraft): Promise<PersonalCase> {
+  const { data, error } = await supabase
+    .from('personal_cases')
+    .update({
+      source_patient_id: draft.sourcePatientId,
+      title: draft.title,
+      created_date: draft.createdDate,
+      diagnosis_context: draft.diagnosisContext,
+      presentation: draft.presentation,
+      findings: draft.findings,
+      lab_pattern: draft.labPattern,
+      imaging: draft.imaging,
+      working_dx: draft.workingDx,
+      pearls: draft.pearls,
+      what_learned: draft.whatLearned,
+      questions_for_further_study: draft.questionsForFurtherStudy,
+    })
+    .eq('id', id)
     .select()
     .single()
   if (error) throw error

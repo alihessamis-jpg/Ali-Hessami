@@ -48,6 +48,23 @@ export async function addImagingChallenge(draft: ImagingChallengeDraft): Promise
   return toDomain(data as ImagingChallengeRow)
 }
 
+export async function updateImagingChallenge(id: string, draft: ImagingChallengeDraft): Promise<ImagingChallenge> {
+  const { data, error } = await supabase
+    .from('imaging_challenges')
+    .update({
+      category: draft.category,
+      context: draft.context,
+      questions: draft.questions,
+      discussion: draft.discussion,
+      storage_path: draft.storagePath,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ImagingChallengeRow)
+}
+
 export async function deleteImagingChallenge(id: string): Promise<void> {
   const { error } = await supabase.from('imaging_challenges').delete().eq('id', id)
   if (error) throw error

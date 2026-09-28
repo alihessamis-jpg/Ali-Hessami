@@ -66,6 +66,29 @@ export async function addReasoningCase(draft: ReasoningCaseDraft): Promise<Reaso
   return toDomain(data as ReasoningCaseRow)
 }
 
+export async function updateReasoningCase(id: string, draft: ReasoningCaseDraft): Promise<ReasoningCase> {
+  const { data, error } = await supabase
+    .from('reasoning_cases')
+    .update({
+      title: draft.title,
+      age: draft.age,
+      sex: draft.sex,
+      chief: draft.chief,
+      history: draft.history,
+      vitals: draft.vitals,
+      exam: draft.exam,
+      labs: draft.labs,
+      imaging: draft.imaging,
+      questions: draft.questions,
+      discussion: draft.discussion,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ReasoningCaseRow)
+}
+
 export async function deleteReasoningCase(id: string): Promise<void> {
   const { error } = await supabase.from('reasoning_cases').delete().eq('id', id)
   if (error) throw error

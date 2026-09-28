@@ -72,6 +72,9 @@ export function PersonalCasesPanel() {
                   {c.title}
                 </strong>
                 <span>{toShamsi(c.createdDate)}</span>
+                <Link to={`/study/personal-cases/new?id=${c.id}`} className="link-button">
+                  Edit
+                </Link>
                 <button className="link-button" onClick={() => void handleDelete(c.id)}>
                   Delete
                 </button>
