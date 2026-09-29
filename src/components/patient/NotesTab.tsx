@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { addProgressNote, deleteProgressNote, listProgressNotes } from '../../lib/api/notes'
+import { addProgressNote, deleteProgressNote, listProgressNotes, updateProgressNote } from '../../lib/api/notes'
 import { upsertGrowthMeasurement } from '../../lib/api/growth'
 import { updatePatient } from '../../lib/api/patients'
 import { toShamsi } from '../../lib/shamsi'
@@ -27,6 +27,7 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     refresh()
@@ -40,13 +41,13 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
       .finally(() => setLoading(false))
   }
 
-  async function handleAdd(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!draft.date) return
     setSubmitting(true)
     setError(null)
     try {
-      const note = await addProgressNote({
+      const payload = {
         patientId,
         date: draft.date,
         weight: draft.weight === '' ? null : Number(draft.weight),
@@ -56,24 +57,50 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
         O: draft.O || null,
         A: draft.A || null,
         P: draft.P || null,
-      })
-      setNotes((prev) => [note, ...prev])
+      }
+      const note = editingId ? await updateProgressNote(editingId, payload) : await addProgressNote(payload)
+      setNotes((prev) =>
+        editingId
+          ? prev.map((n) => (n.id === editingId ? note : n))
+          : [note, ...prev]
+      )
       if (note.weight != null) {
         upsertGrowthMeasurement(patientId, note.date, { weightKg: note.weight }).catch(() => undefined)
         updatePatient(patientId, { weight: note.weight }).then(onPatientUpdated).catch(() => undefined)
       }
       setDraft({ ...emptyDraft, date: draft.date })
+      setEditingId(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add note')
+      setError(err instanceof Error ? err.message : editingId ? 'Failed to save changes' : 'Failed to add note')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function handleEdit(n: ProgressNote) {
+    setEditingId(n.id)
+    setDraft({
+      date: n.date,
+      weight: n.weight != null ? String(n.weight) : '',
+      bp: n.bp ?? '',
+      uo: n.uo ?? '',
+      S: n.S ?? '',
+      O: n.O ?? '',
+      A: n.A ?? '',
+      P: n.P ?? '',
+    })
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null)
+    setDraft({ ...emptyDraft, date: draft.date })
   }
 
   async function handleDelete(id: string) {
     try {
       await deleteProgressNote(id)
       setNotes((prev) => prev.filter((n) => n.id !== id))
+      if (editingId === id) handleCancelEdit()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
     }
@@ -81,7 +108,7 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
 
   return (
     <div>
-      <form className="soap-form" onSubmit={(e) => void handleAdd(e)}>
+      <form className="soap-form" onSubmit={(e) => void handleSave(e)}>
         <div className="field-grid">
           <label>
             Date
@@ -123,8 +150,13 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
         </label>
         <div className="form-actions">
           <button type="submit" disabled={submitting}>
-            Add note
+            {editingId ? 'Save changes' : 'Add note'}
           </button>
+          {editingId && (
+            <button type="button" className="button-secondary" onClick={handleCancelEdit}>
+              Cancel edit
+            </button>
+          )}
         </div>
       </form>
 
@@ -142,6 +174,9 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
                 <span>
                   {[n.weight != null ? `${n.weight} kg` : null, n.bp, n.uo].filter(Boolean).join(' · ')}
                 </span>
+                <button className="link-button" onClick={() => handleEdit(n)}>
+                  Edit
+                </button>
                 <button className="link-button" onClick={() => void handleDelete(n.id)}>
                   Delete
                 </button>

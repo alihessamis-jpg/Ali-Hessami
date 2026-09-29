@@ -59,6 +59,26 @@ export async function addProgressNote(draft: ProgressNoteDraft): Promise<Progres
   return toDomain(data as ProgressNoteRow)
 }
 
+export async function updateProgressNote(id: string, draft: ProgressNoteDraft): Promise<ProgressNote> {
+  const { data, error } = await supabase
+    .from('progress_notes')
+    .update({
+      date: draft.date,
+      weight: draft.weight,
+      bp: draft.bp,
+      uo: draft.uo,
+      subjective: draft.S,
+      objective: draft.O,
+      assessment: draft.A,
+      plan: draft.P,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ProgressNoteRow)
+}
+
 export async function deleteProgressNote(id: string): Promise<void> {
   const { error } = await supabase.from('progress_notes').delete().eq('id', id)
   if (error) throw error
