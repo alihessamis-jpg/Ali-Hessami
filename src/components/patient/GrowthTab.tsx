@@ -15,6 +15,7 @@ import {
 } from '../../lib/growth'
 import { toShamsi } from '../../lib/shamsi'
 import { GrowthChart } from './GrowthChart'
+import { BpChart } from './BpChart'
 import type { GrowthEntry, Patient } from '../../types/domain'
 
 interface Props {
@@ -163,6 +164,26 @@ export function GrowthTab({ patientId, patient, onPatientUpdated }: Props) {
     return { height, weight, headCirc }
   }, [entries, dob])
 
+  const bpChartPoints = useMemo(() => {
+    const points: Array<{ ageYears: number; sbp: number; dbp: number; date: string }> = []
+    if (!dob) return points
+    for (const e of entries) {
+      if (e.bpSystolic == null || e.bpDiastolic == null) continue
+      const ageYears = ageInYears(dob, e.date)
+      if (ageYears == null || ageYears < 1) continue
+      points.push({ ageYears, sbp: e.bpSystolic, dbp: e.bpDiastolic, date: e.date })
+    }
+    return points
+  }, [entries, dob])
+
+  const latestHeightPercentile = useMemo(() => {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const c = computed.get(entries[i].id)
+      if (c?.heightPct != null) return c.heightPct
+    }
+    return 50
+  }, [entries, computed])
+
   return (
     <div>
       {(!dob || !sex) && (
@@ -222,6 +243,10 @@ export function GrowthTab({ patientId, patient, onPatientUpdated }: Props) {
             />
           )}
         </>
+      )}
+
+      {sex && bpChartPoints.length > 0 && (
+        <BpChart sex={sex} heightPercentile={latestHeightPercentile} patientPoints={bpChartPoints} />
       )}
 
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>

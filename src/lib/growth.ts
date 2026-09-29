@@ -257,6 +257,45 @@ function bpThresholds(ageYears: number, sex: Sex, heightPercentile: number) {
   }
 }
 
+export interface BpReferenceCurvePoint {
+  ageYears: number
+  sbp50: number
+  dbp50: number
+  sbp90: number
+  dbp90: number
+  sbp95: number
+  dbp95: number
+}
+
+// Builds SBP/DBP reference curves (50th/90th/95th percentile) by age from the
+// 2017 AAP table, at a fixed height percentile — since BP thresholds in
+// children depend on height as well as age/sex. Only covers ages 1-17 (the
+// AAP table's range); age >=13 categorization elsewhere in this app instead
+// uses the guideline's simplified fixed adult-style cutoffs, but the true
+// height-percentile-based values from the table are more informative for a
+// chart and are used here across the full range for a continuous curve.
+export function buildBpReferenceCurve(sex: Sex, heightPercentile: number): BpReferenceCurvePoint[] {
+  const table = BP_TABLE_2017[sex]
+  const ages = Array.from(new Set(table.map((r) => r.age))).sort((a, b) => a - b)
+  return ages
+    .map((age) => {
+      const row50 = findBpRow(table, age, 50)
+      const row90 = findBpRow(table, age, 90)
+      const row95 = findBpRow(table, age, 95)
+      if (!row50 || !row90 || !row95) return null
+      return {
+        ageYears: age,
+        sbp50: interpolateHeightColumn(row50.sbp, heightPercentile),
+        dbp50: interpolateHeightColumn(row50.dbp, heightPercentile),
+        sbp90: interpolateHeightColumn(row90.sbp, heightPercentile),
+        dbp90: interpolateHeightColumn(row90.dbp, heightPercentile),
+        sbp95: interpolateHeightColumn(row95.sbp, heightPercentile),
+        dbp95: interpolateHeightColumn(row95.dbp, heightPercentile),
+      }
+    })
+    .filter((p): p is BpReferenceCurvePoint => p !== null)
+}
+
 export function assessBloodPressure(
   sbp: number,
   dbp: number,
