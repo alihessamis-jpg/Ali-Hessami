@@ -20,7 +20,8 @@ import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdScreening } from '../../lib/ckdScreening'
 import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from '../../lib/clinicalFlags'
-import { ageInYears } from '../../lib/growth'
+import { assessTubularFunction } from '../../lib/renalFunctionTests'
+import { ageInMonths, ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import type { LabEntry, MicroSusceptibility, Patient } from '../../types/domain'
@@ -253,6 +254,11 @@ export function LabsTab({ patientId, patient }: Props) {
     return assessCkdScreening(entries)
   }, [entries, renalFailure])
 
+  const tubularFunction = useMemo(() => {
+    const ageMonths = patient.dob ? ageInMonths(patient.dob, new Date().toISOString().slice(0, 10)) : null
+    return assessTubularFunction(entries, ageMonths)
+  }, [entries, patient.dob])
+
   const tacrolimusLevels = useMemo(() => {
     if (!patient.transplantStatus) return []
     return entries
@@ -353,6 +359,56 @@ export function LabsTab({ patientId, patient }: Props) {
                 : 'If complement is normal, or systemic/vasculitic features: check P-ANCA, C-ANCA'}
             </li>
           </ul>
+        </div>
+      )}
+      {tubularFunction && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Tubular function tests</h2>
+          </div>
+          <ul className="study-link-list">
+            {tubularFunction.feHco3 && (
+              <li>
+                FeHCO3 ({toShamsi(tubularFunction.feHco3.date)}): {tubularFunction.feHco3.value.toFixed(1)}% —{' '}
+                {tubularFunction.feHco3.interpretation === 'proximal-RTA-pattern'
+                  ? 'elevated, proximal (type 2) RTA pattern'
+                  : tubularFunction.feHco3.interpretation === 'normal-or-distal-RTA'
+                    ? 'normal / consistent with distal (type 1) RTA'
+                    : 'indeterminate'}
+              </li>
+            )}
+            {tubularFunction.uag && (
+              <li>
+                Urine anion gap ({toShamsi(tubularFunction.uag.date)}): {tubularFunction.uag.value.toFixed(0)} mEq/L —{' '}
+                {tubularFunction.uag.interpretation === 'positive-impaired-acidification'
+                  ? 'positive, suggests impaired distal urinary acidification'
+                  : tubularFunction.uag.interpretation === 'negative-extrarenal-cause'
+                    ? 'negative, suggests an extrarenal cause (e.g. diarrhea) with appropriate NH4+ excretion'
+                    : 'indeterminate'}
+              </li>
+            )}
+            {tubularFunction.trp && (
+              <li>
+                TRP — tubular reabsorption of phosphate ({toShamsi(tubularFunction.trp.date)}): {tubularFunction.trp.value.toFixed(0)}%
+              </li>
+            )}
+            {tubularFunction.caCrRatio && (
+              <li className={tubularFunction.caCrRatio.hypercalciuric ? 'value-abnormal' : undefined}>
+                Urine Ca/Cr ratio ({toShamsi(tubularFunction.caCrRatio.date)}): {tubularFunction.caCrRatio.value.toFixed(2)} mg/mg
+                (age-adjusted upper limit {tubularFunction.caCrRatio.upperLimit})
+                {tubularFunction.caCrRatio.hypercalciuric ? ' — hypercalciuria' : ''}
+              </li>
+            )}
+          </ul>
+          {tubularFunction.rtaHints.length > 0 && (
+            <ul className="study-link-list" style={{ marginTop: 8 }}>
+              {tubularFunction.rtaHints.map((h) => (
+                <li key={h.key} className="value-abnormal">
+                  {h.message}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {acidBase && (
