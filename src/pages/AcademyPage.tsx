@@ -6,6 +6,30 @@ import { AcademyIcon } from '../components/icons'
 import { matchesSearch } from '../lib/textFilter'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
 
+const PERSIAN_DIGITS: Record<string, string> = { '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9' }
+
+// Sub-topic names are often numbered (e.g. "۱۰. مطالعات بالینی") so they can
+// be read in the book's original order — a plain string sort would put
+// "۱۰." before "۲." since "1" < "2" lexicographically. Pull the leading
+// number out (converting Persian digits) so sibling lessons sort 1, 2, 3…
+// instead of 1, 10, 11, 2, 3…
+function leadingNumber(name: string): number | null {
+  const normalized = name.replace(/[۰-۹]/g, (d) => PERSIAN_DIGITS[d])
+  const match = normalized.match(/^\s*(\d+)[.\-–)]/)
+  return match ? Number(match[1]) : null
+}
+
+function sortSubTopics(items: AcademyTopic[]): AcademyTopic[] {
+  return [...items].sort((a, b) => {
+    const na = leadingNumber(a.name)
+    const nb = leadingNumber(b.name)
+    if (na != null && nb != null) return na - nb
+    if (na != null) return -1
+    if (nb != null) return 1
+    return a.name.localeCompare(b.name)
+  })
+}
+
 export function AcademyPage() {
   const { session } = useAuth()
   const [topics, setTopics] = useState<AcademyTopic[]>([])
@@ -16,6 +40,16 @@ export function AcademyPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!session) return
@@ -82,27 +116,54 @@ export function AcademyPage() {
     return filled.length > 0 ? filled.join(' · ') : 'No content yet'
   }
 
-  const visibleTopics = topics.filter((t) =>
-    matchesSearch(
-      [
-        t.name,
-        t.category,
-        t.summary,
-        t.presentation,
-        t.reasoning,
-        t.tests,
-        t.interpretation,
-        t.imaging,
-        t.treatment,
-        t.redFlags,
-        t.pearls,
-        t.selfTest,
-        t.caseStem,
-        t.keyPoints.join(' '),
-      ],
-      search
-    )
+  const searching = search.trim() !== ''
+  const matchedIds = new Set(
+    topics
+      .filter((t) =>
+        matchesSearch(
+          [
+            t.name,
+            t.category,
+            t.summary,
+            t.presentation,
+            t.reasoning,
+            t.tests,
+            t.interpretation,
+            t.imaging,
+            t.treatment,
+            t.redFlags,
+            t.pearls,
+            t.selfTest,
+            t.caseStem,
+            t.keyPoints.join(' '),
+          ],
+          search
+        )
+      )
+      .map((t) => t.id)
   )
+
+  // A topic is top-level if it has no parent, or its parent was deleted —
+  // orphaned sub-topics would otherwise vanish from the page entirely.
+  const topicIds = new Set(topics.map((t) => t.id))
+  const topLevelTopics = topics.filter((t) => !t.parentTopicId || !topicIds.has(t.parentTopicId))
+  const childrenByParent = new Map<string, AcademyTopic[]>()
+  for (const t of topics) {
+    if (t.parentTopicId && topicIds.has(t.parentTopicId)) {
+      const list = childrenByParent.get(t.parentTopicId) ?? []
+      list.push(t)
+      childrenByParent.set(t.parentTopicId, list)
+    }
+  }
+  for (const [parentId, list] of childrenByParent) {
+    childrenByParent.set(parentId, sortSubTopics(list))
+  }
+
+  const visibleTopLevelTopics = topLevelTopics.filter((t) => {
+    if (!searching) return true
+    if (matchedIds.has(t.id)) return true
+    return (childrenByParent.get(t.id) ?? []).some((c) => matchedIds.has(c.id))
+  })
 
   return (
     <div>
@@ -142,29 +203,52 @@ export function AcademyPage() {
         <p>Loading…</p>
       ) : topics.length === 0 ? (
         <p className="empty-state">No topics yet.</p>
-      ) : visibleTopics.length === 0 ? (
+      ) : visibleTopLevelTopics.length === 0 ? (
         <p className="empty-state">No topics match your search.</p>
       ) : (
         <div className="topic-grid">
-          {visibleTopics.map((t) => {
+          {visibleTopLevelTopics.map((t) => {
             const p = progress[t.id]
             const due = !p || !p.nextReview || p.nextReview <= today
+            const allChildren = childrenByParent.get(t.id) ?? []
+            const visibleChildren =
+              !searching || matchedIds.has(t.id) ? allChildren : allChildren.filter((c) => matchedIds.has(c.id))
+            const isExpanded = expanded.has(t.id) || (searching && visibleChildren.length > 0)
             return (
-              <Link key={t.id} to={`/academy/${t.id}`} className="topic-card">
+              <div key={t.id} className="topic-card">
                 <div className="topic-card-header">
                   <span className="icon-chip">
                     <AcademyIcon />
                   </span>
                   {due && <span className="status-badge status-badge--dialysis">Due for review</span>}
                 </div>
-                <h3 className="topic-card-title">{t.name}</h3>
-                <p className="topic-card-meta">
-                  {t.category ?? 'Uncategorized'}
-                  {t.parentTopicId && ` · Sub-topic of ${topics.find((p) => p.id === t.parentTopicId)?.name ?? '…'}`}
-                </p>
+                <Link to={`/academy/${t.id}`} className="topic-card-title-link">
+                  <h3 className="topic-card-title">{t.name}</h3>
+                </Link>
+                <p className="topic-card-meta">{t.category ?? 'Uncategorized'}</p>
                 <p className="topic-card-sections">{sectionSummary(t)}</p>
-                <span className="link-button">Open topic →</span>
-              </Link>
+                <Link to={`/academy/${t.id}`} className="link-button">
+                  Open topic →
+                </Link>
+                {allChildren.length > 0 && (
+                  <div className="topic-card-subtopics">
+                    <button type="button" className="link-button" onClick={() => toggleExpanded(t.id)}>
+                      {isExpanded ? '▾' : '▸'} {allChildren.length} sub-topic{allChildren.length === 1 ? '' : 's'}
+                    </button>
+                    {isExpanded && (
+                      <ul className="study-link-list">
+                        {visibleChildren.map((c) => (
+                          <li key={c.id}>
+                            <Link to={`/academy/${c.id}`} className="study-link">
+                              {c.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>

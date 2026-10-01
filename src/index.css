@@ -938,6 +938,25 @@ legend {
   flex: 1;
 }
 
+.topic-card-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.topic-card-title-link:hover .topic-card-title {
+  color: var(--accent);
+}
+
+.topic-card-subtopics {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.topic-card-subtopics .study-link-list {
+  margin-top: 8px;
+}
+
 /* ---- Dashboard: Shamsi calendar widget ---- */
 
 .shamsi-cal-nav {
