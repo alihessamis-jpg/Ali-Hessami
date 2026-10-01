@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { StorageUsageIndicator } from './StorageUsageIndicator'
 import {
   AcademyIcon,
   CalculatorIcon,
@@ -63,6 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
         {session && (
           <div className="header-actions">
+            <StorageUsageIndicator />
             <span className="header-email">{session.user.email}</span>
             <button onClick={() => void signOut()}>Sign out</button>
           </div>

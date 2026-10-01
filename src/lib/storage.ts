@@ -2,6 +2,33 @@ import { supabase } from './supabaseClient'
 
 const IMAGING_BUCKET = 'imaging'
 
+// Supabase's free tier caps total project storage at 1 GiB; used as the
+// denominator for the usage indicator until the project is on a paid plan.
+export const FREE_TIER_STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024
+
+// Walks every folder under `path` in the bucket (storage.list() is not
+// recursive, and folders are just entries with a null id/metadata) and sums
+// up the real file sizes it finds.
+async function listAllFileSizes(bucket: string, path: string): Promise<number[]> {
+  const { data, error } = await supabase.storage.from(bucket).list(path, { limit: 1000 })
+  if (error) throw error
+  const sizes: number[] = []
+  for (const entry of data ?? []) {
+    const fullPath = path ? `${path}/${entry.name}` : entry.name
+    if (entry.id === null) {
+      sizes.push(...(await listAllFileSizes(bucket, fullPath)))
+    } else {
+      sizes.push(entry.metadata?.size ?? 0)
+    }
+  }
+  return sizes
+}
+
+export async function getStorageUsageBytes(userId: string): Promise<number> {
+  const sizes = await listAllFileSizes(IMAGING_BUCKET, userId)
+  return sizes.reduce((sum, size) => sum + size, 0)
+}
+
 export async function uploadImagingFile(userId: string, file: File): Promise<string> {
   const ext = file.name.split('.').pop()
   const path = `${userId}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
