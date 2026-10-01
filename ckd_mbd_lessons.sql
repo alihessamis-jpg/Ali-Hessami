@@ -25,7 +25,7 @@ begin
   end if;
 
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%'
     limit 1;
   if v_parent_id is null then
     raise exception 'CKD-MBD parent topic not found — run the earlier CKD-MBD Academy SQL first';
@@ -108,7 +108,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۲. اپیدمیولوژی' limit 1;
 
@@ -205,7 +205,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۳. پاتوفیزیولوژی CKD-MBD' limit 1;
 
@@ -324,7 +324,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۴. تکامل طبیعی استخوان' limit 1;
 
@@ -449,7 +449,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۵. بیماری استخوانی کلیوی' limit 1;
 
@@ -514,7 +514,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۶. گردش، مینرالیزاسیون، حجم و رشد طولی' limit 1;
 
@@ -645,7 +645,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۷. بیومارکرها' limit 1;
 
@@ -728,7 +728,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۸. بیماری قلبی‌عروقی در CKD' limit 1;
 
@@ -797,7 +797,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۹. ارزیابی بیماری قلبی‌عروقی' limit 1;
 
@@ -858,7 +858,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۰. مطالعات بالینی در کودکان' limit 1;
 
@@ -939,7 +939,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۱. پاتوفیزیولوژی کلسیفیکاسیون عروقی' limit 1;
 
@@ -1050,7 +1050,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۲. اهداف درمان CKD-MBD' limit 1;
 
@@ -1119,7 +1119,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۳. مدیریت تغذیه‌ای' limit 1;
 
@@ -1192,7 +1192,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۴. بایندرهای فسفات' limit 1;
 
@@ -1271,7 +1271,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۵. بایندرهای حاوی کلسیم' limit 1;
 
@@ -1350,7 +1350,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۶. بایندرهای بدون کلسیم' limit 1;
 
@@ -1447,7 +1447,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۷. درمان با ویتامین D' limit 1;
 
@@ -1544,7 +1544,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۸. داروهای کلسی‌میمتیک' limit 1;
 
@@ -1621,7 +1621,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۱۹. پاراتیروئیدکتومی، درمان‌های ضدجذب و هورمون رشد' limit 1;
 
@@ -1694,7 +1694,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = '۲۰. دیالیز و کنترل فسفر' limit 1;
 
@@ -1749,7 +1749,7 @@ declare
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   select id into v_parent_id from public.academy_topics
-    where owner_id = v_owner_id and name ilike '%CKD-MBD%' and parent_topic_id is null limit 1;
+    where owner_id = v_owner_id and name ilike '%CKD-MBD%' limit 1;
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and parent_topic_id = v_parent_id and name = 'جمع‌بندی نهایی فصل' limit 1;
 
