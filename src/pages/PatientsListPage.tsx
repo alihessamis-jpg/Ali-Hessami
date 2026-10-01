@@ -110,9 +110,14 @@ export function PatientsListPage() {
           </span>
           Patients
         </h1>
-        <button onClick={() => setShowNewForm((v) => !v)}>
-          {showNewForm ? 'Cancel' : 'New patient'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/patients/quick-aki" className="button-link">
+            Quick AKI entry
+          </Link>
+          <button onClick={() => setShowNewForm((v) => !v)}>
+            {showNewForm ? 'Cancel' : 'New patient'}
+          </button>
+        </div>
       </div>
 
       {showNewForm && (

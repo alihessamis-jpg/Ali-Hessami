@@ -460,6 +460,18 @@ legend {
   gap: 12px;
 }
 
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+.checkbox-field input {
+  width: auto;
+}
+
 .calc-strip {
   display: flex;
   flex-wrap: wrap;
