@@ -34,6 +34,7 @@ import type {
 function guessAttachmentKind(file: File): AcademyAttachmentKind {
   if (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|aac)$/i.test(file.name)) return 'audio'
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return 'pdf'
+  if (file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg)$/i.test(file.name)) return 'image'
   return 'other'
 }
 
@@ -394,7 +395,7 @@ export function AcademyTopicPage() {
         <div className="dash-card-header">
           <h2 className="dash-card-title">Attachments</h2>
         </div>
-        <p className="patient-meta">PDF summaries, NotebookLM-style podcast audio, or your self-made tests.</p>
+        <p className="patient-meta">PDF summaries, NotebookLM-style podcast audio, reference diagrams/images, or your self-made tests.</p>
         {error && <p className="form-error">{error}</p>}
         <div
           className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
@@ -409,13 +410,13 @@ export function AcademyTopicPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,application/pdf,audio/*,.mp3,.wav,.m4a,.ogg"
+            accept=".pdf,application/pdf,audio/*,.mp3,.wav,.m4a,.ogg,image/*,.jpg,.jpeg,.png,.gif,.webp,.svg"
             multiple
             hidden
             onChange={(e) => void handleAttachmentFiles(e.target.files)}
           />
           <span className="dropzone-icon">↑</span>
-          <strong>{uploadingAttachment ? 'Uploading…' : 'Drop PDFs or audio files here'}</strong>
+          <strong>{uploadingAttachment ? 'Uploading…' : 'Drop PDFs, audio, or images here'}</strong>
           <span className="dropzone-hint">Choose one or more files</span>
         </div>
         {attachments.length === 0 ? (
@@ -424,7 +425,7 @@ export function AcademyTopicPage() {
           <ul className="study-link-list">
             {attachments.map((a) => (
               <li key={a.id}>
-                <div>
+                <div style={{ flex: 1 }}>
                   <strong>{a.filename ?? a.kind}</strong>
                   <span className="patient-meta"> · {a.kind} · {toShamsi(a.createdAt.slice(0, 10))}</span>
                   {a.kind === 'audio' && attachmentUrls[a.id] && (
@@ -432,7 +433,18 @@ export function AcademyTopicPage() {
                       <audio controls src={attachmentUrls[a.id]} style={{ width: '100%' }} />
                     </div>
                   )}
-                  {a.kind !== 'audio' && attachmentUrls[a.id] && (
+                  {a.kind === 'image' && attachmentUrls[a.id] && (
+                    <div style={{ marginTop: 6 }}>
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        <img
+                          src={attachmentUrls[a.id]}
+                          alt={a.filename ?? 'attachment'}
+                          style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+                        />
+                      </a>
+                    </div>
+                  )}
+                  {a.kind !== 'audio' && a.kind !== 'image' && attachmentUrls[a.id] && (
                     <div style={{ marginTop: 4 }}>
                       <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer" className="study-link">
                         Open {a.kind === 'pdf' ? 'PDF' : 'file'}

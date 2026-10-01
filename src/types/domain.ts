@@ -257,7 +257,7 @@ export interface AcademyTopic {
 
 export type AcademyTopicDraft = Omit<AcademyTopic, 'id'>
 
-export type AcademyAttachmentKind = 'pdf' | 'audio' | 'other'
+export type AcademyAttachmentKind = 'pdf' | 'audio' | 'image' | 'other'
 
 export interface AcademyAttachment {
   id: string
