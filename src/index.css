@@ -1516,3 +1516,75 @@ legend {
   color: var(--accent-dark);
   opacity: 0.75;
 }
+
+/* Academy topic/lesson body content, rendered from markdown (tables,
+   headings, bold, blockquote summary boxes) — see MarkdownSection.tsx. */
+.academy-markdown {
+  line-height: 1.7;
+}
+
+.academy-markdown h1,
+.academy-markdown h2,
+.academy-markdown h3,
+.academy-markdown h4 {
+  margin: 18px 0 8px;
+  color: var(--text);
+}
+
+.academy-markdown p {
+  margin: 0 0 10px;
+}
+
+.academy-markdown ul,
+.academy-markdown ol {
+  margin: 0 0 10px;
+  padding-inline-start: 24px;
+}
+
+.academy-markdown li {
+  margin-bottom: 4px;
+}
+
+.academy-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.95rem;
+}
+
+.academy-markdown th,
+.academy-markdown td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: start;
+}
+
+.academy-markdown th {
+  background: var(--surface-tint);
+  font-weight: 600;
+}
+
+.academy-markdown tr:nth-child(even) td {
+  background: var(--surface-tint);
+}
+
+/* "جمع‌بندی" callouts in the source are written as markdown blockquotes —
+   rendered here as a highlighted summary box rather than an indented quote. */
+.academy-markdown blockquote {
+  margin: 14px 0;
+  padding: 12px 16px;
+  background: var(--accent-soft);
+  border-inline-start: 4px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent-dark);
+}
+
+.academy-markdown blockquote p {
+  margin: 0;
+}
+
+.academy-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}

@@ -18,6 +18,7 @@ import {
 } from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
 import { protectNumberRanges } from '../lib/bidiText'
+import { MarkdownSection } from '../components/MarkdownSection'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import type {
@@ -584,9 +585,7 @@ export function AcademyTopicPage() {
             topic[key] ? (
               <section key={key} style={{ marginBottom: 16 }}>
                 <h3>{label}</h3>
-                <p dir="rtl" style={{ whiteSpace: 'pre-wrap' }}>
-                  {protectNumberRanges(topic[key] as string)}
-                </p>
+                <MarkdownSection text={topic[key] as string} />
                 {key === 'caseStem' && topic.caseQuestions.length > 0 && (
                   <ol>
                     {topic.caseQuestions.map((q, i) => (
