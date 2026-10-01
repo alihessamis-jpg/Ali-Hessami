@@ -40,16 +40,6 @@ export function AcademyPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  function toggleExpanded(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
 
   useEffect(() => {
     if (!session) return
@@ -211,9 +201,6 @@ export function AcademyPage() {
             const p = progress[t.id]
             const due = !p || !p.nextReview || p.nextReview <= today
             const allChildren = childrenByParent.get(t.id) ?? []
-            const visibleChildren =
-              !searching || matchedIds.has(t.id) ? allChildren : allChildren.filter((c) => matchedIds.has(c.id))
-            const isExpanded = expanded.has(t.id) || (searching && visibleChildren.length > 0)
             return (
               <div key={t.id} className="topic-card">
                 <div className="topic-card-header">
@@ -231,22 +218,9 @@ export function AcademyPage() {
                   Open topic →
                 </Link>
                 {allChildren.length > 0 && (
-                  <div className="topic-card-subtopics">
-                    <button type="button" className="link-button" onClick={() => toggleExpanded(t.id)}>
-                      {isExpanded ? '▾' : '▸'} {allChildren.length} sub-topic{allChildren.length === 1 ? '' : 's'}
-                    </button>
-                    {isExpanded && (
-                      <ul className="study-link-list">
-                        {visibleChildren.map((c) => (
-                          <li key={c.id}>
-                            <Link to={`/academy/${c.id}`} className="study-link">
-                              {c.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                  <p className="topic-card-meta topic-card-subtopic-count">
+                    {allChildren.length} sub-topic{allChildren.length === 1 ? '' : 's'} — open the topic to see them
+                  </p>
                 )}
               </div>
             )
