@@ -360,12 +360,33 @@ export interface KnowledgeGap {
 
 export type KnowledgeGapDraft = Omit<KnowledgeGap, 'id'>
 
+export type BoardQuestionType = 'mcq' | 'fill_blank' | 'matching'
+
+export interface BoardQuestionMatchItem {
+  key: string
+  text: string
+}
+
+export interface BoardQuestionMatchPair {
+  left: string
+  right: string
+}
+
 export interface BoardQuestion {
   id: string
   topic: string
   question: string
+  type: BoardQuestionType
   options: string[]
-  correctIndex: number
+  correctIndex: number | null
+  fillAnswers?: string[] | null
+  matchLeft?: BoardQuestionMatchItem[] | null
+  matchRight?: BoardQuestionMatchItem[] | null
+  matchAnswer?: BoardQuestionMatchPair[] | null
+  allowReuse?: boolean | null
+  tags?: string[] | null
+  difficulty?: string | null
+  taxonomy?: number | null
   explanation?: string | null
   createdAt: string
 }

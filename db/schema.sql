@@ -670,16 +670,31 @@ create table public.imaging_challenges (
     storage_path text
 );
 
--- Board-exam-style question bank: user-authored MCQs, organized by topic,
--- with a separate attempt log (board_question_attempts) so practice sessions
--- build a scored history over time instead of just pass/fail per question.
+-- Board-exam-style question bank: user-authored questions, organized by
+-- topic, with a separate attempt log (board_question_attempts) so practice
+-- sessions build a scored history over time instead of just pass/fail per
+-- question. question_type picks which of the type-specific columns apply:
+-- 'mcq' uses options/correct_index; 'fill_blank' uses fill_answers (one
+-- entry per blank, in order, self-graded in the UI since free-text matching
+-- is unreliable); 'matching' uses match_left/match_right (arrays of
+-- {key,text}) and match_answer (array of {left,right} key pairs), with
+-- allow_reuse when a right-side item can be used for more than one pair.
 create table public.board_questions (
     id             uuid primary key default gen_random_uuid(),
     owner_id       uuid not null references auth.users (id) on delete cascade,
     topic          text not null,
     question       text not null,
+    question_type  text not null default 'mcq',
     options        jsonb not null default '[]'::jsonb,
-    correct_index  integer not null,
+    correct_index  integer,
+    fill_answers   jsonb,
+    match_left     jsonb,
+    match_right    jsonb,
+    match_answer   jsonb,
+    allow_reuse    boolean,
+    tags           jsonb,
+    difficulty     text,
+    taxonomy       integer,
     explanation    text,
     created_at     timestamptz not null default now()
 );

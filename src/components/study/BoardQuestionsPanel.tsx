@@ -9,7 +9,19 @@ import type { BoardQuestion, BoardQuestionAttempt } from '../../types/domain'
 
 type Mode = 'practice' | 'progress' | 'manage'
 
-const emptyDraft = { topic: '', question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' }
+const emptyDraft = {
+  topic: '',
+  question: '',
+  type: 'mcq' as const,
+  options: ['', '', '', ''],
+  correctIndex: 0,
+  explanation: '',
+}
+
+// Non-mcq attempts (matching is auto-graded as a whole, fill-in-the-blank is
+// self-graded) have no single "selected option" — this sentinel fills the
+// not-null selected_index column without implying a real choice.
+const NO_SELECTED_INDEX = -1
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr]
@@ -32,6 +44,8 @@ export function BoardQuestionsPanel() {
   const [queue, setQueue] = useState<BoardQuestion[] | null>(null)
   const [queueIndex, setQueueIndex] = useState(0)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [matchSelections, setMatchSelections] = useState<Record<string, string>>({})
+  const [fillRevealed, setFillRevealed] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [sessionScore, setSessionScore] = useState({ correct: 0, total: 0 })
 
@@ -63,28 +77,49 @@ export function BoardQuestionsPanel() {
     setQueue(shuffle(pool))
     setQueueIndex(0)
     setSelectedIndex(null)
+    setMatchSelections({})
+    setFillRevealed(false)
     setSubmitted(false)
     setSessionScore({ correct: 0, total: 0 })
   }
 
-  async function handleSubmitAnswer() {
-    if (!queue || selectedIndex == null) return
-    const q = queue[queueIndex]
-    const isCorrect = selectedIndex === q.correctIndex
+  async function recordAttempt(questionId: string, isCorrect: boolean, selectedIndex = NO_SELECTED_INDEX) {
     setSubmitted(true)
     setSessionScore((prev) => ({ correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 }))
     try {
-      const attempt = await addBoardQuestionAttempt({ questionId: q.id, selectedIndex, isCorrect })
+      const attempt = await addBoardQuestionAttempt({ questionId, selectedIndex, isCorrect })
       setAttempts((prev) => [...prev, attempt])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to record attempt')
     }
   }
 
+  async function handleSubmitMcqAnswer() {
+    if (!queue || selectedIndex == null) return
+    const q = queue[queueIndex]
+    await recordAttempt(q.id, selectedIndex === q.correctIndex, selectedIndex)
+  }
+
+  async function handleSubmitMatchingAnswer() {
+    if (!queue) return
+    const q = queue[queueIndex]
+    const pairs = q.matchAnswer ?? []
+    const isCorrect = pairs.length > 0 && pairs.every((p) => matchSelections[p.left] === p.right)
+    await recordAttempt(q.id, isCorrect)
+  }
+
+  async function handleSelfGradeFillBlank(gotItRight: boolean) {
+    if (!queue) return
+    const q = queue[queueIndex]
+    await recordAttempt(q.id, gotItRight)
+  }
+
   function handleNext() {
     if (!queue) return
     setQueueIndex((i) => i + 1)
     setSelectedIndex(null)
+    setMatchSelections({})
+    setFillRevealed(false)
     setSubmitted(false)
   }
 
@@ -97,6 +132,7 @@ export function BoardQuestionsPanel() {
       const payload = {
         topic: draft.topic.trim(),
         question: draft.question.trim(),
+        type: 'mcq' as const,
         options,
         correctIndex: draft.correctIndex,
         explanation: draft.explanation || null,
@@ -117,11 +153,13 @@ export function BoardQuestionsPanel() {
   }
 
   function handleEditQuestion(q: BoardQuestion) {
+    if (q.type !== 'mcq') return
     setDraft({
       topic: q.topic,
       question: q.question,
+      type: 'mcq',
       options: q.options.length >= 2 ? [...q.options] : [...q.options, ''],
-      correctIndex: q.correctIndex,
+      correctIndex: q.correctIndex ?? 0,
       explanation: q.explanation ?? '',
     })
     setEditingId(q.id)
@@ -213,36 +251,115 @@ export function BoardQuestionsPanel() {
               <p>
                 <strong>{queue[queueIndex].question}</strong>
               </p>
-              {queue[queueIndex].options.map((opt, i) => {
-                const isCorrectOpt = i === queue[queueIndex].correctIndex
-                const isSelected = i === selectedIndex
-                const cls = ['quiz-option']
-                if (isSelected && !submitted) cls.push('selected')
-                if (submitted && isCorrectOpt) cls.push('correct')
-                if (submitted && isSelected && !isCorrectOpt) cls.push('incorrect')
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    className={cls.join(' ')}
-                    disabled={submitted}
-                    onClick={() => setSelectedIndex(i)}
-                  >
-                    {opt}
-                  </button>
-                )
-              })}
-              {!submitted ? (
-                <div className="form-actions">
-                  <button type="button" disabled={selectedIndex == null} onClick={() => void handleSubmitAnswer()}>
-                    Submit answer
-                  </button>
-                </div>
-              ) : (
+
+              {queue[queueIndex].type === 'mcq' && (
+                <>
+                  {queue[queueIndex].options.map((opt, i) => {
+                    const isCorrectOpt = i === queue[queueIndex].correctIndex
+                    const isSelected = i === selectedIndex
+                    const cls = ['quiz-option']
+                    if (isSelected && !submitted) cls.push('selected')
+                    if (submitted && isCorrectOpt) cls.push('correct')
+                    if (submitted && isSelected && !isCorrectOpt) cls.push('incorrect')
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        className={cls.join(' ')}
+                        disabled={submitted}
+                        onClick={() => setSelectedIndex(i)}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                  {!submitted && (
+                    <div className="form-actions">
+                      <button type="button" disabled={selectedIndex == null} onClick={() => void handleSubmitMcqAnswer()}>
+                        Submit answer
+                      </button>
+                    </div>
+                  )}
+                  {submitted && (
+                    <p className={selectedIndex === queue[queueIndex].correctIndex ? 'value-correct' : 'value-abnormal'}>
+                      {selectedIndex === queue[queueIndex].correctIndex ? 'Correct' : 'Incorrect'}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {queue[queueIndex].type === 'matching' && (
+                <>
+                  {(queue[queueIndex].matchLeft ?? []).map((item) => {
+                    const correctRight = (queue[queueIndex].matchAnswer ?? []).find((p) => p.left === item.key)?.right
+                    const selectedRight = matchSelections[item.key]
+                    const isRowCorrect = submitted && selectedRight === correctRight
+                    return (
+                      <div key={item.key} className="form-actions" style={{ alignItems: 'center' }}>
+                        <span style={{ flex: 1 }}>{item.text}</span>
+                        <select
+                          value={selectedRight ?? ''}
+                          disabled={submitted}
+                          onChange={(e) => setMatchSelections((prev) => ({ ...prev, [item.key]: e.target.value }))}
+                        >
+                          <option value="" disabled>
+                            Choose match…
+                          </option>
+                          {(queue[queueIndex].matchRight ?? []).map((r) => (
+                            <option key={r.key} value={r.key}>
+                              {r.text}
+                            </option>
+                          ))}
+                        </select>
+                        {submitted && <span className={isRowCorrect ? 'value-correct' : 'value-abnormal'}>{isRowCorrect ? '✓' : '✗'}</span>}
+                      </div>
+                    )
+                  })}
+                  {!submitted && (
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        disabled={(queue[queueIndex].matchLeft ?? []).some((item) => !matchSelections[item.key])}
+                        onClick={() => void handleSubmitMatchingAnswer()}
+                      >
+                        Submit answer
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {queue[queueIndex].type === 'fill_blank' && (
+                <>
+                  {!fillRevealed ? (
+                    <div className="form-actions">
+                      <button type="button" onClick={() => setFillRevealed(true)}>
+                        Reveal answer
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="patient-meta">
+                        Answer{(queue[queueIndex].fillAnswers?.length ?? 0) > 1 ? 's' : ''}:{' '}
+                        <strong>{(queue[queueIndex].fillAnswers ?? []).join(' · ')}</strong>
+                      </p>
+                      {!submitted && (
+                        <div className="form-actions">
+                          <button type="button" onClick={() => void handleSelfGradeFillBlank(true)}>
+                            I got it right
+                          </button>
+                          <button type="button" className="button-secondary" onClick={() => void handleSelfGradeFillBlank(false)}>
+                            I got it wrong
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {submitted && (
                 <div>
-                  <p className={selectedIndex === queue[queueIndex].correctIndex ? 'value-correct' : 'value-abnormal'}>
-                    {selectedIndex === queue[queueIndex].correctIndex ? 'Correct' : 'Incorrect'}
-                  </p>
                   {queue[queueIndex].explanation && <p className="patient-meta">{queue[queueIndex].explanation}</p>}
                   <div className="form-actions">
                     <button type="button" onClick={handleNext}>
@@ -436,15 +553,20 @@ export function BoardQuestionsPanel() {
                 <li key={q.id}>
                   <div className="note-header">
                     <strong>{q.question}</strong>
-                    <button className="link-button" onClick={() => handleEditQuestion(q)}>
-                      Edit
-                    </button>
+                    {q.type === 'mcq' && (
+                      <button className="link-button" onClick={() => handleEditQuestion(q)}>
+                        Edit
+                      </button>
+                    )}
                     <button className="link-button" onClick={() => void handleDeleteQuestion(q.id)}>
                       Delete
                     </button>
                   </div>
                   <p className="patient-meta">
-                    {q.topic} · Correct: {q.options[q.correctIndex]}
+                    {q.topic} · {q.type}
+                    {q.type === 'mcq' && q.correctIndex != null && ` · Correct: ${q.options[q.correctIndex]}`}
+                    {q.type === 'fill_blank' && q.fillAnswers && ` · Answer: ${q.fillAnswers.join(' · ')}`}
+                    {q.type === 'matching' && q.matchAnswer && ` · ${q.matchAnswer.length} pairs`}
                   </p>
                 </li>
               ))}
