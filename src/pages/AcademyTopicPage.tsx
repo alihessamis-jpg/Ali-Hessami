@@ -17,6 +17,7 @@ import {
   uploadAcademyAttachmentFile,
 } from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
+import { sortSubTopics } from '../lib/sortSubTopics'
 import { protectNumberRanges } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import { toShamsi } from '../lib/shamsi'
@@ -257,7 +258,7 @@ export function AcademyTopicPage() {
   )
 
   const parentTopic = allTopics.find((t) => t.id === topic.parentTopicId) ?? null
-  const subTopics = allTopics.filter((t) => t.parentTopicId === id)
+  const subTopics = sortSubTopics(allTopics.filter((t) => t.parentTopicId === id))
   const parentOptions = allTopics.filter((t) => t.id !== id && t.parentTopicId !== id)
 
   return (
