@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
+import { addFlashcard } from '../../lib/api/flashcards'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
@@ -23,6 +24,23 @@ const emptyDraft = {
 // self-graded) have no single "selected option" — this sentinel fills the
 // not-null selected_index column without implying a real choice.
 const NO_SELECTED_INDEX = -1
+
+function buildFlashcardFromQuestion(q: BoardQuestion): { front: string; back: string } {
+  let back = ''
+  if (q.type === 'mcq') {
+    back = q.correctIndex != null ? q.options[q.correctIndex] ?? '' : ''
+  } else if (q.type === 'fill_blank') {
+    back = (q.fillAnswers ?? []).join(' / ')
+  } else if (q.type === 'matching') {
+    const rightByKey = new Map((q.matchRight ?? []).map((r) => [r.key, r.text]))
+    const leftByKey = new Map((q.matchLeft ?? []).map((l) => [l.key, l.text]))
+    back = (q.matchAnswer ?? [])
+      .map((pair) => `${leftByKey.get(pair.left) ?? pair.left} → ${rightByKey.get(pair.right) ?? pair.right}`)
+      .join('\n')
+  }
+  if (q.explanation) back = back ? `${back}\n\n${q.explanation}` : q.explanation
+  return { front: q.question, back }
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr]
@@ -49,6 +67,7 @@ export function BoardQuestionsPanel() {
   const [fillRevealed, setFillRevealed] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [sessionScore, setSessionScore] = useState({ correct: 0, total: 0 })
+  const [flashcardSavedFor, setFlashcardSavedFor] = useState<string | null>(null)
 
   // Manage state
   const [draft, setDraft] = useState(emptyDraft)
@@ -88,6 +107,7 @@ export function BoardQuestionsPanel() {
     setFillRevealed(false)
     setSubmitted(false)
     setSessionScore({ correct: 0, total: 0 })
+    setFlashcardSavedFor(null)
   }
 
   async function recordAttempt(questionId: string, isCorrect: boolean, selectedIndex = NO_SELECTED_INDEX) {
@@ -128,6 +148,17 @@ export function BoardQuestionsPanel() {
     setMatchSelections({})
     setFillRevealed(false)
     setSubmitted(false)
+    setFlashcardSavedFor(null)
+  }
+
+  async function handleSaveAsFlashcard(q: BoardQuestion) {
+    try {
+      const { front, back } = buildFlashcardFromQuestion(q)
+      await addFlashcard({ front, back, deck: q.topic })
+      setFlashcardSavedFor(q.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save flashcard')
+    }
   }
 
   async function handleSaveQuestion(e: FormEvent) {
@@ -369,6 +400,14 @@ export function BoardQuestionsPanel() {
                 <div>
                   {queue[queueIndex].explanation && <p className="patient-meta">{queue[queueIndex].explanation}</p>}
                   <div className="form-actions">
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      disabled={flashcardSavedFor === queue[queueIndex].id}
+                      onClick={() => void handleSaveAsFlashcard(queue[queueIndex])}
+                    >
+                      {flashcardSavedFor === queue[queueIndex].id ? 'Saved to flashcards' : 'Save as flashcard'}
+                    </button>
                     <button type="button" onClick={handleNext}>
                       Next
                     </button>
