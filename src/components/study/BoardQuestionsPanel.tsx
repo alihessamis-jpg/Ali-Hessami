@@ -5,6 +5,7 @@ import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/ap
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
+import { TopicPicker } from './TopicPicker'
 import type { BoardQuestion, BoardQuestionAttempt } from '../../types/domain'
 
 type Mode = 'practice' | 'progress' | 'manage'
@@ -71,6 +72,12 @@ export function BoardQuestionsPanel() {
   }
 
   const topics = useMemo(() => Array.from(new Set(questions.map((q) => q.topic))).sort(), [questions])
+  const topicCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const q of questions) counts.set(q.topic, (counts.get(q.topic) ?? 0) + 1)
+    return counts
+  }, [questions])
+  const countForTopic = (t: string) => topicCounts.get(t) ?? 0
 
   function startPractice() {
     const pool = practiceTopic === 'All' ? questions : questions.filter((q) => q.topic === practiceTopic)
@@ -215,14 +222,14 @@ export function BoardQuestionsPanel() {
             <p className="empty-state">No questions yet — add some under "Manage questions" first.</p>
           ) : !queue ? (
             <div className="form-actions">
-              <select value={practiceTopic} onChange={(e) => setPracticeTopic(e.target.value)}>
-                <option value="All">All topics ({questions.length})</option>
-                {topics.map((t) => (
-                  <option key={t} value={t}>
-                    {t} ({questions.filter((q) => q.topic === t).length})
-                  </option>
-                ))}
-              </select>
+              <TopicPicker
+                topics={topics}
+                value={practiceTopic}
+                onChange={setPracticeTopic}
+                countFor={countForTopic}
+                totalCount={questions.length}
+                allLabel="All topics"
+              />
               <button type="button" onClick={startPractice}>
                 Start
               </button>
@@ -522,29 +529,24 @@ export function BoardQuestionsPanel() {
           <div className="dash-card-header" style={{ marginTop: 24 }}>
             <h2 className="dash-card-title">Question bank</h2>
           </div>
-          <input
-            placeholder="Search questions…"
-            value={manageSearch}
-            onChange={(e) => setManageSearch(e.target.value)}
-            style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
-          />
-          {questions.length > 0 && (
-            <div className="category-pills">
-              <button type="button" className={`category-pill ${manageTopicFilter === 'All' ? 'active' : ''}`} onClick={() => setManageTopicFilter('All')}>
-                All ({questions.length})
-              </button>
-              {topics.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`category-pill ${manageTopicFilter === t ? 'active' : ''}`}
-                  onClick={() => setManageTopicFilter(t)}
-                >
-                  {t} ({questions.filter((q) => q.topic === t).length})
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="form-actions" style={{ margin: '12px 0' }}>
+            <input
+              placeholder="Search questions…"
+              value={manageSearch}
+              onChange={(e) => setManageSearch(e.target.value)}
+              style={{ width: '100%', maxWidth: 360 }}
+            />
+            {questions.length > 0 && (
+              <TopicPicker
+                topics={topics}
+                value={manageTopicFilter}
+                onChange={setManageTopicFilter}
+                countFor={countForTopic}
+                totalCount={questions.length}
+                allLabel="All"
+              />
+            )}
+          </div>
           {visibleQuestions.length === 0 ? (
             <p className="empty-state">No questions yet.</p>
           ) : (
