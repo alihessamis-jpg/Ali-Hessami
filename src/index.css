@@ -1417,6 +1417,7 @@ legend {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -1426,16 +1427,20 @@ legend {
 
 .quiz-option.selected {
   border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
 }
 
 .quiz-option.correct {
   border-color: #1a8a4a;
   background: #e7f6ec;
+  color: #0f5c30;
 }
 
 .quiz-option.incorrect {
   border-color: var(--danger);
   background: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* ---- Patient detail: header card ---- */
