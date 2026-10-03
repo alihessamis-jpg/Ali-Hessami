@@ -18,7 +18,7 @@ import { listKnowledgeGaps } from '../lib/api/knowledgeGaps'
 import { listResearchProjects } from '../lib/api/research'
 import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/caseLog'
 import { listReadingItems } from '../lib/api/readingItems'
-import { listDueCheckpoints } from '../lib/readingReview'
+import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { getUserSettings } from '../lib/api/settings'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -218,6 +218,8 @@ export function DashboardPage() {
   })
   const dueFlashcards = flashcards.filter((c) => !c.nextReview || c.nextReview <= today)
   const dueReadingCheckpoints = listDueCheckpoints(readingItems, today)
+  const dueLeitnerItems = listDueLeitnerItems(readingItems, today)
+  const dueReadingCount = dueReadingCheckpoints.length + dueLeitnerItems.length
 
   const studyAlerts: AlertItem[] = []
   if (dueTopics.length > 0) {
@@ -238,12 +240,17 @@ export function DashboardPage() {
       to: '/study',
     })
   }
-  if (dueReadingCheckpoints.length > 0) {
+  if (dueReadingCount > 0) {
     studyAlerts.push({
       id: 'study-reading',
       severity: 'info',
-      title: `${dueReadingCheckpoints.length} reading review${dueReadingCheckpoints.length === 1 ? '' : 's'} due`,
-      detail: 'Fixed 3d/1wk/14d/1mo/3mo schedule',
+      title: `${dueReadingCount} reading review${dueReadingCount === 1 ? '' : 's'} due`,
+      detail:
+        dueLeitnerItems.length > 0 && dueReadingCheckpoints.length > 0
+          ? 'Fixed schedule + Leitner-box saved questions'
+          : dueLeitnerItems.length > 0
+            ? 'Leitner-box saved questions'
+            : 'Fixed 3d/1wk/14d/1mo/3mo schedule',
       to: '/study',
     })
   }
@@ -414,11 +421,11 @@ export function DashboardPage() {
           </li>
           <li>
             <Link to="/study" className="checklist-row">
-              <span className={`checklist-dot ${dueReadingCheckpoints.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
+              <span className={`checklist-dot ${dueReadingCount > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
                 <CalendarIcon />
               </span>
               <span className="checklist-label">Reading reviews due</span>
-              <span className="checklist-count">{dueReadingCheckpoints.length}</span>
+              <span className="checklist-count">{dueReadingCount}</span>
             </Link>
           </li>
           <li>

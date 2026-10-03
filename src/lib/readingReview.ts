@@ -36,6 +36,7 @@ export interface DueCheckpoint {
 export function listDueCheckpoints(items: ReadingItem[], today: string): DueCheckpoint[] {
   const due: DueCheckpoint[] = []
   for (const item of items) {
+    if (item.origin != null) continue // Leitner-mode items (see listDueLeitnerItems) use adaptive scheduling instead
     for (const checkpoint of REVIEW_CHECKPOINTS) {
       if (item[checkpoint.key]) continue
       const dueDate = checkpointDueDate(item, checkpoint)
@@ -43,4 +44,12 @@ export function listDueCheckpoints(items: ReadingItem[], today: string): DueChec
     }
   }
   return due.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+}
+
+// Items saved from a quiz/case question (title = question, answer = correct
+// answer/discussion, origin = the section it came from) are scheduled with
+// the same adaptive Leitner-box intervals as flashcards, instead of the
+// fixed checkpoint schedule above.
+export function listDueLeitnerItems(items: ReadingItem[], today: string): ReadingItem[] {
+  return items.filter((item) => item.origin != null && (!item.nextReview || item.nextReview <= today))
 }

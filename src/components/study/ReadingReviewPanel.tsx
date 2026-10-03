@@ -7,9 +7,11 @@ import {
   setReadingItemCheckpoint,
   setReadingItemTopic,
   updateReadingItem,
+  updateReadingItemSrs,
 } from '../../lib/api/readingItems'
 import { listAcademyTopics } from '../../lib/api/academy'
-import { checkpointDueDate, REVIEW_CHECKPOINTS } from '../../lib/readingReview'
+import { checkpointDueDate, listDueLeitnerItems, REVIEW_CHECKPOINTS } from '../../lib/readingReview'
+import { scheduleReview } from '../../lib/srs'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
 import type { AcademyTopic, ReadingItem, ReviewCheckpointKey } from '../../types/domain'
@@ -28,6 +30,8 @@ export function ReadingReviewPanel() {
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState({ title: '', source: '', dateRead: '' })
+  const [leitnerIndex, setLeitnerIndex] = useState(0)
+  const [leitnerShowBack, setLeitnerShowBack] = useState(false)
 
   useEffect(() => {
     refresh()
@@ -117,7 +121,29 @@ export function ReadingReviewPanel() {
     }
   }
 
+  async function handleRateLeitner(item: ReadingItem, rating: 'easy' | 'moderate' | 'difficult') {
+    const next = scheduleReview(
+      {
+        intervalIndex: item.intervalIndex ?? -1,
+        lastReviewed: item.lastReviewed ?? null,
+        nextReview: item.nextReview ?? null,
+        reviewHistory: item.reviewHistory ?? [],
+      },
+      rating
+    )
+    try {
+      const updated = await updateReadingItemSrs(item.id, next)
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
+      setLeitnerShowBack(false)
+      setLeitnerIndex((i) => i + 1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review')
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10)
+  const dueLeitnerItems = listDueLeitnerItems(items, today)
+  const currentLeitner = dueLeitnerItems[leitnerIndex % Math.max(dueLeitnerItems.length, 1)]
 
   return (
     <div>
@@ -125,6 +151,36 @@ export function ReadingReviewPanel() {
         Log what you read and get reminded to review it at 3 days, 1 week, 14 days, 1 month, and 3 months —
         a fixed spaced-review schedule, separate from Academy/Flashcards' adaptive one.
       </p>
+
+      {dueLeitnerItems.length > 0 && currentLeitner && (
+        <div className="dash-card">
+          <div className="dash-card-header">
+            <h2 className="dash-card-title">Saved questions due ({dueLeitnerItems.length})</h2>
+          </div>
+          <p className="patient-meta">{currentLeitner.origin}</p>
+          <p>
+            <strong>{currentLeitner.title}</strong>
+          </p>
+          {leitnerShowBack && currentLeitner.answer && <p style={{ color: 'var(--text-muted)' }}>{currentLeitner.answer}</p>}
+          {!leitnerShowBack ? (
+            <button type="button" onClick={() => setLeitnerShowBack(true)}>
+              Show answer
+            </button>
+          ) : (
+            <div className="form-actions">
+              <button type="button" onClick={() => void handleRateLeitner(currentLeitner, 'difficult')}>
+                Difficult
+              </button>
+              <button type="button" onClick={() => void handleRateLeitner(currentLeitner, 'moderate')}>
+                Moderate
+              </button>
+              <button type="button" onClick={() => void handleRateLeitner(currentLeitner, 'easy')}>
+                Easy
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
         <input
@@ -232,24 +288,31 @@ export function ReadingReviewPanel() {
                   ))}
                 </select>
               </div>
-              <div className="checkpoint-row">
-                {REVIEW_CHECKPOINTS.map((cp) => {
-                  const done = item[cp.key]
-                  const dueDate = checkpointDueDate(item, cp)
-                  const isDue = !done && dueDate <= today
-                  return (
-                    <button
-                      key={cp.key}
-                      type="button"
-                      className={`checkpoint-chip ${done ? 'checkpoint-chip--done' : isDue ? 'checkpoint-chip--due' : ''}`}
-                      onClick={() => void toggleCheckpoint(item, cp.key)}
-                    >
-                      {cp.label}
-                      {done ? ' ✓' : isDue ? ' — due' : ` — ${toShamsi(dueDate)}`}
-                    </button>
-                  )
-                })}
-              </div>
+              {item.origin != null ? (
+                <p className="patient-meta">
+                  {item.origin} · Leitner box ·{' '}
+                  {!item.nextReview || item.nextReview <= today ? 'Due now' : `Next review ${toShamsi(item.nextReview)}`}
+                </p>
+              ) : (
+                <div className="checkpoint-row">
+                  {REVIEW_CHECKPOINTS.map((cp) => {
+                    const done = item[cp.key]
+                    const dueDate = checkpointDueDate(item, cp)
+                    const isDue = !done && dueDate <= today
+                    return (
+                      <button
+                        key={cp.key}
+                        type="button"
+                        className={`checkpoint-chip ${done ? 'checkpoint-chip--done' : isDue ? 'checkpoint-chip--due' : ''}`}
+                        onClick={() => void toggleCheckpoint(item, cp.key)}
+                      >
+                        {cp.label}
+                        {done ? ' ✓' : isDue ? ' — due' : ` — ${toShamsi(dueDate)}`}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </li>
           ))}
         </ul>

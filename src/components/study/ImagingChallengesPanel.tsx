@@ -5,10 +5,16 @@ import {
   listImagingChallenges,
   updateImagingChallenge,
 } from '../../lib/api/imagingChallenges'
+import { addReadingItemFromQuestion } from '../../lib/api/readingItems'
 import { getImagingSignedUrl, uploadImagingFile } from '../../lib/storage'
 import { useAuth } from '../../context/AuthContext'
 import { matchesSearch } from '../../lib/textFilter'
 import type { ImagingChallenge } from '../../types/domain'
+
+function buildReadingItemFromChallenge(c: ImagingChallenge): { title: string; answer: string } {
+  const title = [c.category, c.context, c.questions].filter(Boolean).join('\n\n')
+  return { title, answer: c.discussion ?? '' }
+}
 
 export function ImagingChallengesPanel() {
   const { session } = useAuth()
@@ -26,6 +32,7 @@ export function ImagingChallengesPanel() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [existingStoragePath, setExistingStoragePath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [savedToReview, setSavedToReview] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     listImagingChallenges()
@@ -90,6 +97,16 @@ export function ImagingChallengesPanel() {
       setChallenges((prev) => prev.filter((c) => c.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
+    }
+  }
+
+  async function handleSaveToReadingReview(c: ImagingChallenge) {
+    try {
+      const { title, answer } = buildReadingItemFromChallenge(c)
+      await addReadingItemFromQuestion({ title, answer, origin: 'Imaging Challenges' })
+      setSavedToReview((prev) => ({ ...prev, [c.id]: true }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save to reading review')
     }
   }
 
@@ -169,6 +186,18 @@ export function ImagingChallengesPanel() {
                   {c.context && <p><strong>Context:</strong> {c.context}</p>}
                   {c.questions && <p><strong>Questions:</strong> {c.questions}</p>}
                   {c.discussion && <p><strong>Discussion:</strong> {c.discussion}</p>}
+                  {c.discussion && (
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        disabled={savedToReview[c.id]}
+                        onClick={() => void handleSaveToReadingReview(c)}
+                      >
+                        {savedToReview[c.id] ? 'Saved to reading review' : 'Save to reading review'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </li>

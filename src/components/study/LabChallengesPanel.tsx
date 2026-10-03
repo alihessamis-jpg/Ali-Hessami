@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addLabChallenge, deleteLabChallenge, listLabChallenges, updateLabChallenge } from '../../lib/api/labChallenges'
+import { addReadingItemFromQuestion } from '../../lib/api/readingItems'
 import { matchesSearch } from '../../lib/textFilter'
 import type { LabChallenge } from '../../types/domain'
+
+function buildReadingItemFromChallenge(c: LabChallenge): { title: string; answer: string } {
+  const valuesText = c.values.map(([test, value, unit]) => [test, value, unit].filter(Boolean).join(' ')).join(', ')
+  const title = [c.title, valuesText, c.prompt].filter(Boolean).join('\n\n')
+  return { title, answer: c.discussion ?? '' }
+}
 
 export function LabChallengesPanel() {
   const [challenges, setChallenges] = useState<LabChallenge[]>([])
@@ -15,6 +22,7 @@ export function LabChallengesPanel() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [savedToReview, setSavedToReview] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     listLabChallenges()
@@ -66,6 +74,16 @@ export function LabChallengesPanel() {
       setChallenges((prev) => prev.filter((c) => c.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
+    }
+  }
+
+  async function handleSaveToReadingReview(c: LabChallenge) {
+    try {
+      const { title, answer } = buildReadingItemFromChallenge(c)
+      await addReadingItemFromQuestion({ title, answer, origin: 'Lab Challenges' })
+      setSavedToReview((prev) => ({ ...prev, [c.id]: true }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save to reading review')
     }
   }
 
@@ -154,6 +172,18 @@ export function LabChallengesPanel() {
                   </table>
                   {c.prompt && <p><strong>Prompt:</strong> {c.prompt}</p>}
                   {c.discussion && <p><strong>Discussion:</strong> {c.discussion}</p>}
+                  {c.discussion && (
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        disabled={savedToReview[c.id]}
+                        onClick={() => void handleSaveToReadingReview(c)}
+                      >
+                        {savedToReview[c.id] ? 'Saved to reading review' : 'Save to reading review'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </li>

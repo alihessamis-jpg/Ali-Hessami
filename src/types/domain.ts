@@ -704,9 +704,25 @@ export interface ReadingItem {
   review30dDone: boolean
   review90dDone: boolean
   topicId?: string | null
+  // Leitner-box fields, used only for items saved from a quiz/case question
+  // (see ReadingItemFromQuestionDraft) instead of the fixed checkpoint
+  // schedule above. `origin` names the section the question came from and
+  // doubles as the flag for "this item uses Leitner scheduling".
+  answer?: string | null
+  origin?: string | null
+  intervalIndex?: number | null
+  lastReviewed?: string | null
+  nextReview?: string | null
+  reviewHistory?: ReviewHistoryEntry[]
 }
 
 export type ReadingItemDraft = Omit<ReadingItem, 'id'>
+
+export interface ReadingItemFromQuestionDraft {
+  title: string
+  answer: string
+  origin: string
+}
 
 export type ReviewCheckpointKey = 'review3dDone' | 'review7dDone' | 'review14dDone' | 'review30dDone' | 'review90dDone'
 

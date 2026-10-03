@@ -1,9 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addReasoningCase, deleteReasoningCase, listReasoningCases, updateReasoningCase } from '../../lib/api/reasoningCases'
+import { addReadingItemFromQuestion } from '../../lib/api/readingItems'
 import { matchesSearch } from '../../lib/textFilter'
 import type { ReasoningCase } from '../../types/domain'
 
 const emptyDraft = { title: '', chief: '', history: '', vitals: '', exam: '', labs: '', imaging: '', discussion: '' }
+
+function buildReadingItemFromCase(c: ReasoningCase): { title: string; answer: string } {
+  const title = [c.title, c.chief, c.history, c.vitals, c.labs, c.imaging].filter(Boolean).join('\n\n')
+  return { title, answer: c.discussion ?? '' }
+}
 
 export function ReasoningCasesPanel() {
   const [cases, setCases] = useState<ReasoningCase[]>([])
@@ -14,6 +20,7 @@ export function ReasoningCasesPanel() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [savedToReview, setSavedToReview] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     listReasoningCases()
@@ -75,6 +82,16 @@ export function ReasoningCasesPanel() {
       setCases((prev) => prev.filter((c) => c.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete')
+    }
+  }
+
+  async function handleSaveToReadingReview(c: ReasoningCase) {
+    try {
+      const { title, answer } = buildReadingItemFromCase(c)
+      await addReadingItemFromQuestion({ title, answer, origin: 'Reasoning Cases' })
+      setSavedToReview((prev) => ({ ...prev, [c.id]: true }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save to reading review')
     }
   }
 
@@ -148,6 +165,18 @@ export function ReasoningCasesPanel() {
                   {c.labs && <p><strong>Labs:</strong> {c.labs}</p>}
                   {c.imaging && <p><strong>Imaging:</strong> {c.imaging}</p>}
                   {c.discussion && <p><strong>Discussion:</strong> {c.discussion}</p>}
+                  {c.discussion && (
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        disabled={savedToReview[c.id]}
+                        onClick={() => void handleSaveToReadingReview(c)}
+                      >
+                        {savedToReview[c.id] ? 'Saved to reading review' : 'Save to reading review'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </li>

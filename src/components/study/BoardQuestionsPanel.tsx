@@ -3,6 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
 import { addFlashcard } from '../../lib/api/flashcards'
+import { addReadingItemFromQuestion } from '../../lib/api/readingItems'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
@@ -68,6 +69,7 @@ export function BoardQuestionsPanel() {
   const [submitted, setSubmitted] = useState(false)
   const [sessionScore, setSessionScore] = useState({ correct: 0, total: 0 })
   const [flashcardSavedFor, setFlashcardSavedFor] = useState<string | null>(null)
+  const [reviewSavedFor, setReviewSavedFor] = useState<string | null>(null)
 
   // Manage state
   const [draft, setDraft] = useState(emptyDraft)
@@ -108,6 +110,7 @@ export function BoardQuestionsPanel() {
     setSubmitted(false)
     setSessionScore({ correct: 0, total: 0 })
     setFlashcardSavedFor(null)
+    setReviewSavedFor(null)
   }
 
   async function recordAttempt(questionId: string, isCorrect: boolean, selectedIndex = NO_SELECTED_INDEX) {
@@ -149,6 +152,7 @@ export function BoardQuestionsPanel() {
     setFillRevealed(false)
     setSubmitted(false)
     setFlashcardSavedFor(null)
+    setReviewSavedFor(null)
   }
 
   async function handleSaveAsFlashcard(q: BoardQuestion) {
@@ -158,6 +162,16 @@ export function BoardQuestionsPanel() {
       setFlashcardSavedFor(q.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save flashcard')
+    }
+  }
+
+  async function handleSaveToReadingReview(q: BoardQuestion) {
+    try {
+      const { front, back } = buildFlashcardFromQuestion(q)
+      await addReadingItemFromQuestion({ title: front, answer: back, origin: 'Board Questions' })
+      setReviewSavedFor(q.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save to reading review')
     }
   }
 
@@ -407,6 +421,14 @@ export function BoardQuestionsPanel() {
                       onClick={() => void handleSaveAsFlashcard(queue[queueIndex])}
                     >
                       {flashcardSavedFor === queue[queueIndex].id ? 'Saved to flashcards' : 'Save as flashcard'}
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      disabled={reviewSavedFor === queue[queueIndex].id}
+                      onClick={() => void handleSaveToReadingReview(queue[queueIndex])}
+                    >
+                      {reviewSavedFor === queue[queueIndex].id ? 'Saved to reading review' : 'Save to reading review'}
                     </button>
                     <button type="button" onClick={handleNext}>
                       Next
