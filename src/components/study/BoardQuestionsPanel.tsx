@@ -8,9 +8,10 @@ import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStat
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
 import { TopicPicker } from './TopicPicker'
+import { MockExamPanel } from './MockExamPanel'
 import type { BoardQuestion, BoardQuestionAttempt } from '../../types/domain'
 
-type Mode = 'practice' | 'progress' | 'manage'
+type Mode = 'practice' | 'mockExam' | 'progress' | 'manage'
 
 const emptyDraft = {
   topic: '',
@@ -250,6 +251,9 @@ export function BoardQuestionsPanel() {
         <button type="button" className={`category-pill ${mode === 'practice' ? 'active' : ''}`} onClick={() => setMode('practice')}>
           Practice
         </button>
+        <button type="button" className={`category-pill ${mode === 'mockExam' ? 'active' : ''}`} onClick={() => setMode('mockExam')}>
+          Mock exam
+        </button>
         <button type="button" className={`category-pill ${mode === 'progress' ? 'active' : ''}`} onClick={() => setMode('progress')}>
           Progress
         </button>
@@ -439,6 +443,10 @@ export function BoardQuestionsPanel() {
             </div>
           )}
         </div>
+      )}
+
+      {mode === 'mockExam' && (
+        <MockExamPanel questions={questions} onRecordAttempt={(attempt) => setAttempts((prev) => [...prev, attempt])} />
       )}
 
       {mode === 'progress' && (
