@@ -43,6 +43,7 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
   Lipids: ['Total Cholesterol', 'Triglycerides'],
   Liver: ['ALT', 'AST'],
   'Iron studies': ['Ferritin', 'Iron', 'TIBC', 'Transferrin Saturation'],
+  Hemolysis: ['LDH', 'Uric Acid'],
   'Blood Gas': ['VBG - pH', 'VBG - pCO2', 'VBG - pO2', 'VBG - HCO3', 'VBG - Base Excess', 'Lactate'],
   Transplant: ['Tacrolimus (FK506) Level', 'Cyclosporine Level'],
   'Dialysis Adequacy': ['Kt/V (single pool)', 'URR (Urea Reduction Ratio)', 'PET D/P Creatinine Ratio'],

@@ -16,6 +16,7 @@ import {
 import { toShamsi } from '../../lib/shamsi'
 import { assessProteinuriaStatus, classifyUpcRatio, PROTEINURIA_CLASS_LABEL } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
+import { assessHusWorkup } from '../../lib/husWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdScreening } from '../../lib/ckdScreening'
@@ -203,6 +204,8 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const nephriticWorkup = useMemo(() => assessNephriticWorkup(entries), [entries])
 
+  const husWorkup = useMemo(() => assessHusWorkup(patient, entries), [patient, entries])
+
   const ckdMbd = useMemo(() => {
     if (!patient.baselineCr && !patient.baselineEGFR) return null
     const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
@@ -358,6 +361,16 @@ export function LabsTab({ patientId, patient }: Props) {
                 ? `P-ANCA ${nephriticWorkup.pAnca?.valueText ?? '—'}, C-ANCA ${nephriticWorkup.cAnca?.valueText ?? '—'}`
                 : 'If complement is normal, or systemic/vasculitic features: check P-ANCA, C-ANCA'}
             </li>
+          </ul>
+        </div>
+      )}
+      {husWorkup && (
+        <div className="aki-banner aki-banner--warning">
+          <strong>⚠ HUS — hemolysis labs not yet checked{patient.doa ? ' this admission' : ''}</strong>
+          <span className="patient-meta">LDH and uric acid track ongoing hemolysis/cell turnover in HUS — easy to forget once attention shifts to AKI and fluid management.</span>
+          <ul className="study-link-list" style={{ marginTop: 8 }}>
+            {husWorkup.missingLdh && <li className="value-abnormal">LDH not checked{patient.doa ? ' since admission' : ''}</li>}
+            {husWorkup.missingUricAcid && <li className="value-abnormal">Uric acid not checked{patient.doa ? ' since admission' : ''}</li>}
           </ul>
         </div>
       )}
