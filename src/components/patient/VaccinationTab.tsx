@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { addVaccination, deleteVaccination, listVaccinations } from '../../lib/api/vaccinations'
+import { listMedications } from '../../lib/api/medications'
+import { listLabEntries } from '../../lib/api/labs'
 import { knownVaccineIsLive, STANDARD_VACCINES } from '../../lib/vaccineReference'
+import { assessEculizumabChecklist } from '../../lib/eculizumabChecklist'
 import { toShamsi } from '../../lib/shamsi'
-import type { Patient, Vaccination, VaccinationDraft } from '../../types/domain'
+import type { LabEntry, Patient, Vaccination, VaccinationDraft } from '../../types/domain'
 
 interface Props {
   patientId: string
@@ -21,6 +24,8 @@ const emptyDraft = {
 
 export function VaccinationTab({ patientId, patient }: Props) {
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
+  const [activeMedNames, setActiveMedNames] = useState<string[]>([])
+  const [labEntries, setLabEntries] = useState<LabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
@@ -31,11 +36,17 @@ export function VaccinationTab({ patientId, patient }: Props) {
 
   function refresh() {
     setLoading(true)
-    listVaccinations(patientId)
-      .then(setVaccinations)
+    Promise.all([listVaccinations(patientId), listMedications(patientId), listLabEntries(patientId)])
+      .then(([v, meds, labs]) => {
+        setVaccinations(v)
+        setActiveMedNames(meds.filter((m) => m.active).map((m) => m.name.toLowerCase()))
+        setLabEntries(labs)
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load vaccinations'))
       .finally(() => setLoading(false))
   }
+
+  const eculizumabChecklist = assessEculizumabChecklist(activeMedNames, vaccinations, labEntries)
 
   function handleNameChange(name: string) {
     const known = knownVaccineIsLive(name)
@@ -70,6 +81,35 @@ export function VaccinationTab({ patientId, patient }: Props) {
     <div>
       {error && <p className="form-error">{error}</p>}
 
+      {eculizumabChecklist && (
+        <div className={`aki-banner ${eculizumabChecklist.anyMissing ? 'aki-banner--warning' : ''}`}>
+          <strong>{eculizumabChecklist.anyMissing ? '⚠ Pre-eculizumab checklist incomplete' : 'Pre-eculizumab checklist complete'}</strong>
+          <span className="patient-meta">
+            Vaccines and prophylaxis should be completed at least 2 weeks before starting eculizumab — see the HUS
+            Academy topic for the vaccine valency/spacing/booster schedule.
+          </span>
+          <ul className="study-link-list" style={{ marginTop: 8 }}>
+            <li className={eculizumabChecklist.meningococcalGiven ? undefined : 'value-abnormal'}>
+              Meningococcal vaccine:{' '}
+              {eculizumabChecklist.meningococcalGiven
+                ? `given ${toShamsi(eculizumabChecklist.meningococcalGiven.dateGiven)} (${eculizumabChecklist.meningococcalGiven.vaccineName})`
+                : 'not on record'}
+            </li>
+            <li className={eculizumabChecklist.pneumococcalGiven ? undefined : 'value-abnormal'}>
+              Pneumococcal vaccine:{' '}
+              {eculizumabChecklist.pneumococcalGiven
+                ? `given ${toShamsi(eculizumabChecklist.pneumococcalGiven.dateGiven)} (${eculizumabChecklist.pneumococcalGiven.vaccineName})`
+                : 'not on record'}
+            </li>
+            <li className={eculizumabChecklist.penicillinActive ? undefined : 'value-abnormal'}>
+              Penicillin V prophylaxis: {eculizumabChecklist.penicillinActive ? 'active' : 'not on active medication list'}
+            </li>
+            <li className={eculizumabChecklist.ppdDone ? undefined : 'value-abnormal'}>
+              PPD test: {eculizumabChecklist.ppdDone ? 'checked' : 'not checked'}
+            </li>
+          </ul>
+        </div>
+      )}
       {patient.transplantStatus && liveVaccinesGiven.length > 0 && (
         <div className="aki-banner aki-banner--warning">
           Live vaccine(s) on record ({liveVaccinesGiven.map((v) => v.vaccineName).join(', ')}) — this patient's

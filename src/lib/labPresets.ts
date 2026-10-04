@@ -35,7 +35,7 @@ export const LAB_CATEGORY_TESTS: Record<string, string[]> = {
     'Urine Calcium',
   ],
   Immunology: ['C3', 'C4', 'ANA', 'ANCA', 'Anti-dsDNA', 'P-ANCA (MPO)', 'C-ANCA (PR3)'],
-  'Infectious/Viral': ['CMV PCR (Quantitative)', 'CMV IgG', 'CMV IgM', 'EBV PCR (Quantitative)', 'ASO'],
+  'Infectious/Viral': ['CMV PCR (Quantitative)', 'CMV IgG', 'CMV IgM', 'EBV PCR (Quantitative)', 'ASO', 'PPD'],
   Microbiology: ['Blood Culture', 'Urine Culture'],
   'Peritoneal Fluid': ['PD Fluid Cell Count', 'PD Fluid Segments (%)', 'PD Fluid Gram Stain', 'PD Fluid Culture'],
   CSF: ['CSF WBC', 'CSF RBC', 'CSF Segments (%)', 'CSF Lymphocytes (%)', 'CSF Protein', 'CSF Glucose', 'CSF Gram Stain', 'CSF Culture'],
