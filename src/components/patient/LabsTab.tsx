@@ -21,7 +21,7 @@ import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdBicarbProtocol, CKD_BICARB_ESCALATED_DOSE, CKD_BICARB_TARGET_MEQ_L } from '../../lib/ckdBicarbProtocol'
 import { assessCkdScreening } from '../../lib/ckdScreening'
-import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from '../../lib/clinicalFlags'
+import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction, isCkdPatient } from '../../lib/clinicalFlags'
 import { assessTubularFunction } from '../../lib/renalFunctionTests'
 import { ageInMonths, ageInYears } from '../../lib/growth'
 import { listMedications } from '../../lib/api/medications'
@@ -207,8 +207,10 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const husWorkup = useMemo(() => assessHusWorkup(patient, entries), [patient, entries])
 
+  const isCkd = isCkdPatient(patient)
+
   const ckdMbd = useMemo(() => {
-    if (!patient.baselineCr && !patient.baselineEGFR) return null
+    if (!isCkd || (!patient.baselineCr && !patient.baselineEGFR)) return null
     const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
     return assessCkdMbd(entries, ageYears, activeMedNames, {
       caLowMgDl: settings.ckdMbdCaLow,
@@ -228,6 +230,7 @@ export function LabsTab({ patientId, patient }: Props) {
     })
   }, [
     entries,
+    isCkd,
     patient.baselineCr,
     patient.baselineEGFR,
     patient.dob,
@@ -254,14 +257,14 @@ export function LabsTab({ patientId, patient }: Props) {
   }, [entries, renalFailure, settings.acidosisPhThreshold, settings.acidosisHco3Threshold])
 
   const ckdScreening = useMemo(() => {
-    if (!renalFailure) return null
+    if (!renalFailure || !isCkd) return null
     return assessCkdScreening(entries)
-  }, [entries, renalFailure])
+  }, [entries, renalFailure, isCkd])
 
   const ckdBicarbProtocol = useMemo(() => {
-    if (!renalFailure) return null
+    if (!renalFailure || !isCkd) return null
     return assessCkdBicarbProtocol(entries)
-  }, [entries, renalFailure])
+  }, [entries, renalFailure, isCkd])
 
   const tubularFunction = useMemo(() => {
     const ageMonths = patient.dob ? ageInMonths(patient.dob, new Date().toISOString().slice(0, 10)) : null

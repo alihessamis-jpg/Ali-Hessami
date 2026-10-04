@@ -1,5 +1,5 @@
 import { kdigoStage } from './formulas'
-import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from './clinicalFlags'
+import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction, isCkdPatient } from './clinicalFlags'
 import { assessCkdMbd } from './ckdMbd'
 import { assessAcidBase } from './acidBase'
 import { assessCkdScreening } from './ckdScreening'
@@ -102,31 +102,44 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   }
 
   const renalFailure = !!patient.baselineCr || !!patient.baselineEGFR
+  const isCkd = isCkdPatient(patient)
   if (renalFailure) {
-    const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
-    const ckdMbd = assessCkdMbd(labEntries, ageYears, activeMedNames, {
-      caLowMgDl: settings.ckdMbdCaLow,
-      caHighMgDl: settings.ckdMbdCaHigh,
-      pthHighPgMl: settings.ckdMbdPthHigh,
-      pthLowPgMl: settings.ckdMbdPthLow,
-      vitDDeficientNgMl: settings.ckdMbdVitDDeficient,
-      vitDInsufficientNgMl: settings.ckdMbdVitDInsufficient,
-      bicarbLowMeqL: settings.ckdMbdBicarbLow,
-      phosphate: {
-        under1yMgDl: settings.phosphateUnder1y,
-        age1to3MgDl: settings.phosphateAge1to3,
-        age3to10MgDl: settings.phosphateAge3to10,
-        age10to17MgDl: settings.phosphateAge10to17,
-        adultMgDl: settings.phosphateAdult,
-      },
-    })
-    if (ckdMbd && ckdMbd.flags.length > 0) {
-      alerts.push({
-        id: 'ckd-mbd',
-        severity: 'warning',
-        text: `CKD-MBD: ${ckdMbd.flags.length} item${ckdMbd.flags.length === 1 ? '' : 's'} to address`,
-        tab: 'labs',
+    if (isCkd) {
+      const ageYears = patient.dob ? ageInYears(patient.dob, new Date().toISOString().slice(0, 10)) : null
+      const ckdMbd = assessCkdMbd(labEntries, ageYears, activeMedNames, {
+        caLowMgDl: settings.ckdMbdCaLow,
+        caHighMgDl: settings.ckdMbdCaHigh,
+        pthHighPgMl: settings.ckdMbdPthHigh,
+        pthLowPgMl: settings.ckdMbdPthLow,
+        vitDDeficientNgMl: settings.ckdMbdVitDDeficient,
+        vitDInsufficientNgMl: settings.ckdMbdVitDInsufficient,
+        bicarbLowMeqL: settings.ckdMbdBicarbLow,
+        phosphate: {
+          under1yMgDl: settings.phosphateUnder1y,
+          age1to3MgDl: settings.phosphateAge1to3,
+          age3to10MgDl: settings.phosphateAge3to10,
+          age10to17MgDl: settings.phosphateAge10to17,
+          adultMgDl: settings.phosphateAdult,
+        },
       })
+      if (ckdMbd && ckdMbd.flags.length > 0) {
+        alerts.push({
+          id: 'ckd-mbd',
+          severity: 'warning',
+          text: `CKD-MBD: ${ckdMbd.flags.length} item${ckdMbd.flags.length === 1 ? '' : 's'} to address`,
+          tab: 'labs',
+        })
+      }
+
+      const screening = assessCkdScreening(labEntries)
+      if (screening.anemiaMissing.length > 0 || screening.mbdMissing.length > 0) {
+        alerts.push({
+          id: 'ckd-screening',
+          severity: 'info',
+          text: `CKD screening incomplete — missing ${[...screening.anemiaMissing, ...screening.mbdMissing].join(', ')}`,
+          tab: 'labs',
+        })
+      }
     }
 
     const acidBase = assessAcidBase(labEntries, settings.acidosisPhThreshold, settings.acidosisHco3Threshold)
@@ -134,16 +147,6 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
       alerts.push({ id: 'acidosis', severity: 'warning', text: 'Severe metabolic acidosis — start bicarbonate therapy', tab: 'labs' })
     } else if (!acidBase.ph && !acidBase.hco3) {
       alerts.push({ id: 'vbg', severity: 'info', text: 'Renal failure — no VBG on file, check pH/HCO3', tab: 'labs' })
-    }
-
-    const screening = assessCkdScreening(labEntries)
-    if (screening.anemiaMissing.length > 0 || screening.mbdMissing.length > 0) {
-      alerts.push({
-        id: 'ckd-screening',
-        severity: 'info',
-        text: `CKD screening incomplete — missing ${[...screening.anemiaMissing, ...screening.mbdMissing].join(', ')}`,
-        tab: 'labs',
-      })
     }
   }
 

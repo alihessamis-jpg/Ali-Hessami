@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { ShamsiCalendarWidget } from '../components/ShamsiCalendarWidget'
 import { toShamsi } from '../lib/shamsi'
 import {
+  listAkiAlerts,
   listObstructiveUropathyWatches,
   listPatientsByIds,
   listRecentAbnormalLabs,
   type AbnormalLab,
+  type AkiAlert,
   type PatientGlance,
   type UropathyWatch,
 } from '../lib/api/dashboard'
@@ -114,6 +116,16 @@ function uropathyWatchToAlert(watch: UropathyWatch): AlertItem {
   }
 }
 
+function akiToAlert(aki: AkiAlert): AlertItem {
+  return {
+    id: `aki-${aki.patientId}`,
+    severity: aki.stage === 3 ? 'critical' : 'warning',
+    title: `AKI Stage ${aki.stage} (KDIGO) — ${aki.patientName}`,
+    detail: 'Current creatinine vs. this patient\'s baseline',
+    to: `/patients/${aki.patientId}`,
+  }
+}
+
 function labToAlert(lab: AbnormalLab): AlertItem {
   const result = lab.organism ?? lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
   return {
@@ -137,6 +149,7 @@ export function DashboardPage() {
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [uropathyWatches, setUropathyWatches] = useState<UropathyWatch[]>([])
+  const [akiAlerts, setAkiAlerts] = useState<AkiAlert[]>([])
   const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -157,6 +170,7 @@ export function DashboardPage() {
       listObstructiveUropathyWatches(),
       listReadingItems(),
       getUserSettings(),
+      listAkiAlerts(),
     ])
       .then(
         async ([
@@ -171,6 +185,7 @@ export function DashboardPage() {
           watchRows,
           readingRows,
           settings,
+          akiRows,
         ]) => {
           setLabs(labRows)
           setReminders(reminderRows)
@@ -183,6 +198,7 @@ export function DashboardPage() {
           setUropathyWatches(watchRows)
           setReadingItems(readingRows)
           setLastBackupAt(settings.lastBackupAt ?? null)
+          setAkiAlerts(akiRows)
 
           const today = new Date().toISOString().slice(0, 10)
           const tomorrow = addDays(today, 1)
@@ -192,6 +208,7 @@ export function DashboardPage() {
               ...labRows.map((l) => l.patientId),
               ...activeReminders.map((r) => r.patientId),
               ...watchRows.map((w) => w.patientId),
+              ...akiRows.map((a) => a.patientId),
             ])
           )
           const patientRows = await listPatientsByIds(attentionIds)
@@ -272,8 +289,19 @@ export function DashboardPage() {
         ]
       : []
 
-  const critical = [...labAlerts, ...reminderAlerts.filter((a) => a.severity === 'critical')]
-  const warning = [...reminderAlerts.filter((a) => a.severity === 'warning'), ...uropathyAlerts, ...backupAlerts]
+  const akiAlertItems = akiAlerts.map(akiToAlert)
+
+  const critical = [
+    ...labAlerts,
+    ...reminderAlerts.filter((a) => a.severity === 'critical'),
+    ...akiAlertItems.filter((a) => a.severity === 'critical'),
+  ]
+  const warning = [
+    ...reminderAlerts.filter((a) => a.severity === 'warning'),
+    ...akiAlertItems.filter((a) => a.severity === 'warning'),
+    ...uropathyAlerts,
+    ...backupAlerts,
+  ]
   const alerts = [...critical, ...warning, ...studyAlerts]
 
   const openGaps = knowledgeGaps.filter((g) => g.status !== 'resolved')
@@ -291,6 +319,12 @@ export function DashboardPage() {
   }
   for (const w of uropathyWatches) {
     if (!patientSeverity.has(w.patientId)) patientSeverity.set(w.patientId, 'warning')
+  }
+  for (const a of akiAlerts) {
+    const severity = a.stage === 3 ? 'critical' : 'warning'
+    if (patientSeverity.get(a.patientId) !== 'critical') {
+      patientSeverity.set(a.patientId, severity)
+    }
   }
   const sortedPatients = [...patients].sort((a, b) => {
     const rank = { critical: 0, warning: 1 } as const

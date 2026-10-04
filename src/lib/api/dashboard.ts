@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient'
 import { isAbnormal } from '../labRange'
 import { isPositiveCulture } from '../labPresets'
 import { hasObstructiveUropathy } from '../clinicalFlags'
-import { schwartzEGFR } from '../formulas'
+import { kdigoStage, schwartzEGFR } from '../formulas'
 import type { MicroDetails } from '../../types/domain'
 
 export interface AbnormalLab {
@@ -174,4 +174,57 @@ export async function listObstructiveUropathyWatches(): Promise<UropathyWatch[]>
       patientName: row.patients?.name ?? 'Unknown',
       surgeryDate: row.event_date,
     }))
+}
+
+export interface AkiAlert {
+  patientId: string
+  patientName: string
+  stage: 1 | 2 | 3
+}
+
+interface PatientBaselineRow {
+  id: string
+  name: string
+  baseline_cr: number | null
+  dialysis_status: string | null
+}
+
+// KDIGO AKI staging (current Creatinine vs. this patient's own baseline) is
+// otherwise only computed client-side inside the Labs tab — a patient in
+// AKI Stage 3 never surfaced on the Dashboard unless their Cr also happened
+// to fall outside a generic population reference range. Compute it here too
+// so the Dashboard's "needs attention" list catches it directly.
+export async function listAkiAlerts(): Promise<AkiAlert[]> {
+  const { data: patientRows, error: patientsError } = await supabase
+    .from('patients')
+    .select('id, name, baseline_cr, dialysis_status')
+    .not('baseline_cr', 'is', null)
+  if (patientsError) throw patientsError
+  const patients = patientRows as PatientBaselineRow[]
+  if (patients.length === 0) return []
+
+  const { data: labRows, error: labsError } = await supabase
+    .from('lab_entries')
+    .select('patient_id, date, value')
+    .eq('test', 'Creatinine')
+    .in(
+      'patient_id',
+      patients.map((p) => p.id)
+    )
+    .order('date', { ascending: false })
+  if (labsError) throw labsError
+
+  const latestCrByPatient = new Map<string, number>()
+  for (const row of labRows as CreatinineRow[]) {
+    if (!latestCrByPatient.has(row.patient_id) && row.value != null) latestCrByPatient.set(row.patient_id, row.value)
+  }
+
+  const alerts: AkiAlert[] = []
+  for (const p of patients) {
+    const latestCr = latestCrByPatient.get(p.id)
+    if (latestCr == null || p.baseline_cr == null) continue
+    const stage = kdigoStage(p.baseline_cr, latestCr, !!p.dialysis_status)
+    if (stage) alerts.push({ patientId: p.id, patientName: p.name, stage })
+  }
+  return alerts
 }

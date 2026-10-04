@@ -20,6 +20,24 @@ export function hasVurPuvOrObstruction(patient: { diagnosis?: string | null; und
   return VUR_PUV_OBSTRUCTION_PATTERN.test(text)
 }
 
+// A patient's baselineCr/baselineEGFR is also set for AKI (it's the
+// pre-illness reference value KDIGO staging compares against), so it can't
+// be used alone to decide "this is a CKD patient" — CKD-specific advisories
+// (CKD-MBD, CKD screening, the bicarbonate-replacement protocol) need this
+// separate, explicit check instead, or they fire for acute AKI patients too.
+const CKD_PATTERN =
+  /\bckd\b|chronic kidney disease|chronic renal (failure|insufficiency|disease)|\besrd\b|end-?stage (renal|kidney) disease/i
+
+export function isCkdPatient(patient: {
+  diagnosis?: string | null
+  underlyingDisease?: string | null
+  dialysisStatus?: string | null
+  transplantStatus?: string | null
+}): boolean {
+  const text = `${patient.diagnosis ?? ''} ${patient.underlyingDisease ?? ''}`
+  return CKD_PATTERN.test(text) || !!patient.dialysisStatus || !!patient.transplantStatus
+}
+
 export type CreatinineTrend = 'rising' | 'falling' | 'flat'
 
 export interface ObstructiveCrTrendResult {
