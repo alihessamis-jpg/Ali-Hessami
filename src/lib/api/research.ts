@@ -39,6 +39,7 @@ interface RecordRow {
   project_id: string
   date: string
   values: Record<string, unknown>
+  patient_id: string | null
 }
 
 function projectToDomain(row: ProjectRow): ResearchProject {
@@ -87,7 +88,7 @@ function fieldToDomain(row: FieldRow): ResearchField {
 }
 
 function recordToDomain(row: RecordRow): ResearchRecord {
-  return { id: row.id, projectId: row.project_id, date: row.date, values: row.values ?? {} }
+  return { id: row.id, projectId: row.project_id, date: row.date, values: row.values ?? {}, patientId: row.patient_id }
 }
 
 export async function listResearchProjects(): Promise<ResearchProject[]> {
@@ -181,7 +182,7 @@ export async function listResearchRecords(projectId: string): Promise<ResearchRe
 export async function addResearchRecord(draft: ResearchRecordDraft): Promise<ResearchRecord> {
   const { data, error } = await supabase
     .from('research_records')
-    .insert({ project_id: draft.projectId, date: draft.date, values: draft.values })
+    .insert({ project_id: draft.projectId, date: draft.date, values: draft.values, patient_id: draft.patientId ?? null })
     .select()
     .single()
   if (error) throw error
@@ -192,6 +193,17 @@ export async function updateResearchRecord(id: string, values: Record<string, un
   const { data, error } = await supabase
     .from('research_records')
     .update({ values })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return recordToDomain(data as RecordRow)
+}
+
+export async function setResearchRecordPatient(id: string, patientId: string | null): Promise<ResearchRecord> {
+  const { data, error } = await supabase
+    .from('research_records')
+    .update({ patient_id: patientId })
     .eq('id', id)
     .select()
     .single()

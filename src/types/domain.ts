@@ -774,6 +774,7 @@ export interface ResearchRecord {
   projectId: string
   date: string
   values: Record<string, unknown>
+  patientId?: string | null
 }
 
 export type ResearchRecordDraft = Omit<ResearchRecord, 'id'>

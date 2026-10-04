@@ -848,10 +848,12 @@ create table public.research_records (
     project_id  uuid not null references public.research_projects (id) on delete cascade,
     date        date not null default current_date,
     values      jsonb not null default '{}'::jsonb,
+    patient_id  uuid references public.patients (id) on delete set null,
     created_at  timestamptz not null default now()
 );
 
 create index research_records_project_id_idx on public.research_records (project_id);
+create index research_records_patient_id_idx on public.research_records (patient_id);
 
 -- Per-clinician app preferences (e.g. lab alert thresholds). One row per user,
 -- created on first save; the app falls back to hardcoded defaults until then.
