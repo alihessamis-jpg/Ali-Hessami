@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { updatePatient } from '../../lib/api/patients'
 import { upsertGrowthMeasurement } from '../../lib/api/growth'
 import { bmiCalc, bsaMosteller, schwartzEGFR } from '../../lib/formulas'
+import { ageToYearsMonths, yearsMonthsToAge } from '../../lib/patientAge'
 import type { Patient } from '../../types/domain'
 
 interface Props {
@@ -87,26 +88,14 @@ const NUMERIC_FIELDS = new Set<keyof Patient>([
   'vsSpo2',
 ])
 
-// Age is stored as a single decimal-year number, but entering e.g. "2.33"
-// for 2 years 4 months isn't how anyone thinks about a child's age — split
-// it into separate years/months inputs instead, for any age, not just
-// infants under a year.
-function ageToYearsMonths(age: number | null | undefined): { years: string; months: string } {
-  if (age == null) return { years: '', months: '' }
-  let years = Math.floor(age)
-  let months = Math.round((age - years) * 12)
-  if (months === 12) {
-    years += 1
-    months = 0
-  }
-  return { years: String(years), months: String(months) }
+function ageFieldToStrings(age: number | null | undefined): { years: string; months: string } {
+  const ym = ageToYearsMonths(age)
+  return ym ? { years: String(ym.years), months: String(ym.months) } : { years: '', months: '' }
 }
 
-function yearsMonthsToAge(yearsStr: string, monthsStr: string): number | null {
+function ageStringsToField(yearsStr: string, monthsStr: string): number | null {
   if (yearsStr === '' && monthsStr === '') return null
-  const years = yearsStr === '' ? 0 : Number(yearsStr)
-  const months = monthsStr === '' ? 0 : Number(monthsStr)
-  return Math.round((years + months / 12) * 1000) / 1000
+  return yearsMonthsToAge(yearsStr === '' ? 0 : Number(yearsStr), monthsStr === '' ? 0 : Number(monthsStr))
 }
 
 export function AssessmentTab({ patient, onUpdated }: Props) {
@@ -120,14 +109,14 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const { years: ageYears, months: ageMonths } = ageToYearsMonths(form.age)
+  const { years: ageYears, months: ageMonths } = ageFieldToStrings(form.age)
 
   function setAgeYears(raw: string) {
-    setForm((f) => ({ ...f, age: yearsMonthsToAge(raw, ageMonths) }))
+    setForm((f) => ({ ...f, age: ageStringsToField(raw, ageMonths) }))
   }
 
   function setAgeMonths(raw: string) {
-    setForm((f) => ({ ...f, age: yearsMonthsToAge(ageYears, raw) }))
+    setForm((f) => ({ ...f, age: ageStringsToField(ageYears, raw) }))
   }
 
   async function handleSave(e: FormEvent) {

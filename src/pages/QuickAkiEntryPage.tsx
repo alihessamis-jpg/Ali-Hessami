@@ -5,6 +5,7 @@ import { addLabEntry } from '../lib/api/labs'
 import { addUrineOutputEntry } from '../lib/api/urineOutput'
 import { addMedication } from '../lib/api/medications'
 import { addProgressNote } from '../lib/api/notes'
+import { yearsMonthsToAge } from '../lib/patientAge'
 
 const todayIso = () => new Date().toISOString().slice(0, 10)
 
@@ -59,7 +60,7 @@ export function QuickAkiEntryPage() {
       const age =
         ageYears === '' && ageMonths === ''
           ? null
-          : Math.round(((ageYears === '' ? 0 : Number(ageYears)) + (ageMonths === '' ? 0 : Number(ageMonths)) / 12) * 1000) / 1000
+          : yearsMonthsToAge(ageYears === '' ? 0 : Number(ageYears), ageMonths === '' ? 0 : Number(ageMonths))
       const patient = await createPatient({
         name: name.trim(),
         age,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPatient } from '../lib/api/patients'
+import { formatAge } from '../lib/patientAge'
 import { getLusStudyEnrollment } from '../lib/api/lusStudy'
 import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
@@ -110,7 +111,7 @@ export function PatientDetailPage() {
 
   const meta = [
     patient.code,
-    patient.age != null ? `${patient.age}y` : null,
+    formatAge(patient.age),
     patient.sex,
     patient.bed,
     patient.diagnosis,

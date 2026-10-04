@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
 import { listLabEntriesByTest } from '../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
+import { formatAge } from '../lib/patientAge'
 import { PatientsIcon } from '../components/icons'
 import type { Patient, PatientCareStatus } from '../types/domain'
 
@@ -190,7 +191,7 @@ export function PatientsListPage() {
                       </span>
                     </Link>
                   </td>
-                  <td>{p.age != null ? `${p.age}y` : '—'}</td>
+                  <td>{formatAge(p.age) ?? '—'}</td>
                   <td>{p.bed || '—'}</td>
                   <td>{p.diagnosis || '—'}</td>
                   <td>

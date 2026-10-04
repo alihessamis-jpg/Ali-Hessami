@@ -20,6 +20,7 @@ import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/cas
 import { listReadingItems } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { getUserSettings } from '../lib/api/settings'
+import { formatAge } from '../lib/patientAge'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
@@ -340,7 +341,7 @@ export function DashboardPage() {
                           )}
                         </span>
                         <span className="glance-meta">
-                          {[p.age != null ? `${p.age}y` : null, p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
+                          {[formatAge(p.age), p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
                             'No details yet'}
                         </span>
                       </span>

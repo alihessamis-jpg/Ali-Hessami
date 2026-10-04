@@ -18,6 +18,7 @@ import {
 } from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
 import { sortSubTopics } from '../lib/sortSubTopics'
+import { formatAge } from '../lib/patientAge'
 import { protectNumberRanges } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import { toShamsi } from '../lib/shamsi'
@@ -482,7 +483,7 @@ export function AcademyTopicPage() {
                   </Link>
                   <span className="patient-meta">
                     {' '}
-                    {[p.diagnosis, p.age != null ? `${p.age}y` : null].filter(Boolean).join(' · ')}
+                    {[p.diagnosis, formatAge(p.age)].filter(Boolean).join(' · ')}
                   </span>
                   {(p.chiefComplaint || p.hpi) && (
                     <p className="patient-meta" style={{ marginTop: 2 }}>
