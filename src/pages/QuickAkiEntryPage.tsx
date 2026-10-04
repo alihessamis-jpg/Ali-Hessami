@@ -15,7 +15,8 @@ export function QuickAkiEntryPage() {
 
   // Patient
   const [name, setName] = useState('')
-  const [age, setAge] = useState('')
+  const [ageYears, setAgeYears] = useState('')
+  const [ageMonths, setAgeMonths] = useState('')
   const [sex, setSex] = useState('')
   const [bed, setBed] = useState('')
   const [underlyingDisease, setUnderlyingDisease] = useState('')
@@ -55,9 +56,13 @@ export function QuickAkiEntryPage() {
     setError(null)
     try {
       const date = todayIso()
+      const age =
+        ageYears === '' && ageMonths === ''
+          ? null
+          : Math.round(((ageYears === '' ? 0 : Number(ageYears)) + (ageMonths === '' ? 0 : Number(ageMonths)) / 12) * 1000) / 1000
       const patient = await createPatient({
         name: name.trim(),
-        age: age ? Number(age) : null,
+        age,
         sex: sex || null,
         bed: bed || null,
         diagnosis: diagnosis || null,
@@ -221,8 +226,30 @@ export function QuickAkiEntryPage() {
               <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
             </label>
             <label>
-              Age (years)
-              <input type="number" step="0.1" value={age} onChange={(e) => setAge(e.target.value)} />
+              Age
+              <div className="form-actions" style={{ gap: 8 }}>
+                <input
+                  type="number"
+                  min={0}
+                  step="1"
+                  placeholder="Years"
+                  value={ageYears}
+                  onChange={(e) => setAgeYears(e.target.value)}
+                  style={{ width: 90 }}
+                />
+                <span className="patient-meta">yr</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={11}
+                  step="1"
+                  placeholder="Months"
+                  value={ageMonths}
+                  onChange={(e) => setAgeMonths(e.target.value)}
+                  style={{ width: 90 }}
+                />
+                <span className="patient-meta">mo</span>
+              </div>
             </label>
             <label>
               Sex

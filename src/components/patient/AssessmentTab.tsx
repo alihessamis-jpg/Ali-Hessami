@@ -14,7 +14,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: Array<{ key: keyof Patient; l
     title: 'Demographics',
     fields: [
       { key: 'code', label: 'Code / MRN' },
-      { key: 'age', label: 'Age (years — use a decimal for infants, e.g. 0.5 = 6 months)' },
+      { key: 'age', label: 'Age' },
       { key: 'sex', label: 'Sex' },
       { key: 'dob', label: 'Date of birth' },
       { key: 'doa', label: 'Date of admission' },
@@ -77,7 +77,6 @@ const FIELD_GROUPS: Array<{ title: string; fields: Array<{ key: keyof Patient; l
 ]
 
 const NUMERIC_FIELDS = new Set<keyof Patient>([
-  'age',
   'height',
   'weight',
   'baselineCr',
@@ -88,6 +87,28 @@ const NUMERIC_FIELDS = new Set<keyof Patient>([
   'vsSpo2',
 ])
 
+// Age is stored as a single decimal-year number, but entering e.g. "2.33"
+// for 2 years 4 months isn't how anyone thinks about a child's age — split
+// it into separate years/months inputs instead, for any age, not just
+// infants under a year.
+function ageToYearsMonths(age: number | null | undefined): { years: string; months: string } {
+  if (age == null) return { years: '', months: '' }
+  let years = Math.floor(age)
+  let months = Math.round((age - years) * 12)
+  if (months === 12) {
+    years += 1
+    months = 0
+  }
+  return { years: String(years), months: String(months) }
+}
+
+function yearsMonthsToAge(yearsStr: string, monthsStr: string): number | null {
+  if (yearsStr === '' && monthsStr === '') return null
+  const years = yearsStr === '' ? 0 : Number(yearsStr)
+  const months = monthsStr === '' ? 0 : Number(monthsStr)
+  return Math.round((years + months / 12) * 1000) / 1000
+}
+
 export function AssessmentTab({ patient, onUpdated }: Props) {
   const [form, setForm] = useState<Patient>(patient)
   const [saving, setSaving] = useState(false)
@@ -97,6 +118,16 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
   function setField(key: keyof Patient, raw: string) {
     const value = NUMERIC_FIELDS.has(key) ? (raw === '' ? null : Number(raw)) : raw
     setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  const { years: ageYears, months: ageMonths } = ageToYearsMonths(form.age)
+
+  function setAgeYears(raw: string) {
+    setForm((f) => ({ ...f, age: yearsMonthsToAge(raw, ageMonths) }))
+  }
+
+  function setAgeMonths(raw: string) {
+    setForm((f) => ({ ...f, age: yearsMonthsToAge(ageYears, raw) }))
   }
 
   async function handleSave(e: FormEvent) {
@@ -148,17 +179,46 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
         <fieldset key={group.title}>
           <legend>{group.title}</legend>
           <div className="field-grid">
-            {group.fields.map(({ key, label }) => (
-              <label key={String(key)}>
-                {label}
-                <input
-                  value={form[key] ?? ''}
-                  onChange={(e) => setField(key, e.target.value)}
-                  type={NUMERIC_FIELDS.has(key) ? 'number' : 'text'}
-                  step={NUMERIC_FIELDS.has(key) ? 'any' : undefined}
-                />
-              </label>
-            ))}
+            {group.fields.map(({ key, label }) =>
+              key === 'age' ? (
+                <label key="age">
+                  {label}
+                  <div className="form-actions" style={{ gap: 8 }}>
+                    <input
+                      type="number"
+                      min={0}
+                      step="1"
+                      placeholder="Years"
+                      value={ageYears}
+                      onChange={(e) => setAgeYears(e.target.value)}
+                      style={{ width: 90 }}
+                    />
+                    <span className="patient-meta">yr</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={11}
+                      step="1"
+                      placeholder="Months"
+                      value={ageMonths}
+                      onChange={(e) => setAgeMonths(e.target.value)}
+                      style={{ width: 90 }}
+                    />
+                    <span className="patient-meta">mo</span>
+                  </div>
+                </label>
+              ) : (
+                <label key={String(key)}>
+                  {label}
+                  <input
+                    value={form[key] ?? ''}
+                    onChange={(e) => setField(key, e.target.value)}
+                    type={NUMERIC_FIELDS.has(key) ? 'number' : 'text'}
+                    step={NUMERIC_FIELDS.has(key) ? 'any' : undefined}
+                  />
+                </label>
+              )
+            )}
           </div>
         </fieldset>
       ))}
