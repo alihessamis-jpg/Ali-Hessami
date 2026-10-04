@@ -9,7 +9,7 @@ import {
   listLusStudyEnrollments,
   updateLusStudySession,
 } from '../lib/api/lusStudy'
-import { listPatients } from '../lib/api/patients'
+import { createPatient, listPatients } from '../lib/api/patients'
 import { buildGroupPostLusTrend } from '../lib/lusStudy'
 import { downloadCsv } from '../lib/csvExport'
 import { matchesSearch } from '../lib/textFilter'
@@ -17,7 +17,7 @@ import { toShamsi } from '../lib/shamsi'
 import { FormBuilderIcon } from '../components/icons'
 import { LusStudySessionForm } from '../components/patient/LusStudySessionForm'
 import type { LusStudySessionWithPatient } from '../lib/api/lusStudy'
-import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient } from '../types/domain'
+import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient, PatientCareStatus } from '../types/domain'
 
 const GROUP_LABELS: Record<LusStudyGroup, string> = {
   group1_standard: 'Group 1 — Standard care',
@@ -160,6 +160,10 @@ export function ThesisFormPage() {
   const [enrollGroup, setEnrollGroup] = useState<LusStudyGroup>('group1_standard')
   const [enrollNotes, setEnrollNotes] = useState('')
   const [enrolling, setEnrolling] = useState(false)
+  const [showNewPatientForm, setShowNewPatientForm] = useState(false)
+  const [newPatientName, setNewPatientName] = useState('')
+  const [newPatientCareStatus, setNewPatientCareStatus] = useState<PatientCareStatus>('outpatient')
+  const [creatingPatient, setCreatingPatient] = useState(false)
   const [logPatientId, setLogPatientId] = useState('')
   const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
 
@@ -188,6 +192,23 @@ export function ThesisFormPage() {
   const logPatient = logPatientId ? patientsById.get(logPatientId) : undefined
   const logEnrollment = logPatientId ? enrollments.find((e) => e.patientId === logPatientId) : undefined
   const logPatientSessions = useMemo(() => sessions.filter((s) => s.patientId === logPatientId), [sessions, logPatientId])
+
+  async function handleCreatePatient() {
+    if (!newPatientName.trim()) return
+    setCreatingPatient(true)
+    setError(null)
+    try {
+      const patient = await createPatient({ name: newPatientName.trim(), careStatus: newPatientCareStatus })
+      setPatients((prev) => [...prev, patient])
+      setEnrollPatientId(patient.id)
+      setNewPatientName('')
+      setShowNewPatientForm(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create patient')
+    } finally {
+      setCreatingPatient(false)
+    }
+  }
 
   async function handleEnroll() {
     if (!enrollPatientId) return
@@ -283,10 +304,39 @@ export function ThesisFormPage() {
       <div className="dash-card">
         <div className="dash-card-header">
           <h2 className="dash-card-title">Enroll a patient</h2>
+          <button type="button" className="link-button" onClick={() => setShowNewPatientForm((v) => !v)}>
+            {showNewPatientForm ? 'Cancel' : '+ New patient'}
+          </button>
         </div>
+
+        {showNewPatientForm && (
+          <div className="field-grid" style={{ marginBottom: 16 }}>
+            <label>
+              Name
+              <input
+                value={newPatientName}
+                onChange={(e) => setNewPatientName(e.target.value)}
+                placeholder="Patient name"
+              />
+            </label>
+            <label>
+              Care status
+              <select value={newPatientCareStatus} onChange={(e) => setNewPatientCareStatus(e.target.value as PatientCareStatus)}>
+                <option value="outpatient">Outpatient (e.g. dialysis-only, not admitted)</option>
+                <option value="inpatient">Inpatient</option>
+              </select>
+            </label>
+            <div className="form-actions" style={{ alignSelf: 'end' }}>
+              <button type="button" disabled={!newPatientName.trim() || creatingPatient} onClick={() => void handleCreatePatient()}>
+                {creatingPatient ? 'Adding…' : 'Add patient'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {unenrolledPatients.length === 0 ? (
           <p className="empty-state">
-            {patients.length === 0 ? 'Add patients under "Patients" first.' : 'Every patient is already enrolled.'}
+            {patients.length === 0 ? 'Add a patient above first.' : 'Every patient is already enrolled — add a new one above.'}
           </p>
         ) : (
           <>
