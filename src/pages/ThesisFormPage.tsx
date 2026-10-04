@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis } from 'recharts'
-import { listAllLusStudySessions, listLusStudyEnrollments } from '../lib/api/lusStudy'
+import {
+  addLusStudySession,
+  deleteLusStudySession,
+  enrollPatientInLusStudy,
+  listAllLusStudySessions,
+  listLusStudyEnrollments,
+  updateLusStudySession,
+} from '../lib/api/lusStudy'
+import { listPatients } from '../lib/api/patients'
 import { buildGroupPostLusTrend } from '../lib/lusStudy'
 import { downloadCsv } from '../lib/csvExport'
 import { matchesSearch } from '../lib/textFilter'
 import { toShamsi } from '../lib/shamsi'
 import { FormBuilderIcon } from '../components/icons'
+import { LusStudySessionForm } from '../components/patient/LusStudySessionForm'
 import type { LusStudySessionWithPatient } from '../lib/api/lusStudy'
-import type { LusStudyEnrollment, LusStudyGroup } from '../types/domain'
+import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient } from '../types/domain'
 
 const GROUP_LABELS: Record<LusStudyGroup, string> = {
   group1_standard: 'Group 1 — Standard care',
@@ -142,21 +151,89 @@ function exportSessionsCsv(sessions: LusStudySessionWithPatient[], groupByPatien
 export function ThesisFormPage() {
   const [sessions, setSessions] = useState<LusStudySessionWithPatient[]>([])
   const [enrollments, setEnrollments] = useState<LusStudyEnrollment[]>([])
+  const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
+  const [enrollPatientId, setEnrollPatientId] = useState('')
+  const [enrollGroup, setEnrollGroup] = useState<LusStudyGroup>('group1_standard')
+  const [enrollNotes, setEnrollNotes] = useState('')
+  const [enrolling, setEnrolling] = useState(false)
+  const [logPatientId, setLogPatientId] = useState('')
+  const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
+
   useEffect(() => {
-    Promise.all([listAllLusStudySessions(), listLusStudyEnrollments()])
-      .then(([s, e]) => {
+    Promise.all([listAllLusStudySessions(), listLusStudyEnrollments(), listPatients()])
+      .then(([s, e, p]) => {
         setSessions(s)
         setEnrollments(e)
+        setPatients(p)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load study data'))
       .finally(() => setLoading(false))
   }, [])
 
   const groupByPatientId = useMemo(() => new Map(enrollments.map((e) => [e.patientId, e.studyGroup])), [enrollments])
+  const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients])
+  const enrolledPatientIds = useMemo(() => new Set(enrollments.map((e) => e.patientId)), [enrollments])
+  const unenrolledPatients = useMemo(
+    () => [...patients].filter((p) => !enrolledPatientIds.has(p.id)).sort((a, b) => a.name.localeCompare(b.name)),
+    [patients, enrolledPatientIds]
+  )
+  const enrolledPatients = useMemo(
+    () => [...patients].filter((p) => enrolledPatientIds.has(p.id)).sort((a, b) => a.name.localeCompare(b.name)),
+    [patients, enrolledPatientIds]
+  )
+  const logPatient = logPatientId ? patientsById.get(logPatientId) : undefined
+  const logEnrollment = logPatientId ? enrollments.find((e) => e.patientId === logPatientId) : undefined
+  const logPatientSessions = useMemo(() => sessions.filter((s) => s.patientId === logPatientId), [sessions, logPatientId])
+
+  async function handleEnroll() {
+    if (!enrollPatientId) return
+    setEnrolling(true)
+    setError(null)
+    try {
+      const e = await enrollPatientInLusStudy({
+        patientId: enrollPatientId,
+        studyGroup: enrollGroup,
+        enrollmentDate: new Date().toISOString().slice(0, 10),
+        notes: enrollNotes || null,
+      })
+      setEnrollments((prev) => [...prev, e])
+      setLogPatientId(enrollPatientId)
+      setEnrollPatientId('')
+      setEnrollNotes('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enroll patient')
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  async function handleSaveSession(draft: LusStudySessionDraft) {
+    try {
+      if (formMode !== 'new' && formMode !== 'closed') {
+        const updated = await updateLusStudySession(formMode, draft)
+        setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+      } else {
+        const created = await addLusStudySession(draft)
+        setSessions((prev) => [created, ...prev])
+      }
+      setFormMode('closed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save session')
+    }
+  }
+
+  async function handleDeleteSession(id: string) {
+    try {
+      await deleteLusStudySession(id)
+      setSessions((prev) => prev.filter((s) => s.id !== id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete session')
+    }
+  }
 
   const bySessionGroup = useMemo(() => {
     const groups: Record<LusStudyGroup, LusStudySessionWithPatient[]> = { group1_standard: [], group2_lus_guided: [] }
@@ -202,6 +279,99 @@ export function ThesisFormPage() {
       </p>
 
       {error && <p className="form-error">{error}</p>}
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Enroll a patient</h2>
+        </div>
+        {unenrolledPatients.length === 0 ? (
+          <p className="empty-state">
+            {patients.length === 0 ? 'Add patients under "Patients" first.' : 'Every patient is already enrolled.'}
+          </p>
+        ) : (
+          <>
+            <div className="field-grid">
+              <label>
+                Patient
+                <select value={enrollPatientId} onChange={(e) => setEnrollPatientId(e.target.value)}>
+                  <option value="">Choose a patient…</option>
+                  {unenrolledPatients.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Study group
+                <select value={enrollGroup} onChange={(e) => setEnrollGroup(e.target.value as LusStudyGroup)}>
+                  <option value="group1_standard">{GROUP_LABELS.group1_standard}</option>
+                  <option value="group2_lus_guided">{GROUP_LABELS.group2_lus_guided}</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea value={enrollNotes} onChange={(e) => setEnrollNotes(e.target.value)} placeholder="Consent, randomization reference, etc." />
+            </label>
+            <div className="form-actions">
+              <button type="button" disabled={!enrollPatientId || enrolling} onClick={() => void handleEnroll()}>
+                {enrolling ? 'Enrolling…' : 'Enroll patient'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Log a session</h2>
+        </div>
+        {enrolledPatients.length === 0 ? (
+          <p className="empty-state">Enroll a patient above first.</p>
+        ) : (
+          <>
+            <label>
+              Patient
+              <select
+                value={logPatientId}
+                onChange={(e) => {
+                  setLogPatientId(e.target.value)
+                  setFormMode('closed')
+                }}
+              >
+                <option value="">Choose a patient…</option>
+                {enrolledPatients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({GROUP_LABELS[groupByPatientId.get(p.id) as LusStudyGroup]})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {logPatient &&
+              logEnrollment &&
+              (formMode === 'closed' ? (
+                <div className="form-actions">
+                  <button type="button" onClick={() => setFormMode('new')}>
+                    Log new session
+                  </button>
+                </div>
+              ) : (
+                <LusStudySessionForm
+                  patientId={logPatient.id}
+                  studyGroup={logEnrollment.studyGroup}
+                  defaultHeightCm={logPatient.height}
+                  defaultWeightKg={logPatient.weight}
+                  defaultTargetWeightKg={logPatientSessions[0]?.targetWeightKg ?? logPatient.weight}
+                  previousPostHdWeightKg={logPatientSessions[0]?.postHdWeightKg}
+                  existing={formMode === 'new' ? null : logPatientSessions.find((s) => s.id === formMode) ?? null}
+                  onSaved={(draft) => void handleSaveSession(draft)}
+                  onCancel={() => setFormMode('closed')}
+                />
+              ))}
+          </>
+        )}
+      </div>
 
       <div className="calc-strip">
         <div>
@@ -330,6 +500,7 @@ export function ThesisFormPage() {
                 <th>Pre/Post LUS</th>
                 <th>Weight loss</th>
                 <th>Decision</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -345,6 +516,20 @@ export function ThesisFormPage() {
                   </td>
                   <td>{s.weightLossKg != null ? `${s.weightLossKg.toFixed(2)} kg` : '—'}</td>
                   <td>{s.lusGuidedDecision ? s.lusGuidedDecision.replace('_', ' ') : '—'}</td>
+                  <td>
+                    <button
+                      className="link-button"
+                      onClick={() => {
+                        setLogPatientId(s.patientId)
+                        setFormMode(s.id)
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button className="link-button" onClick={() => void handleDeleteSession(s.id)}>
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
