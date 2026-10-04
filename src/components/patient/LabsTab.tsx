@@ -19,6 +19,7 @@ import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
 import { assessHusWorkup } from '../../lib/husWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
+import { assessCkdBicarbProtocol, CKD_BICARB_ESCALATED_DOSE, CKD_BICARB_TARGET_MEQ_L } from '../../lib/ckdBicarbProtocol'
 import { assessCkdScreening } from '../../lib/ckdScreening'
 import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction } from '../../lib/clinicalFlags'
 import { assessTubularFunction } from '../../lib/renalFunctionTests'
@@ -257,6 +258,11 @@ export function LabsTab({ patientId, patient }: Props) {
     return assessCkdScreening(entries)
   }, [entries, renalFailure])
 
+  const ckdBicarbProtocol = useMemo(() => {
+    if (!renalFailure) return null
+    return assessCkdBicarbProtocol(entries)
+  }, [entries, renalFailure])
+
   const tubularFunction = useMemo(() => {
     const ageMonths = patient.dob ? ageInMonths(patient.dob, new Date().toISOString().slice(0, 10)) : null
     return assessTubularFunction(entries, ageMonths)
@@ -442,6 +448,23 @@ export function LabsTab({ patientId, patient }: Props) {
               sodium bicarbonate (IV or oral NaHCO3) toward the normal of {NORMAL_HCO3_MEQ_L} mEq/L.
             </span>
           )}
+        </div>
+      )}
+      {ckdBicarbProtocol && ckdBicarbProtocol.status !== 'no-data' && (
+        <div className={`aki-banner ${ckdBicarbProtocol.status !== 'at-goal' ? 'aki-banner--warning' : ''}`}>
+          <strong>
+            {ckdBicarbProtocol.status === 'at-goal' &&
+              `Bicarbonate at goal (${ckdBicarbProtocol.latest?.value} mEq/L, ≥ ${CKD_BICARB_TARGET_MEQ_L})`}
+            {ckdBicarbProtocol.status === 'below-goal-recent' &&
+              `Bicarbonate below goal (${ckdBicarbProtocol.latest?.value} mEq/L) — recheck VBG in 48h`}
+            {ckdBicarbProtocol.status === 'below-goal-recheck-due' &&
+              `⚠ Recheck VBG now — still below goal (${ckdBicarbProtocol.latest?.value} mEq/L, ${ckdBicarbProtocol.daysSinceLatest}d since last check)`}
+            {ckdBicarbProtocol.status === 'below-goal-after-recheck' && '⚠ Still below goal after 48h recheck — increase Na bicarbonate'}
+          </strong>
+          <span className="patient-meta">
+            CKD bicarbonate protocol: target ≥ {CKD_BICARB_TARGET_MEQ_L} mEq/L. Recheck VBG 48h after any below-goal result.
+            {ckdBicarbProtocol.status === 'below-goal-after-recheck' && ` ${CKD_BICARB_ESCALATED_DOSE}.`}
+          </span>
         </div>
       )}
       {ckdMbd && (
