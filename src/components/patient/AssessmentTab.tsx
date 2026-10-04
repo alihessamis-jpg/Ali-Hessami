@@ -14,7 +14,7 @@ const FIELD_GROUPS: Array<{ title: string; fields: Array<{ key: keyof Patient; l
     title: 'Demographics',
     fields: [
       { key: 'code', label: 'Code / MRN' },
-      { key: 'age', label: 'Age' },
+      { key: 'age', label: 'Age (years — use a decimal for infants, e.g. 0.5 = 6 months)' },
       { key: 'sex', label: 'Sex' },
       { key: 'dob', label: 'Date of birth' },
       { key: 'doa', label: 'Date of admission' },
@@ -155,6 +155,7 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
                   value={form[key] ?? ''}
                   onChange={(e) => setField(key, e.target.value)}
                   type={NUMERIC_FIELDS.has(key) ? 'number' : 'text'}
+                  step={NUMERIC_FIELDS.has(key) ? 'any' : undefined}
                 />
               </label>
             ))}
