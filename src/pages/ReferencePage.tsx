@@ -276,12 +276,12 @@ export function ReferencePage() {
                     <span className="empty-state">Loading…</span>
                   )}
                 </div>
-                <div className="document-card-meta">
+                <div className="document-card-meta" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
                   <span className="patient-meta">{a.filename ?? 'Attachment'}</span>
                   <select
                     value={a.entryId ?? ''}
                     onChange={(e) => void handleLinkAttachment(a.id, e.target.value)}
-                    style={{ width: '100%', margin: '6px 0' }}
+                    style={{ width: '100%' }}
                   >
                     <option value="">Not linked to a medication</option>
                     {(tab === 'drug' ? drugs : dialysis).map((d) => (
@@ -290,7 +290,7 @@ export function ReferencePage() {
                       </option>
                     ))}
                   </select>
-                  <button className="link-button" onClick={() => void handleDeleteAttachment(a)}>
+                  <button className="link-button" style={{ alignSelf: 'flex-start' }} onClick={() => void handleDeleteAttachment(a)}>
                     Delete
                   </button>
                 </div>
