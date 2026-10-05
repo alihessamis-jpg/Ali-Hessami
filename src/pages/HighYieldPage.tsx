@@ -17,6 +17,16 @@ export function HighYieldPage() {
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -32,12 +42,20 @@ export function HighYieldPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [topics])
 
+  const searching = search.trim().length > 0
+
   const groups = useMemo(() => {
     const q = search.trim().toLowerCase()
     const filtered = topics.filter((t) => {
       if (!hasHighYieldContent(t)) return false
       if (category !== 'All' && t.category !== category) return false
-      if (q && !t.name.toLowerCase().includes(q) && !(t.category ?? '').toLowerCase().includes(q)) return false
+      if (q) {
+        const haystack = [t.name, t.category, t.summary, t.keyPoints.join(' '), t.redFlags, t.pearls]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
       return true
     })
     const byCategory = new Map<string, AcademyTopic[]>()
@@ -55,6 +73,14 @@ export function HighYieldPage() {
   const totalCount = groups.reduce((sum, g) => sum + g.items.length, 0)
   const skippedCount = topics.length - topics.filter(hasHighYieldContent).length
 
+  function expandAll() {
+    setExpandedIds(new Set(groups.flatMap((g) => g.items.map((t) => t.id))))
+  }
+
+  function collapseAll() {
+    setExpandedIds(new Set())
+  }
+
   if (loading) return <p>Loading…</p>
 
   return (
@@ -67,7 +93,8 @@ export function HighYieldPage() {
       </h1>
       <p className="empty-state">
         Condensed Summary / Key points / Red flags / Pearls for every Academy topic that has them — built for
-        fast pre-exam review, not first-time reading.
+        fast pre-exam review, not first-time reading. Topics are collapsed by default — tap a title to open it,
+        or search to jump straight to the one you need (matches names, categories, and the content itself).
         {skippedCount > 0 &&
           ` ${skippedCount} topic${skippedCount === 1 ? '' : 's'} with no condensed content yet are hidden — add Summary, Key points, Red flags, or Pearls on the topic page to include them here.`}
       </p>
@@ -76,7 +103,7 @@ export function HighYieldPage() {
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', margin: '12px 0' }}>
         <input
-          placeholder="Search topic or category…"
+          placeholder="Search topic, category, or content…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: '1 1 220px' }}
@@ -89,6 +116,12 @@ export function HighYieldPage() {
             </option>
           ))}
         </select>
+        <button type="button" className="button-secondary" onClick={expandAll}>
+          Expand all
+        </button>
+        <button type="button" className="button-secondary" onClick={collapseAll}>
+          Collapse all
+        </button>
         <button type="button" onClick={() => window.print()}>
           Print / Save as PDF
         </button>
@@ -106,39 +139,64 @@ export function HighYieldPage() {
                 {group.category} ({group.items.length})
               </h2>
             </div>
-            {group.items.map((t) => (
-              <div key={t.id} style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                <h3 style={{ margin: '0 0 6px' }}>
-                  <Link to={`/academy/${t.id}`}>{t.name}</Link>
-                </h3>
-                {t.summary?.trim() && <MarkdownSection text={t.summary} />}
-                {t.keyPoints.length > 0 && (
-                  <ul className="study-link-list">
-                    {t.keyPoints.map((k, i) => (
-                      <li key={i} dir="rtl">
-                        {protectNumberRanges(k)}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {t.redFlags?.trim() && (
-                  <>
-                    <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
-                      Red flags
-                    </p>
-                    <MarkdownSection text={t.redFlags} />
-                  </>
-                )}
-                {t.pearls?.trim() && (
-                  <>
-                    <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
-                      Pearls
-                    </p>
-                    <MarkdownSection text={t.pearls} />
-                  </>
-                )}
-              </div>
-            ))}
+            {group.items.map((t) => {
+              const isOpen = searching || expandedIds.has(t.id)
+              return (
+                <div key={t.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(t.id)}
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'start',
+                      padding: 0,
+                    }}
+                  >
+                    <h3 style={{ margin: 0 }}>{t.name}</h3>
+                    <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginTop: 8 }}>
+                      <p className="patient-meta" style={{ marginTop: 0 }}>
+                        <Link to={`/academy/${t.id}`}>Open full topic</Link>
+                      </p>
+                      {t.summary?.trim() && <MarkdownSection text={t.summary} />}
+                      {t.keyPoints.length > 0 && (
+                        <ul className="study-link-list">
+                          {t.keyPoints.map((k, i) => (
+                            <li key={i} dir="rtl">
+                              {protectNumberRanges(k)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {t.redFlags?.trim() && (
+                        <>
+                          <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
+                            Red flags
+                          </p>
+                          <MarkdownSection text={t.redFlags} />
+                        </>
+                      )}
+                      {t.pearls?.trim() && (
+                        <>
+                          <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
+                            Pearls
+                          </p>
+                          <MarkdownSection text={t.pearls} />
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ))
       )}
