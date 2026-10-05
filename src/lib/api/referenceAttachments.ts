@@ -4,6 +4,7 @@ import type { ReferenceAttachment, ReferenceAttachmentCategory } from '../../typ
 interface ReferenceAttachmentRow {
   id: string
   category: ReferenceAttachmentCategory
+  entry_id: string | null
   storage_path: string
   filename: string | null
   created_at: string
@@ -13,6 +14,7 @@ function toDomain(row: ReferenceAttachmentRow): ReferenceAttachment {
   return {
     id: row.id,
     category: row.category,
+    entryId: row.entry_id,
     storagePath: row.storage_path,
     filename: row.filename,
     createdAt: row.created_at,
@@ -32,7 +34,8 @@ export async function listReferenceAttachments(category: ReferenceAttachmentCate
 export async function addReferenceAttachment(
   category: ReferenceAttachmentCategory,
   storagePath: string,
-  filename: string | null
+  filename: string | null,
+  entryId: string | null = null
 ): Promise<ReferenceAttachment> {
   const {
     data: { user },
@@ -40,7 +43,18 @@ export async function addReferenceAttachment(
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('reference_attachments')
-    .insert({ category, storage_path: storagePath, filename, owner_id: user.id })
+    .insert({ category, storage_path: storagePath, filename, entry_id: entryId, owner_id: user.id })
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as ReferenceAttachmentRow)
+}
+
+export async function setReferenceAttachmentEntry(id: string, entryId: string | null): Promise<ReferenceAttachment> {
+  const { data, error } = await supabase
+    .from('reference_attachments')
+    .update({ entry_id: entryId })
+    .eq('id', id)
     .select()
     .single()
   if (error) throw error

@@ -9,6 +9,7 @@ import {
   addReferenceAttachment,
   deleteReferenceAttachment,
   listReferenceAttachments,
+  setReferenceAttachmentEntry,
 } from '../lib/api/referenceAttachments'
 import {
   deleteReferenceAttachmentFile,
@@ -125,6 +126,15 @@ export function ReferencePage() {
       setAttachments((prev) => ({ ...prev, [tab]: prev[tab].filter((x) => x.id !== a.id) }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete attachment')
+    }
+  }
+
+  async function handleLinkAttachment(attachmentId: string, entryId: string) {
+    try {
+      const updated = await setReferenceAttachmentEntry(attachmentId, entryId || null)
+      setAttachments((prev) => ({ ...prev, [tab]: prev[tab].map((x) => (x.id === updated.id ? updated : x)) }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to link attachment')
     }
   }
 
@@ -263,6 +273,18 @@ export function ReferencePage() {
                 </div>
                 <div className="document-card-meta">
                   <span className="patient-meta">{a.filename ?? 'Attachment'}</span>
+                  <select
+                    value={a.entryId ?? ''}
+                    onChange={(e) => void handleLinkAttachment(a.id, e.target.value)}
+                    style={{ width: '100%', margin: '6px 0' }}
+                  >
+                    <option value="">Not linked to a medication</option>
+                    {(tab === 'drug' ? drugs : dialysis).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.medication}
+                      </option>
+                    ))}
+                  </select>
                   <button className="link-button" onClick={() => void handleDeleteAttachment(a)}>
                     Delete
                   </button>
@@ -379,45 +401,68 @@ export function ReferencePage() {
               </tr>
             </thead>
             <tbody>
-              {filteredDrugs.map((d) => (
-                <Fragment key={d.id}>
-                  <tr>
-                    <td>{d.medication}</td>
-                    <td>{d.indication}</td>
-                    <td>{d.normalDose}</td>
-                    <td>{d.pediatricDose}</td>
-                    <td>{d.egfrRange}</td>
-                    <td>{d.adjustedDose}</td>
-                    <td>{d.maxDose}</td>
-                    <td>{d.frequency}</td>
-                    <td>
-                      {d.notes && (
+              {filteredDrugs.map((d) => {
+                const linkedAttachments = attachments.drug.filter((a) => a.entryId === d.id)
+                const hasDetails = Boolean(d.notes) || linkedAttachments.length > 0
+                return (
+                  <Fragment key={d.id}>
+                    <tr>
+                      <td>{d.medication}</td>
+                      <td>{d.indication}</td>
+                      <td>{d.normalDose}</td>
+                      <td>{d.pediatricDose}</td>
+                      <td>{d.egfrRange}</td>
+                      <td>{d.adjustedDose}</td>
+                      <td>{d.maxDose}</td>
+                      <td>{d.frequency}</td>
+                      <td>
+                        {hasDetails && (
+                          <button
+                            className="link-button"
+                            onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                          >
+                            {expandedId === d.id ? 'Hide' : 'Details'}
+                          </button>
+                        )}
                         <button
                           className="link-button"
-                          onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                          onClick={() =>
+                            void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
+                          }
                         >
-                          {expandedId === d.id ? 'Hide' : 'Details'}
+                          Delete
                         </button>
-                      )}
-                      <button
-                        className="link-button"
-                        onClick={() =>
-                          void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
-                        }
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedId === d.id && d.notes && (
-                    <tr>
-                      <td colSpan={9} style={{ whiteSpace: 'pre-wrap' }}>
-                        {d.notes}
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
+                    {expandedId === d.id && hasDetails && (
+                      <tr>
+                        <td colSpan={9}>
+                          {d.notes && <p style={{ whiteSpace: 'pre-wrap', margin: linkedAttachments.length > 0 ? '0 0 10px' : 0 }}>{d.notes}</p>}
+                          {linkedAttachments.length > 0 && (
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                              {linkedAttachments.map((a) =>
+                                attachmentUrls[a.id] ? (
+                                  isImagePath(a.storagePath) ? (
+                                    <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                      <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
+                                    </a>
+                                  ) : (
+                                    <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                      Open PDF — {a.filename}
+                                    </a>
+                                  )
+                                ) : (
+                                  <span key={a.id} className="empty-state">Loading…</span>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         )
@@ -437,45 +482,68 @@ export function ReferencePage() {
             </tr>
           </thead>
           <tbody>
-            {filteredDialysis.map((d) => (
-              <Fragment key={d.id}>
-                <tr>
-                  <td>{d.medication}</td>
-                  <td>{d.indication}</td>
-                  <td>{d.pediatricDose}</td>
-                  <td>{d.route}</td>
-                  <td>{d.frequency}</td>
-                  <td>{d.maxDose}</td>
-                  <td>
-                    {d.notes && (
+            {filteredDialysis.map((d) => {
+              const linkedAttachments = attachments.dialysis.filter((a) => a.entryId === d.id)
+              const hasDetails = Boolean(d.notes) || linkedAttachments.length > 0
+              return (
+                <Fragment key={d.id}>
+                  <tr>
+                    <td>{d.medication}</td>
+                    <td>{d.indication}</td>
+                    <td>{d.pediatricDose}</td>
+                    <td>{d.route}</td>
+                    <td>{d.frequency}</td>
+                    <td>{d.maxDose}</td>
+                    <td>
+                      {hasDetails && (
+                        <button
+                          className="link-button"
+                          onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                        >
+                          {expandedId === d.id ? 'Hide' : 'Details'}
+                        </button>
+                      )}
                       <button
                         className="link-button"
-                        onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                        onClick={() =>
+                          void deleteDialysisReference(d.id).then(() =>
+                            setDialysis((prev) => prev.filter((x) => x.id !== d.id))
+                          )
+                        }
                       >
-                        {expandedId === d.id ? 'Hide' : 'Details'}
+                        Delete
                       </button>
-                    )}
-                    <button
-                      className="link-button"
-                      onClick={() =>
-                        void deleteDialysisReference(d.id).then(() =>
-                          setDialysis((prev) => prev.filter((x) => x.id !== d.id))
-                        )
-                      }
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-                {expandedId === d.id && d.notes && (
-                  <tr>
-                    <td colSpan={7} style={{ whiteSpace: 'pre-wrap' }}>
-                      {d.notes}
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
+                  {expandedId === d.id && hasDetails && (
+                    <tr>
+                      <td colSpan={7}>
+                        {d.notes && <p style={{ whiteSpace: 'pre-wrap', margin: linkedAttachments.length > 0 ? '0 0 10px' : 0 }}>{d.notes}</p>}
+                        {linkedAttachments.length > 0 && (
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {linkedAttachments.map((a) =>
+                              attachmentUrls[a.id] ? (
+                                isImagePath(a.storagePath) ? (
+                                  <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                    <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
+                                  </a>
+                                ) : (
+                                  <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                    Open PDF — {a.filename}
+                                  </a>
+                                )
+                              ) : (
+                                <span key={a.id} className="empty-state">Loading…</span>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
           </tbody>
         </table>
       )}

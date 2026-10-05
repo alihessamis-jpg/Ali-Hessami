@@ -471,12 +471,15 @@ create table public.reference_attachments (
     id            uuid primary key default gen_random_uuid(),
     owner_id      uuid not null references auth.users (id) on delete cascade,
     category      text not null, -- 'drug' | 'dialysis'
+    entry_id      uuid, -- optional link to a drug_reference/dialysis_reference row, per `category`
+                         -- (no FK constraint since the target table depends on `category`)
     storage_path  text not null,
     filename      text,
     created_at    timestamptz not null default now()
 );
 
 create index reference_attachments_owner_category_idx on public.reference_attachments (owner_id, category);
+create index reference_attachments_entry_id_idx on public.reference_attachments (entry_id);
 
 create table public.dialysis_reference (
     id              uuid primary key default gen_random_uuid(),

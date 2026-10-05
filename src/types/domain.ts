@@ -202,6 +202,7 @@ export type ReferenceAttachmentCategory = 'drug' | 'dialysis'
 export interface ReferenceAttachment {
   id: string
   category: ReferenceAttachmentCategory
+  entryId?: string | null
   storagePath: string
   filename?: string | null
   createdAt: string
