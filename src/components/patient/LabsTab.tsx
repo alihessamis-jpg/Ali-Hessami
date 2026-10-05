@@ -16,7 +16,7 @@ import {
 import { toShamsi } from '../../lib/shamsi'
 import { assessProteinuriaStatus, classifyUpcRatio, PROTEINURIA_CLASS_LABEL } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
-import { assessHusWorkup } from '../../lib/husWorkup'
+import { assessHusActivity, assessHusWorkup } from '../../lib/husWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdBicarbProtocol, CKD_BICARB_ESCALATED_DOSE, CKD_BICARB_TARGET_MEQ_L } from '../../lib/ckdBicarbProtocol'
@@ -207,6 +207,11 @@ export function LabsTab({ patientId, patient }: Props) {
 
   const husWorkup = useMemo(() => assessHusWorkup(patient, entries), [patient, entries])
 
+  const husActivity = useMemo(
+    () => assessHusActivity(patient, entries, settings.husLdhUpperLimit),
+    [patient, entries, settings.husLdhUpperLimit]
+  )
+
   const isCkd = isCkdPatient(patient)
 
   const ckdMbd = useMemo(() => {
@@ -381,6 +386,38 @@ export function LabsTab({ patientId, patient }: Props) {
             {husWorkup.missingLdh && <li className="value-abnormal">LDH not checked{patient.doa ? ' since admission' : ''}</li>}
             {husWorkup.missingUricAcid && <li className="value-abnormal">Uric acid not checked{patient.doa ? ' since admission' : ''}</li>}
           </ul>
+        </div>
+      )}
+      {husActivity && (
+        <div className={`aki-banner ${husActivity.active ? 'aki-banner--warning' : ''}`}>
+          <strong>
+            HUS disease activity:{' '}
+            {husActivity.active == null
+              ? 'Unknown — no LDH on file'
+              : husActivity.active
+                ? '⚠ Active (LDH elevated)'
+                : 'Inactive (LDH normalized)'}
+          </strong>
+          <span className="patient-meta">
+            {husActivity.ldh
+              ? `LDH ${husActivity.ldh.value} U/L (${toShamsi(husActivity.ldh.date)}) vs. upper limit ${settings.husLdhUpperLimit} U/L`
+              : 'No LDH recorded yet — order one to assess disease activity.'}
+          </span>
+          {husActivity.platelets && (
+            <span className="patient-meta">
+              Platelets {husActivity.platelets.value} ({toShamsi(husActivity.platelets.date)})
+              {husActivity.previousPlatelets != null &&
+                husActivity.platelets.value != null &&
+                husActivity.previousPlatelets.value != null &&
+                ` — ${
+                  husActivity.platelets.value > husActivity.previousPlatelets.value
+                    ? 'rising'
+                    : husActivity.platelets.value < husActivity.previousPlatelets.value
+                      ? 'falling'
+                      : 'unchanged'
+                } from ${husActivity.previousPlatelets.value} (${toShamsi(husActivity.previousPlatelets.date)})`}
+            </span>
+          )}
         </div>
       )}
       {tubularFunction && (

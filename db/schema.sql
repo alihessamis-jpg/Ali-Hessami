@@ -876,6 +876,7 @@ create table public.user_settings (
     phosphate_adult               numeric not null default 4.5,
     biopsy_platelet_min           numeric not null default 50,
     biopsy_inr_max                numeric not null default 1.5,
+    hus_ldh_upper_limit           numeric not null default 450,
     last_backup_at                timestamptz,
     updated_at                    timestamptz not null default now()
 );

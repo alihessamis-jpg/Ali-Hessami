@@ -45,7 +45,9 @@ const BIOPSY_FIELDS: FieldConfig[] = [
   { key: 'biopsyInrMax', label: 'Kidney biopsy — INR must be at most', step: '0.1' },
 ]
 
-const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS, ...BIOPSY_FIELDS]
+const HUS_FIELDS: FieldConfig[] = [{ key: 'husLdhUpperLimit', label: 'HUS activity — LDH upper limit of normal (U/L)', step: '1' }]
+
+const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS, ...BIOPSY_FIELDS, ...HUS_FIELDS]
 
 export function SettingsPage() {
   const [form, setForm] = useState<FormState>(toFormState(DEFAULT_USER_SETTINGS))
@@ -149,6 +151,13 @@ export function SettingsPage() {
             <p className="patient-meta">
               Used by the Reminders tab: any reminder mentioning "biopsy" checks the patient's latest Platelets and
               INR against these safe limits, alongside the VCUG/Urine Culture check.
+            </p>
+
+            {HUS_FIELDS.map(renderField)}
+            <p className="patient-meta">
+              Shown in the Labs tab for any patient whose diagnosis/underlying disease names HUS: the disease is
+              considered in its active (ongoing-hemolysis) phase as long as the latest LDH is above this value.
+              Platelet count is shown alongside for context.
             </p>
 
             {error && <p className="form-error">{error}</p>}

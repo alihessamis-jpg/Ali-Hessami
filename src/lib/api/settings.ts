@@ -19,6 +19,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   phosphateAdult: 4.5,
   biopsyPlateletMin: 50,
   biopsyInrMax: 1.5,
+  husLdhUpperLimit: 450,
   lastBackupAt: null,
 }
 
@@ -40,6 +41,7 @@ interface UserSettingsRow {
   phosphate_adult: number
   biopsy_platelet_min: number
   biopsy_inr_max: number
+  hus_ldh_upper_limit: number
   last_backup_at: string | null
 }
 
@@ -62,6 +64,7 @@ function toDomain(row: UserSettingsRow): UserSettings {
     phosphateAdult: row.phosphate_adult,
     biopsyPlateletMin: row.biopsy_platelet_min,
     biopsyInrMax: row.biopsy_inr_max,
+    husLdhUpperLimit: row.hus_ldh_upper_limit,
     lastBackupAt: row.last_backup_at,
   }
 }
@@ -101,6 +104,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         phosphate_adult: next.phosphateAdult,
         biopsy_platelet_min: next.biopsyPlateletMin,
         biopsy_inr_max: next.biopsyInrMax,
+        hus_ldh_upper_limit: next.husLdhUpperLimit,
       },
       { onConflict: 'owner_id' }
     )
