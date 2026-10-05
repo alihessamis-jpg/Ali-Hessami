@@ -185,6 +185,7 @@ export function ReferencePage() {
 
   const filteredDrugs = drugs.filter((d) => d.medication.toLowerCase().includes(search.toLowerCase()))
   const filteredDialysis = dialysis.filter((d) => d.medication.toLowerCase().includes(search.toLowerCase()))
+  const unlinkedTabAttachments = attachments[tab].filter((a) => !a.entryId)
 
   return (
     <div>
@@ -250,11 +251,15 @@ export function ReferencePage() {
           <strong>{uploadingAttachment ? 'Uploading…' : 'Drop images or PDFs here'}</strong>
           <span className="dropzone-hint">Choose one or more files</span>
         </div>
-        {attachments[tab].length === 0 ? (
-          <p className="empty-state">No attachments yet.</p>
+        {unlinkedTabAttachments.length === 0 ? (
+          <p className="empty-state">
+            {attachments[tab].length === 0
+              ? 'No attachments yet.'
+              : 'All uploaded attachments are linked to a medication — open it below to view.'}
+          </p>
         ) : (
           <ul className="document-grid">
-            {attachments[tab].map((a) => (
+            {unlinkedTabAttachments.map((a) => (
               <li key={a.id} className="document-card">
                 <div className="document-card-preview">
                   {attachmentUrls[a.id] ? (
@@ -389,7 +394,7 @@ export function ReferencePage() {
           <div className="dash-card">
             {filteredDrugs.map((d) => {
               const linkedAttachments = attachments.drug.filter((a) => a.entryId === d.id)
-              const unlinkedAttachments = attachments.drug.filter((a) => a.entryId !== d.id)
+              const unlinkedAttachments = attachments.drug.filter((a) => !a.entryId)
               const isOpen = expandedId === d.id
               return (
                 <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
@@ -486,7 +491,7 @@ export function ReferencePage() {
         <div className="dash-card">
           {filteredDialysis.map((d) => {
             const linkedAttachments = attachments.dialysis.filter((a) => a.entryId === d.id)
-            const unlinkedAttachments = attachments.dialysis.filter((a) => a.entryId !== d.id)
+            const unlinkedAttachments = attachments.dialysis.filter((a) => !a.entryId)
             const isOpen = expandedId === d.id
             return (
               <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
