@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import {
   addDialysisReference,
   deleteDialysisReference,
@@ -59,6 +59,8 @@ export function ReferencePage() {
   const [drugDraft, setDrugDraft] = useState(emptyDrugDraft)
   const [dialysisDraft, setDialysisDraft] = useState(emptyDialysisDraft)
   const [showForm, setShowForm] = useState(false)
+
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const [attachments, setAttachments] = useState<Record<Tab, ReferenceAttachment[]>>({ drug: [], dialysis: [] })
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
@@ -378,26 +380,43 @@ export function ReferencePage() {
             </thead>
             <tbody>
               {filteredDrugs.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.medication}</td>
-                  <td>{d.indication}</td>
-                  <td>{d.normalDose}</td>
-                  <td>{d.pediatricDose}</td>
-                  <td>{d.egfrRange}</td>
-                  <td>{d.adjustedDose}</td>
-                  <td>{d.maxDose}</td>
-                  <td>{d.frequency}</td>
-                  <td>
-                    <button
-                      className="link-button"
-                      onClick={() =>
-                        void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
-                      }
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={d.id}>
+                  <tr>
+                    <td>{d.medication}</td>
+                    <td>{d.indication}</td>
+                    <td>{d.normalDose}</td>
+                    <td>{d.pediatricDose}</td>
+                    <td>{d.egfrRange}</td>
+                    <td>{d.adjustedDose}</td>
+                    <td>{d.maxDose}</td>
+                    <td>{d.frequency}</td>
+                    <td>
+                      {d.notes && (
+                        <button
+                          className="link-button"
+                          onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                        >
+                          {expandedId === d.id ? 'Hide' : 'Details'}
+                        </button>
+                      )}
+                      <button
+                        className="link-button"
+                        onClick={() =>
+                          void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
+                        }
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                  {expandedId === d.id && d.notes && (
+                    <tr>
+                      <td colSpan={9} style={{ whiteSpace: 'pre-wrap' }}>
+                        {d.notes}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -419,26 +438,43 @@ export function ReferencePage() {
           </thead>
           <tbody>
             {filteredDialysis.map((d) => (
-              <tr key={d.id}>
-                <td>{d.medication}</td>
-                <td>{d.indication}</td>
-                <td>{d.pediatricDose}</td>
-                <td>{d.route}</td>
-                <td>{d.frequency}</td>
-                <td>{d.maxDose}</td>
-                <td>
-                  <button
-                    className="link-button"
-                    onClick={() =>
-                      void deleteDialysisReference(d.id).then(() =>
-                        setDialysis((prev) => prev.filter((x) => x.id !== d.id))
-                      )
-                    }
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={d.id}>
+                <tr>
+                  <td>{d.medication}</td>
+                  <td>{d.indication}</td>
+                  <td>{d.pediatricDose}</td>
+                  <td>{d.route}</td>
+                  <td>{d.frequency}</td>
+                  <td>{d.maxDose}</td>
+                  <td>
+                    {d.notes && (
+                      <button
+                        className="link-button"
+                        onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
+                      >
+                        {expandedId === d.id ? 'Hide' : 'Details'}
+                      </button>
+                    )}
+                    <button
+                      className="link-button"
+                      onClick={() =>
+                        void deleteDialysisReference(d.id).then(() =>
+                          setDialysis((prev) => prev.filter((x) => x.id !== d.id))
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+                {expandedId === d.id && d.notes && (
+                  <tr>
+                    <td colSpan={7} style={{ whiteSpace: 'pre-wrap' }}>
+                      {d.notes}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
