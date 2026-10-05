@@ -16,10 +16,12 @@ import {
   ResearchIcon,
   SettingsIcon,
   StudyHubIcon,
+  TodayIcon,
 } from './icons'
 
 const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon },
+  { to: '/today', label: 'Today', icon: TodayIcon },
   { to: '/patients', label: 'Patients', icon: PatientsIcon },
   { to: '/case-log', label: 'Case Log', icon: CaseLogIcon },
   { to: '/academic-activity', label: 'Academic Activity', icon: MilestoneIcon },

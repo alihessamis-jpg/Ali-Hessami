@@ -5,6 +5,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { Layout } from './components/Layout'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { TodayPage } from './pages/TodayPage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
 import { QuickAkiEntryPage } from './pages/QuickAkiEntryPage'
@@ -34,6 +35,7 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={protect(<DashboardPage />)} />
+          <Route path="/today" element={protect(<TodayPage />)} />
           <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/quick-aki" element={protect(<QuickAkiEntryPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />

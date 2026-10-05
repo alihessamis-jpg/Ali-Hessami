@@ -246,7 +246,7 @@ export function DashboardPage() {
       severity: 'info',
       title: `${dueTopics.length} Academy topic${dueTopics.length === 1 ? '' : 's'} due for review`,
       detail: 'Spaced-repetition schedule',
-      to: '/academy',
+      to: '/today',
     })
   }
   if (dueFlashcards.length > 0) {
@@ -255,7 +255,7 @@ export function DashboardPage() {
       severity: 'info',
       title: `${dueFlashcards.length} flashcard${dueFlashcards.length === 1 ? '' : 's'} due for review`,
       detail: 'Spaced-repetition schedule',
-      to: '/study',
+      to: '/today',
     })
   }
   if (dueReadingCount > 0) {
@@ -269,7 +269,7 @@ export function DashboardPage() {
           : dueLeitnerItems.length > 0
             ? 'Leitner-box saved questions'
             : 'Fixed 3d/1wk/14d/1mo/3mo schedule',
-      to: '/study',
+      to: '/today',
     })
   }
 
@@ -437,7 +437,7 @@ export function DashboardPage() {
         </div>
         <ul className="checklist-widget">
           <li>
-            <Link to="/academy" className="checklist-row">
+            <Link to="/today" className="checklist-row">
               <span className={`checklist-dot ${dueTopics.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
                 <AcademyIcon />
               </span>
@@ -446,7 +446,7 @@ export function DashboardPage() {
             </Link>
           </li>
           <li>
-            <Link to="/study" className="checklist-row">
+            <Link to="/today" className="checklist-row">
               <span className={`checklist-dot ${dueFlashcards.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
                 <FlashcardsIcon />
               </span>
@@ -455,7 +455,7 @@ export function DashboardPage() {
             </Link>
           </li>
           <li>
-            <Link to="/study" className="checklist-row">
+            <Link to="/today" className="checklist-row">
               <span className={`checklist-dot ${dueReadingCount > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
                 <CalendarIcon />
               </span>
