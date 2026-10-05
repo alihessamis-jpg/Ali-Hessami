@@ -19,6 +19,7 @@ export function TodayPage() {
 
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicNextReview, setTopicNextReview] = useState<Record<string, string | null>>({})
+  const [topicsExpanded, setTopicsExpanded] = useState(false)
 
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [flashcardIndex, setFlashcardIndex] = useState(0)
@@ -223,28 +224,36 @@ export function TodayPage() {
 
           {dueTopics.length > 0 && (
             <div className="dash-card">
-              <div className="dash-card-header">
+              <button
+                type="button"
+                className="dash-card-header"
+                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'start' }}
+                onClick={() => setTopicsExpanded((v) => !v)}
+              >
                 <h2 className="dash-card-title">
                   <span className="icon-chip">
                     <AcademyIcon />
                   </span>
                   Academy topics due ({dueTopics.length})
                 </h2>
-              </div>
-              <ul className="note-timeline">
-                {dueTopics.map((t) => (
-                  <li key={t.id}>
-                    <div className="note-header">
-                      <Link to={`/academy/${t.id}`}>
-                        <strong>{t.name}</strong>
-                      </Link>
-                    </div>
-                    <p className="patient-meta">
-                      {[t.category, t.summary].filter(Boolean).join(' · ') || 'Open to review and rate yourself'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+                <span className={`topic-picker-caret ${topicsExpanded ? 'open' : ''}`}>▸</span>
+              </button>
+              {topicsExpanded && (
+                <ul className="note-timeline">
+                  {dueTopics.map((t) => (
+                    <li key={t.id}>
+                      <div className="note-header">
+                        <Link to={`/academy/${t.id}`}>
+                          <strong>{t.name}</strong>
+                        </Link>
+                      </div>
+                      <p className="patient-meta">
+                        {[t.category, t.summary].filter(Boolean).join(' · ') || 'Open to review and rate yourself'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </>
