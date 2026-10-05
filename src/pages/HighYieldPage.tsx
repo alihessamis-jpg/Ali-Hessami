@@ -153,6 +153,7 @@ export function HighYieldPage() {
                       justifyContent: 'space-between',
                       background: 'none',
                       border: 'none',
+                      color: 'var(--text)',
                       cursor: 'pointer',
                       textAlign: 'start',
                       padding: 0,

@@ -227,7 +227,7 @@ export function TodayPage() {
               <button
                 type="button"
                 className="dash-card-header"
-                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'start' }}
+                style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', textAlign: 'start' }}
                 onClick={() => setTopicsExpanded((v) => !v)}
               >
                 <h2 className="dash-card-title">
