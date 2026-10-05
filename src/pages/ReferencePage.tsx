@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
 import {
   addDialysisReference,
   deleteDialysisReference,
@@ -386,125 +386,179 @@ export function ReferencePage() {
         filteredDrugs.length === 0 ? (
           <p className="empty-state">No drug reference entries yet.</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Medication</th>
-                <th>Indication</th>
-                <th>Normal dose</th>
-                <th>Pediatric dose</th>
-                <th>eGFR range</th>
-                <th>Adjusted dose</th>
-                <th>Max dose</th>
-                <th>Frequency</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDrugs.map((d) => {
-                const linkedAttachments = attachments.drug.filter((a) => a.entryId === d.id)
-                const hasDetails = Boolean(d.notes) || linkedAttachments.length > 0
-                return (
-                  <Fragment key={d.id}>
-                    <tr>
-                      <td>{d.medication}</td>
-                      <td>{d.indication}</td>
-                      <td>{d.normalDose}</td>
-                      <td>{d.pediatricDose}</td>
-                      <td>{d.egfrRange}</td>
-                      <td>{d.adjustedDose}</td>
-                      <td>{d.maxDose}</td>
-                      <td>{d.frequency}</td>
-                      <td>
-                        {hasDetails && (
-                          <button
-                            className="link-button"
-                            onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
-                          >
-                            {expandedId === d.id ? 'Hide' : 'Details'}
-                          </button>
-                        )}
+          <div className="dash-card">
+            {filteredDrugs.map((d) => {
+              const linkedAttachments = attachments.drug.filter((a) => a.entryId === d.id)
+              const unlinkedAttachments = attachments.drug.filter((a) => a.entryId !== d.id)
+              const isOpen = expandedId === d.id
+              return (
+                <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isOpen ? null : d.id)}
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'start',
+                      padding: 0,
+                    }}
+                  >
+                    <strong>{d.medication}</strong>
+                    <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginTop: 8 }}>
+                      {[
+                        ['Indication', d.indication],
+                        ['Normal dose', d.normalDose],
+                        ['Pediatric dose', d.pediatricDose],
+                        ['eGFR range', d.egfrRange],
+                        ['Adjusted dose', d.adjustedDose],
+                        ['Max dose', d.maxDose],
+                        ['Frequency', d.frequency],
+                      ]
+                        .filter(([, value]) => value)
+                        .map(([label, value]) => (
+                          <p className="patient-meta" key={label}>
+                            <strong>{label}:</strong> {value}
+                          </p>
+                        ))}
+                      {d.notes && <p style={{ whiteSpace: 'pre-wrap' }}>{d.notes}</p>}
+                      {linkedAttachments.length > 0 && (
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
+                          {linkedAttachments.map((a) =>
+                            attachmentUrls[a.id] ? (
+                              isImagePath(a.storagePath) ? (
+                                <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                  <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
+                                </a>
+                              ) : (
+                                <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                  Open PDF — {a.filename}
+                                </a>
+                              )
+                            ) : (
+                              <span key={a.id} className="empty-state">Loading…</span>
+                            )
+                          )}
+                        </div>
+                      )}
+                      {unlinkedAttachments.length > 0 && (
+                        <label className="patient-meta" style={{ display: 'block', marginBottom: 8 }}>
+                          Link an uploaded photo/PDF:
+                          <select value="" onChange={(e) => e.target.value && void handleLinkAttachment(e.target.value, d.id)}>
+                            <option value="">Choose a file…</option>
+                            {unlinkedAttachments.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.filename ?? 'Attachment'}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <div className="form-actions">
                         <button
-                          className="link-button"
+                          type="button"
+                          className="button-secondary"
                           onClick={() =>
                             void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
                           }
                         >
                           Delete
                         </button>
-                      </td>
-                    </tr>
-                    {expandedId === d.id && hasDetails && (
-                      <tr>
-                        <td colSpan={9}>
-                          {d.notes && <p style={{ whiteSpace: 'pre-wrap', margin: linkedAttachments.length > 0 ? '0 0 10px' : 0 }}>{d.notes}</p>}
-                          {linkedAttachments.length > 0 && (
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                              {linkedAttachments.map((a) =>
-                                attachmentUrls[a.id] ? (
-                                  isImagePath(a.storagePath) ? (
-                                    <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                      <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
-                                    </a>
-                                  ) : (
-                                    <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                      Open PDF — {a.filename}
-                                    </a>
-                                  )
-                                ) : (
-                                  <span key={a.id} className="empty-state">Loading…</span>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )
       ) : filteredDialysis.length === 0 ? (
         <p className="empty-state">No dialysis reference entries yet.</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Medication</th>
-              <th>Indication</th>
-              <th>Pediatric dose</th>
-              <th>Route</th>
-              <th>Frequency</th>
-              <th>Max dose</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDialysis.map((d) => {
-              const linkedAttachments = attachments.dialysis.filter((a) => a.entryId === d.id)
-              const hasDetails = Boolean(d.notes) || linkedAttachments.length > 0
-              return (
-                <Fragment key={d.id}>
-                  <tr>
-                    <td>{d.medication}</td>
-                    <td>{d.indication}</td>
-                    <td>{d.pediatricDose}</td>
-                    <td>{d.route}</td>
-                    <td>{d.frequency}</td>
-                    <td>{d.maxDose}</td>
-                    <td>
-                      {hasDetails && (
-                        <button
-                          className="link-button"
-                          onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
-                        >
-                          {expandedId === d.id ? 'Hide' : 'Details'}
-                        </button>
-                      )}
+        <div className="dash-card">
+          {filteredDialysis.map((d) => {
+            const linkedAttachments = attachments.dialysis.filter((a) => a.entryId === d.id)
+            const unlinkedAttachments = attachments.dialysis.filter((a) => a.entryId !== d.id)
+            const isOpen = expandedId === d.id
+            return (
+              <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isOpen ? null : d.id)}
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'start',
+                    padding: 0,
+                  }}
+                >
+                  <strong>{d.medication}</strong>
+                  <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
+                </button>
+                {isOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    {[
+                      ['Indication', d.indication],
+                      ['Pediatric dose', d.pediatricDose],
+                      ['Route', d.route],
+                      ['Frequency', d.frequency],
+                      ['Max dose', d.maxDose],
+                    ]
+                      .filter(([, value]) => value)
+                      .map(([label, value]) => (
+                        <p className="patient-meta" key={label}>
+                          <strong>{label}:</strong> {value}
+                        </p>
+                      ))}
+                    {d.notes && <p style={{ whiteSpace: 'pre-wrap' }}>{d.notes}</p>}
+                    {linkedAttachments.length > 0 && (
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
+                        {linkedAttachments.map((a) =>
+                          attachmentUrls[a.id] ? (
+                            isImagePath(a.storagePath) ? (
+                              <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
+                              </a>
+                            ) : (
+                              <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                                Open PDF — {a.filename}
+                              </a>
+                            )
+                          ) : (
+                            <span key={a.id} className="empty-state">Loading…</span>
+                          )
+                        )}
+                      </div>
+                    )}
+                    {unlinkedAttachments.length > 0 && (
+                      <label className="patient-meta" style={{ display: 'block', marginBottom: 8 }}>
+                        Link an uploaded photo/PDF:
+                        <select value="" onChange={(e) => e.target.value && void handleLinkAttachment(e.target.value, d.id)}>
+                          <option value="">Choose a file…</option>
+                          {unlinkedAttachments.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.filename ?? 'Attachment'}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    <div className="form-actions">
                       <button
-                        className="link-button"
+                        type="button"
+                        className="button-secondary"
                         onClick={() =>
                           void deleteDialysisReference(d.id).then(() =>
                             setDialysis((prev) => prev.filter((x) => x.id !== d.id))
@@ -513,39 +567,13 @@ export function ReferencePage() {
                       >
                         Delete
                       </button>
-                    </td>
-                  </tr>
-                  {expandedId === d.id && hasDetails && (
-                    <tr>
-                      <td colSpan={7}>
-                        {d.notes && <p style={{ whiteSpace: 'pre-wrap', margin: linkedAttachments.length > 0 ? '0 0 10px' : 0 }}>{d.notes}</p>}
-                        {linkedAttachments.length > 0 && (
-                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                            {linkedAttachments.map((a) =>
-                              attachmentUrls[a.id] ? (
-                                isImagePath(a.storagePath) ? (
-                                  <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                    <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
-                                  </a>
-                                ) : (
-                                  <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                    Open PDF — {a.filename}
-                                  </a>
-                                )
-                              ) : (
-                                <span key={a.id} className="empty-state">Loading…</span>
-                              )
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
