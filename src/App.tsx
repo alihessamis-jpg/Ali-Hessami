@@ -17,11 +17,13 @@ import { ChecklistsPage } from './pages/ChecklistsPage'
 import { AcademyPage } from './pages/AcademyPage'
 import { AcademyTopicPage } from './pages/AcademyTopicPage'
 import { StudyHubPage } from './pages/StudyHubPage'
+import { BoardReadinessPage } from './pages/BoardReadinessPage'
 import { NewPersonalCasePage } from './pages/NewPersonalCasePage'
 import { ResearchProjectsPage } from './pages/ResearchProjectsPage'
 import { ResearchProjectPage } from './pages/ResearchProjectPage'
 import { ThesisFormPage } from './pages/ThesisFormPage'
 import { ExportPage } from './pages/ExportPage'
+import { CvPage } from './pages/CvPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 function protect(element: ReactElement) {
@@ -47,11 +49,13 @@ export function App() {
           <Route path="/academy" element={protect(<AcademyPage />)} />
           <Route path="/academy/:id" element={protect(<AcademyTopicPage />)} />
           <Route path="/study" element={protect(<StudyHubPage />)} />
+          <Route path="/board-readiness" element={protect(<BoardReadinessPage />)} />
           <Route path="/study/personal-cases/new" element={protect(<NewPersonalCasePage />)} />
           <Route path="/research" element={protect(<ResearchProjectsPage />)} />
           <Route path="/research/:id" element={protect(<ResearchProjectPage />)} />
           <Route path="/thesis-form" element={protect(<ThesisFormPage />)} />
           <Route path="/export" element={protect(<ExportPage />)} />
+          <Route path="/cv" element={protect(<CvPage />)} />
           <Route path="/settings" element={protect(<SettingsPage />)} />
         </Routes>
       </Layout>

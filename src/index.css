@@ -897,6 +897,31 @@ legend {
   color: var(--danger);
 }
 
+.status-badge--weak {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.status-badge--moderate {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.status-badge--strong {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge--no-data {
+  background: var(--surface-tint);
+  color: var(--text-muted);
+}
+
+.status-badge--neutral {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
 /* ---- Imaging: drag-and-drop upload zone ---- */
 
 .dropzone {

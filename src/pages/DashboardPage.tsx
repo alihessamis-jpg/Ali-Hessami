@@ -16,6 +16,9 @@ import { POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/formulas'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards } from '../lib/api/flashcards'
+import { listBoardQuestions } from '../lib/api/boardQuestions'
+import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
+import { computeTopicReadiness } from '../lib/examReadiness'
 import { listKnowledgeGaps } from '../lib/api/knowledgeGaps'
 import { listResearchProjects } from '../lib/api/research'
 import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/caseLog'
@@ -26,6 +29,7 @@ import { formatAge } from '../lib/patientAge'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
+  AnalyticsIcon,
   CalendarIcon,
   CaseLogIcon,
   DashboardIcon,
@@ -145,6 +149,7 @@ export function DashboardPage() {
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicProgress, setTopicProgress] = useState<Record<string, string | null>>({})
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
+  const [weakTopicCount, setWeakTopicCount] = useState(0)
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
   const [researchProjects, setResearchProjects] = useState<ResearchProject[]>([])
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
@@ -164,6 +169,8 @@ export function DashboardPage() {
       listAcademyTopics(),
       listAcademyProgress(session.user.id),
       listFlashcards(),
+      listBoardQuestions(),
+      listBoardQuestionAttempts(),
       listKnowledgeGaps(),
       listResearchProjects(),
       listCaseLogEntries(),
@@ -179,6 +186,8 @@ export function DashboardPage() {
           topicRows,
           progressRows,
           flashcardRows,
+          boardQuestionRows,
+          boardQuestionAttemptRows,
           gapRows,
           projectRows,
           caseLogRows,
@@ -192,6 +201,8 @@ export function DashboardPage() {
           setTopics(topicRows)
           setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
           setFlashcards(flashcardRows)
+          const readiness = computeTopicReadiness(boardQuestionRows, boardQuestionAttemptRows, flashcardRows, topicRows)
+          setWeakTopicCount(readiness.filter((r) => r.status === 'weak').length)
           setKnowledgeGaps(gapRows)
           setResearchProjects(projectRows)
           setCaseLogEntries(caseLogRows)
@@ -461,6 +472,15 @@ export function DashboardPage() {
               </span>
               <span className="checklist-label">Reading reviews due</span>
               <span className="checklist-count">{dueReadingCount}</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/board-readiness" className="checklist-row">
+              <span className={`checklist-dot ${weakTopicCount > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
+                <AnalyticsIcon />
+              </span>
+              <span className="checklist-label">Weak topics (Board Readiness)</span>
+              <span className="checklist-count">{weakTopicCount}</span>
             </Link>
           </li>
           <li>

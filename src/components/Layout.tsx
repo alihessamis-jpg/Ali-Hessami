@@ -4,10 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import {
   AcademyIcon,
+  AnalyticsIcon,
   CalculatorIcon,
   CaseLogIcon,
   ChecklistIcon,
   DashboardIcon,
+  DocumentIcon,
   DownloadIcon,
   FormBuilderIcon,
   MilestoneIcon,
@@ -30,9 +32,11 @@ const NAV_LINKS: Array<{ to: string; label: string; icon: ComponentType<SVGProps
   { to: '/checklists', label: 'Checklists', icon: ChecklistIcon },
   { to: '/academy', label: 'Academy', icon: AcademyIcon },
   { to: '/study', label: 'Study Hub', icon: StudyHubIcon },
+  { to: '/board-readiness', label: 'Board Readiness', icon: AnalyticsIcon },
   { to: '/research', label: 'Research', icon: ResearchIcon },
   { to: '/thesis-form', label: 'Thesis Form', icon: FormBuilderIcon },
   { to: '/export', label: 'Export', icon: DownloadIcon },
+  { to: '/cv', label: 'Academic CV', icon: DocumentIcon },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
