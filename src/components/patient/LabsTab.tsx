@@ -16,7 +16,7 @@ import {
 import { toShamsi } from '../../lib/shamsi'
 import { assessProteinuriaStatus, classifyUpcRatio, PROTEINURIA_CLASS_LABEL } from '../../lib/proteinuria'
 import { assessNephriticWorkup } from '../../lib/nephriticWorkup'
-import { assessHusActivity, assessHusWorkup } from '../../lib/husWorkup'
+import { assessHusActivity, assessHusWorkup, patientHasHus } from '../../lib/husWorkup'
 import { assessCkdMbd } from '../../lib/ckdMbd'
 import { assessAcidBase, NORMAL_HCO3_MEQ_L } from '../../lib/acidBase'
 import { assessCkdBicarbProtocol, CKD_BICARB_ESCALATED_DOSE, CKD_BICARB_TARGET_MEQ_L } from '../../lib/ckdBicarbProtocol'
@@ -386,6 +386,16 @@ export function LabsTab({ patientId, patient }: Props) {
             {husWorkup.missingLdh && <li className="value-abnormal">LDH not checked{patient.doa ? ' since admission' : ''}</li>}
             {husWorkup.missingUricAcid && <li className="value-abnormal">Uric acid not checked{patient.doa ? ' since admission' : ''}</li>}
           </ul>
+        </div>
+      )}
+      {patientHasHus(patient) && (
+        <div className="aki-banner aki-banner--warning">
+          <strong>⚠ HUS — do not give tranexamic acid for bleeding</strong>
+          <span className="patient-meta">
+            HUS is a thrombotic microangiopathy — antifibrinolytics like tranexamic acid block clot breakdown and
+            can worsen microthrombosis. For bleeding (e.g. epistaxis), use platelet concentrate and FFP first;
+            if still uncontrolled, pack with epinephrine.
+          </span>
         </div>
       )}
       {husActivity && (
