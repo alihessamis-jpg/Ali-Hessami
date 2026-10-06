@@ -7,12 +7,15 @@ import {
   listPdPeritonitisEpisodes,
 } from '../../lib/api/pdPeritonitis'
 import { listLabEntries } from '../../lib/api/labs'
+import { updatePatient } from '../../lib/api/patients'
 import { classifyPetTransporter, PET_TRANSPORTER_NOTE } from '../../lib/dialysisAdequacy'
+import { formatAge, yearsSince } from '../../lib/patientAge'
 import { toShamsi } from '../../lib/shamsi'
 import type {
   HdSession,
   HdSessionDraft,
   LabEntry,
+  Patient,
   PdModality,
   PdPeritonitisEpisode,
   PdPeritonitisEpisodeDraft,
@@ -23,6 +26,8 @@ import type {
 
 interface Props {
   patientId: string
+  patient: Patient
+  onPatientUpdated: (patient: Patient) => void
 }
 
 const OUTCOME_LABELS: Record<PeritonitisOutcome, string> = {
@@ -71,7 +76,7 @@ function num(v: string): number | null {
   return v === '' ? null : Number(v)
 }
 
-export function DialysisTab({ patientId }: Props) {
+export function DialysisTab({ patientId, patient, onPatientUpdated }: Props) {
   const [labEntries, setLabEntries] = useState<LabEntry[]>([])
   const [hdSessions, setHdSessions] = useState<HdSession[]>([])
   const [pdPrescriptions, setPdPrescriptions] = useState<PdPrescription[]>([])
@@ -82,6 +87,41 @@ export function DialysisTab({ patientId }: Props) {
   const [hdDraft, setHdDraft] = useState(emptyHdDraft)
   const [pdRxDraft, setPdRxDraft] = useState(emptyPdRxDraft)
   const [peritonitisDraft, setPeritonitisDraft] = useState(emptyPeritonitisDraft)
+
+  const [profileDraft, setProfileDraft] = useState({
+    underlyingDisease: patient.underlyingDisease ?? '',
+    dialysisStartDate: patient.dialysisStartDate ?? '',
+    transplantHx: patient.transplantHx ?? '',
+  })
+  const [savingProfile, setSavingProfile] = useState(false)
+
+  useEffect(() => {
+    setProfileDraft({
+      underlyingDisease: patient.underlyingDisease ?? '',
+      dialysisStartDate: patient.dialysisStartDate ?? '',
+      transplantHx: patient.transplantHx ?? '',
+    })
+  }, [patient.id, patient.underlyingDisease, patient.dialysisStartDate, patient.transplantHx])
+
+  async function handleSaveProfile(e: FormEvent) {
+    e.preventDefault()
+    setSavingProfile(true)
+    setError(null)
+    try {
+      const updated = await updatePatient(patientId, {
+        underlyingDisease: profileDraft.underlyingDisease || null,
+        dialysisStartDate: profileDraft.dialysisStartDate || null,
+        transplantHx: profileDraft.transplantHx || null,
+      })
+      onPatientUpdated(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save dialysis profile')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const dialysisDuration = formatAge(yearsSince(patient.dialysisStartDate))
 
   useEffect(() => {
     refresh()
@@ -180,6 +220,46 @@ export function DialysisTab({ patientId }: Props) {
   return (
     <div>
       {error && <p className="form-error">{error}</p>}
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h2 className="dash-card-title">Dialysis profile</h2>
+          {dialysisDuration && <span className="patient-meta">On dialysis: {dialysisDuration}</span>}
+        </div>
+        <form className="soap-form" onSubmit={(e) => void handleSaveProfile(e)}>
+          <div className="field-grid">
+            <label>
+              Underlying cause of ESRD / dialysis
+              <input
+                placeholder="e.g. FSGS, CAKUT, obstructive uropathy"
+                value={profileDraft.underlyingDisease}
+                onChange={(e) => setProfileDraft({ ...profileDraft, underlyingDisease: e.target.value })}
+              />
+            </label>
+            <label>
+              Dialysis start date
+              <input
+                type="date"
+                value={profileDraft.dialysisStartDate}
+                onChange={(e) => setProfileDraft({ ...profileDraft, dialysisStartDate: e.target.value })}
+              />
+            </label>
+          </div>
+          <label>
+            Transplant history
+            <textarea
+              placeholder="Prior transplant(s), date, graft status, etc."
+              value={profileDraft.transplantHx}
+              onChange={(e) => setProfileDraft({ ...profileDraft, transplantHx: e.target.value })}
+            />
+          </label>
+          <div className="form-actions">
+            <button type="submit" disabled={savingProfile}>
+              {savingProfile ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       <div className="dash-card">
         <div className="dash-card-header">

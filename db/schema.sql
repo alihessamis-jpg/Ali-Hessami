@@ -53,6 +53,7 @@ create table public.patients (
     baseline_egfr       numeric,
     dialysis_status     text,
     dialysis_modality   text,
+    dialysis_start_date date,
     transplant_status   text,
 
     -- assessment: history

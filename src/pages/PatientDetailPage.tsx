@@ -192,7 +192,7 @@ export function PatientDetailPage() {
         {tab === 'medications' && <MedicationsTab patientId={id} />}
         {tab === 'imaging' && <ImagingTab patientId={id} />}
         {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
-        {tab === 'dialysis' && <DialysisTab patientId={id} />}
+        {tab === 'dialysis' && <DialysisTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
         {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
         {tab === 'lusStudy' && <LusStudyTab patientId={id} patient={patient} />}
         {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}

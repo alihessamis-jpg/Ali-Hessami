@@ -22,6 +22,7 @@ interface PatientRow {
   baseline_egfr: number | null
   dialysis_status: string | null
   dialysis_modality: string | null
+  dialysis_start_date: string | null
   transplant_status: string | null
   chief_complaint: string | null
   hpi: string | null
@@ -72,6 +73,7 @@ function toDomain(row: PatientRow): Patient {
     baselineEGFR: row.baseline_egfr,
     dialysisStatus: row.dialysis_status,
     dialysisModality: row.dialysis_modality,
+    dialysisStartDate: row.dialysis_start_date,
     transplantStatus: row.transplant_status,
     chiefComplaint: row.chief_complaint,
     hpi: row.hpi,
@@ -122,6 +124,7 @@ function toRow(patient: Partial<Patient>): Partial<Omit<PatientRow, 'id'>> {
     baseline_egfr: patient.baselineEGFR,
     dialysis_status: patient.dialysisStatus,
     dialysis_modality: patient.dialysisModality,
+    dialysis_start_date: patient.dialysisStartDate,
     transplant_status: patient.transplantStatus,
     chief_complaint: patient.chiefComplaint,
     hpi: patient.hpi,

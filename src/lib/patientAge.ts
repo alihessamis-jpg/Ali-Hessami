@@ -32,3 +32,14 @@ export function formatAge(age: number | null | undefined): string | null {
   if (months === 0) return `${years}y`
   return `${years}y ${months}mo`
 }
+
+// Decimal-year duration from a past date (e.g. dialysis start date) to
+// today, suitable for formatAge() — same "2y 4mo" display everywhere.
+export function yearsSince(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null
+  const start = new Date(dateStr)
+  if (Number.isNaN(start.getTime())) return null
+  const days = (Date.now() - start.getTime()) / 86400000
+  if (days < 0) return null
+  return Math.round((days / 365.25) * 1000) / 1000
+}

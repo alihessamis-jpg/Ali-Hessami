@@ -25,6 +25,7 @@ export interface Patient {
   baselineEGFR?: number | null
   dialysisStatus?: string | null
   dialysisModality?: string | null
+  dialysisStartDate?: string | null
   transplantStatus?: string | null
 
   // Assessment: history
