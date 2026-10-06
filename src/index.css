@@ -15,6 +15,10 @@
   --warning: #9a5b06;
   --warning-soft: #fdf0d7;
   --shadow-sm: 0 1px 2px rgba(16, 35, 61, 0.05), 0 1px 6px rgba(16, 35, 61, 0.04);
+  --shadow-md: 0 4px 14px rgba(16, 35, 61, 0.1), 0 1px 3px rgba(16, 35, 61, 0.06);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 140ms;
+  --dur: 220ms;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
@@ -22,10 +26,38 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* The UI shell is English/LTR, but most clinical content is typed in
@@ -61,11 +93,17 @@ button {
   color: white;
   border-radius: 8px;
   padding: 8px 14px;
-  transition: background 0.15s ease;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
-button:hover {
+button:hover:not(:disabled) {
   background: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 button:disabled {
@@ -78,11 +116,16 @@ button:disabled {
   border: none;
   color: var(--accent);
   padding: 0;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .link-button:hover {
   background: none;
   text-decoration: underline;
+}
+
+.link-button:active {
+  transform: none;
 }
 
 .button-link {
@@ -94,11 +137,17 @@ button:disabled {
   padding: 8px 14px;
   text-decoration: none;
   font-size: 0.9rem;
-  transition: background 0.15s ease;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .button-link:hover {
   background: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.button-link:active {
+  transform: scale(0.97);
 }
 
 input,
@@ -160,6 +209,7 @@ label {
   font-size: 0.87rem;
   padding: 7px 11px;
   border-radius: 8px;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .nav-link svg {
@@ -260,6 +310,7 @@ label {
   align-items: center;
   gap: 12px;
   margin: 0;
+  animation: fade-in-up var(--dur) var(--ease-out) both;
 }
 
 .page-title-icon {
@@ -481,6 +532,7 @@ legend {
   border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 16px;
+  animation: fade-in-up var(--dur) var(--ease-out) both;
 }
 
 .calc-label {
@@ -620,6 +672,23 @@ legend {
   box-shadow: var(--shadow-sm);
   padding: 18px 20px;
   margin-bottom: 20px;
+  animation: fade-in-up var(--dur) var(--ease-out) both;
+}
+
+.dash-card:nth-of-type(2) {
+  animation-delay: 40ms;
+}
+.dash-card:nth-of-type(3) {
+  animation-delay: 80ms;
+}
+.dash-card:nth-of-type(4) {
+  animation-delay: 120ms;
+}
+.dash-card:nth-of-type(5) {
+  animation-delay: 160ms;
+}
+.dash-card:nth-of-type(n + 6) {
+  animation-delay: 200ms;
 }
 
 .dash-row {
@@ -766,6 +835,12 @@ legend {
   padding: 11px 13px;
   border-radius: 10px;
   text-decoration: none;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.alert-row:hover {
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .alert-row svg {
@@ -1181,6 +1256,12 @@ legend {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.document-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .document-card-preview {
@@ -1227,6 +1308,8 @@ legend {
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 0.85rem;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .category-pill:hover {
@@ -1266,7 +1349,7 @@ legend {
   display: inline-block;
   color: var(--text-muted);
   font-size: 0.7rem;
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 
 .topic-picker-caret.open {
