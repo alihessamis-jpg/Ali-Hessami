@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis } from 'recharts'
 import {
@@ -166,6 +166,13 @@ export function ThesisFormPage() {
   const [creatingPatient, setCreatingPatient] = useState(false)
   const [logPatientId, setLogPatientId] = useState('')
   const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
+  const logSessionCardRef = useRef<HTMLDivElement>(null)
+
+  function handleEditSession(session: LusStudySessionWithPatient) {
+    setLogPatientId(session.patientId)
+    setFormMode(session.id)
+    logSessionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   useEffect(() => {
     Promise.all([listAllLusStudySessions(), listLusStudyEnrollments(), listPatients()])
@@ -373,7 +380,7 @@ export function ThesisFormPage() {
         )}
       </div>
 
-      <div className="dash-card">
+      <div className="dash-card" ref={logSessionCardRef}>
         <div className="dash-card-header">
           <h2 className="dash-card-title">Log a session</h2>
         </div>
@@ -567,13 +574,7 @@ export function ThesisFormPage() {
                   <td>{s.weightLossKg != null ? `${s.weightLossKg.toFixed(2)} kg` : '—'}</td>
                   <td>{s.lusGuidedDecision ? s.lusGuidedDecision.replace('_', ' ') : '—'}</td>
                   <td>
-                    <button
-                      className="link-button"
-                      onClick={() => {
-                        setLogPatientId(s.patientId)
-                        setFormMode(s.id)
-                      }}
-                    >
+                    <button className="link-button" onClick={() => handleEditSession(s)}>
                       Edit
                     </button>
                     <button className="link-button" onClick={() => void handleDeleteSession(s.id)}>
