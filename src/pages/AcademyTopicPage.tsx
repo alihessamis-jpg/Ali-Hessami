@@ -18,6 +18,7 @@ import {
 } from '../lib/storage'
 import { scheduleReview } from '../lib/srs'
 import { sortSubTopics } from '../lib/sortSubTopics'
+import { getAcademyDiagram } from '../lib/academyDiagrams'
 import { formatAge } from '../lib/patientAge'
 import { protectNumberRanges } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
@@ -322,6 +323,22 @@ export function AcademyTopicPage() {
         <button onClick={() => void handleReview('moderate')}>Moderate</button>
         <button onClick={() => void handleReview('easy')}>Easy</button>
       </div>
+
+      {(() => {
+        const Diagram = getAcademyDiagram(topic)
+        return (
+          Diagram && (
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <h2 className="dash-card-title">Pathophysiology</h2>
+              </div>
+              <div className="academy-diagram">
+                <Diagram />
+              </div>
+            </div>
+          )
+        )
+      })()}
 
       {topic.keyPoints.length > 0 && (
         <div className="dash-card">

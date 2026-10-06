@@ -1804,6 +1804,15 @@ legend {
 
 /* Academy topic/lesson body content, rendered from markdown (tables,
    headings, bold, blockquote summary boxes) — see MarkdownSection.tsx. */
+.academy-diagram svg {
+  width: 100%;
+  height: auto;
+  max-width: 640px;
+  display: block;
+  margin: 0 auto;
+  font-family: inherit;
+}
+
 .academy-markdown {
   line-height: 1.7;
 }
