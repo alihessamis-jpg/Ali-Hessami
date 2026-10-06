@@ -19,7 +19,19 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-fast: 140ms;
   --dur: 220ms;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans', var(--font-body);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.page-title,
+.dash-card-title,
+.brand {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 * {

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { HusPathophysiologyDiagram } from '../components/academy/diagrams/HusPathophysiologyDiagram'
+import { RtaDifferentiationDiagram } from '../components/academy/diagrams/RtaDifferentiationDiagram'
 import type { AcademyTopic } from '../types/domain'
 
 // Matched by name/category substring, the same way husWorkup.ts and
@@ -7,6 +8,7 @@ import type { AcademyTopic } from '../types/domain'
 // to key off of, so new diagrams just add an entry here.
 const DIAGRAM_MATCHERS: Array<{ pattern: RegExp; component: ComponentType }> = [
   { pattern: /hemolytic uremic|\bHUS\b/i, component: HusPathophysiologyDiagram },
+  { pattern: /renal tubular acidosis|\bRTA\b/i, component: RtaDifferentiationDiagram },
 ]
 
 export function getAcademyDiagram(topic: Pick<AcademyTopic, 'name' | 'category'>): ComponentType | null {
