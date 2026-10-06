@@ -14,6 +14,7 @@ import { buildGroupPostLusTrend } from '../lib/lusStudy'
 import { downloadCsv } from '../lib/csvExport'
 import { matchesSearch } from '../lib/textFilter'
 import { toShamsi } from '../lib/shamsi'
+import { describeError } from '../lib/describeError'
 import { FormBuilderIcon } from '../components/icons'
 import { LusStudySessionForm } from '../components/patient/LusStudySessionForm'
 import type { LusStudySessionWithPatient } from '../lib/api/lusStudy'
@@ -169,6 +170,7 @@ export function ThesisFormPage() {
   const logSessionCardRef = useRef<HTMLDivElement>(null)
 
   function handleEditSession(session: LusStudySessionWithPatient) {
+    setError(null)
     setLogPatientId(session.patientId)
     setFormMode(session.id)
     logSessionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -250,7 +252,7 @@ export function ThesisFormPage() {
       }
       setFormMode('closed')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save session')
+      setError(describeError(err, 'Failed to save session — check your connection and try again'))
     }
   }
 
@@ -409,7 +411,7 @@ export function ThesisFormPage() {
               logEnrollment &&
               (formMode === 'closed' ? (
                 <div className="form-actions">
-                  <button type="button" onClick={() => setFormMode('new')}>
+                  <button type="button" onClick={() => { setError(null); setFormMode('new') }}>
                     Log new session
                   </button>
                 </div>
@@ -417,6 +419,9 @@ export function ThesisFormPage() {
                 <LusStudySessionForm
                   patientId={logPatient.id}
                   studyGroup={logEnrollment.studyGroup}
+                  patientAge={logPatient.age}
+                  underlyingDisease={logPatient.underlyingDisease}
+                  dialysisStartDate={logPatient.dialysisStartDate}
                   defaultHeightCm={logPatient.height}
                   defaultWeightKg={logPatient.weight}
                   defaultTargetWeightKg={logPatientSessions[0]?.targetWeightKg ?? logPatient.weight}

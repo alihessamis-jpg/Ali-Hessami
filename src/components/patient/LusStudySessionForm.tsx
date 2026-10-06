@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { deriveLusSessionFields, suggestLusGuidedDecision, EMPTY_LUS_ZONES } from '../../lib/lusStudy'
+import { formatAge, yearsSince } from '../../lib/patientAge'
 import type { LusStudySessionWithPatient } from '../../lib/api/lusStudy'
 import type {
   InvestigatorVolumeAssessment,
@@ -14,6 +15,9 @@ import type {
 interface Props {
   patientId: string
   studyGroup: LusStudyGroup
+  patientAge?: number | null
+  underlyingDisease?: string | null
+  dialysisStartDate?: string | null
   defaultHeightCm?: number | null
   defaultWeightKg?: number | null
   defaultTargetWeightKg?: number | null
@@ -97,6 +101,9 @@ function zoneGrid(title: string, zones: LusZoneScores, onChange: (key: keyof Lus
 export function LusStudySessionForm({
   patientId,
   studyGroup,
+  patientAge,
+  underlyingDisease,
+  dialysisStartDate,
   defaultHeightCm,
   defaultWeightKg,
   defaultTargetWeightKg,
@@ -105,6 +112,14 @@ export function LusStudySessionForm({
   onSaved,
   onCancel,
 }: Props) {
+  const dialysisDuration = formatAge(yearsSince(dialysisStartDate))
+  const patientSummary = [
+    formatAge(patientAge) && `Age: ${formatAge(patientAge)}`,
+    underlyingDisease && `Underlying cause: ${underlyingDisease}`,
+    dialysisDuration && `On dialysis: ${dialysisDuration}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const [sessionDate, setSessionDate] = useState(existing?.sessionDate ?? today())
   const [heightCm, setHeightCm] = useState(String(existing?.heightCm ?? defaultHeightCm ?? ''))
   const [preHdWeightKg, setPreHdWeightKg] = useState(String(existing?.preHdWeightKg ?? defaultWeightKg ?? ''))
@@ -292,6 +307,7 @@ export function LusStudySessionForm({
         <div className="dash-card-header">
           <h3 className="dash-card-title">Session &amp; Pre-HD assessment</h3>
         </div>
+        {patientSummary && <p className="patient-meta">{patientSummary}</p>}
         <div className="field-grid">
           <label>
             Session date

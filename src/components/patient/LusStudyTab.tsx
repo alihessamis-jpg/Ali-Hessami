@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   addLusStudySession,
   deleteLusStudySession,
@@ -9,6 +9,7 @@ import {
 } from '../../lib/api/lusStudy'
 import { LusStudySessionForm } from './LusStudySessionForm'
 import { toShamsi } from '../../lib/shamsi'
+import { describeError } from '../../lib/describeError'
 import type { LusStudySessionWithPatient } from '../../lib/api/lusStudy'
 import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient } from '../../types/domain'
 
@@ -35,6 +36,13 @@ export function LusStudyTab({ patientId, patient }: Props) {
   const [enrollNotes, setEnrollNotes] = useState('')
   const [enrolling, setEnrolling] = useState(false)
   const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
+  const formCardRef = useRef<HTMLDivElement>(null)
+
+  function handleEditSession(sessionId: string) {
+    setError(null)
+    setFormMode(sessionId)
+    formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   useEffect(() => {
     refresh()
@@ -80,7 +88,7 @@ export function LusStudyTab({ patientId, patient }: Props) {
       }
       setFormMode('closed')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save session')
+      setError(describeError(err, 'Failed to save session — check your connection and try again'))
     }
   }
 
@@ -144,15 +152,19 @@ export function LusStudyTab({ patientId, patient }: Props) {
           </div>
 
           {formMode === 'closed' ? (
-            <div className="form-actions" style={{ marginBottom: 16 }}>
-              <button type="button" onClick={() => setFormMode('new')}>
+            <div className="form-actions" style={{ marginBottom: 16 }} ref={formCardRef}>
+              <button type="button" onClick={() => { setError(null); setFormMode('new') }}>
                 Log new session
               </button>
             </div>
           ) : (
+            <div ref={formCardRef}>
             <LusStudySessionForm
               patientId={patientId}
               studyGroup={enrollment!.studyGroup}
+              patientAge={patient.age}
+              underlyingDisease={patient.underlyingDisease}
+              dialysisStartDate={patient.dialysisStartDate}
               defaultHeightCm={patient.height}
               defaultWeightKg={patient.weight}
               defaultTargetWeightKg={sessions[0]?.targetWeightKg ?? patient.weight}
@@ -161,6 +173,7 @@ export function LusStudyTab({ patientId, patient }: Props) {
               onSaved={(draft) => void handleSaveSession(draft)}
               onCancel={() => setFormMode('closed')}
             />
+            </div>
           )}
 
           {sessions.length === 0 ? (
@@ -192,7 +205,7 @@ export function LusStudyTab({ patientId, patient }: Props) {
                         <td>{s.lusGuidedDecision ? s.lusGuidedDecision.replace('_', ' ') : '—'}</td>
                       )}
                       <td>
-                        <button className="link-button" onClick={() => setFormMode(s.id)}>
+                        <button className="link-button" onClick={() => handleEditSession(s.id)}>
                           {complete ? 'Edit' : 'Complete'}
                         </button>
                         <button className="link-button" onClick={() => void handleDelete(s.id)}>
