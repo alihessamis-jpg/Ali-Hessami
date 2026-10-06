@@ -62,7 +62,7 @@ function zoneGrid(title: string, zones: LusZoneScores, onChange: (key: keyof Lus
               <tr key={n}>
                 <td>Zone {n}</td>
                 <td>
-                  <select value={zones[rKey] ?? ''} onChange={(e) => onChange(rKey, Number(e.target.value))} required>
+                  <select value={zones[rKey] ?? ''} onChange={(e) => onChange(rKey, Number(e.target.value))}>
                     <option value="" disabled>
                       —
                     </option>
@@ -74,7 +74,7 @@ function zoneGrid(title: string, zones: LusZoneScores, onChange: (key: keyof Lus
                   </select>
                 </td>
                 <td>
-                  <select value={zones[lKey] ?? ''} onChange={(e) => onChange(lKey, Number(e.target.value))} required>
+                  <select value={zones[lKey] ?? ''} onChange={(e) => onChange(lKey, Number(e.target.value))}>
                     <option value="" disabled>
                       —
                     </option>
@@ -506,7 +506,6 @@ export function LusStudySessionForm({
               <select
                 value={investigatorVolumeAssessment}
                 onChange={(e) => setInvestigatorVolumeAssessment(e.target.value as InvestigatorVolumeAssessment)}
-                required
               >
                 <option value="">—</option>
                 <option value="euvolemia">Euvolemia</option>
