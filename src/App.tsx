@@ -26,7 +26,6 @@ import { ThesisFormPage } from './pages/ThesisFormPage'
 import { ExportPage } from './pages/ExportPage'
 import { CvPage } from './pages/CvPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { StudioCtaPage } from './pages/StudioCtaPage'
 
 function protect(element: ReactElement) {
   return <RequireAuth>{element}</RequireAuth>
@@ -60,7 +59,6 @@ export function App() {
           <Route path="/export" element={protect(<ExportPage />)} />
           <Route path="/cv" element={protect(<CvPage />)} />
           <Route path="/settings" element={protect(<SettingsPage />)} />
-          <Route path="/studio-cta" element={protect(<StudioCtaPage />)} />
         </Routes>
       </Layout>
     </AuthProvider>
