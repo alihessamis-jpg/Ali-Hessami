@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { listAcademyTopics } from '../lib/api/academy'
 import { sortSubTopics } from '../lib/sortSubTopics'
 import { protectNumberRanges } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
-import { NotesIcon } from '../components/icons'
-import { EmptyState } from '../components/illustrations/EmptyState'
 import type { AcademyTopic } from '../types/domain'
 
 function hasHighYieldContent(t: AcademyTopic): boolean {
@@ -13,6 +11,7 @@ function hasHighYieldContent(t: AcademyTopic): boolean {
 }
 
 export function HighYieldPage() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [topics, setTopics] = useState<AcademyTopic[]>([])
@@ -82,125 +81,144 @@ export function HighYieldPage() {
     setExpandedIds(new Set())
   }
 
-  if (loading) return <p>Loading…</p>
-
   return (
-    <div>
-      <h1 className="page-title">
-        <span className="page-title-icon">
-          <NotesIcon />
-        </span>
-        High-Yield Summary
-      </h1>
-      <p className="empty-state">
-        Condensed Summary / Key points / Red flags / Pearls for every Academy topic that has them — built for
-        fast pre-exam review, not first-time reading. Topics are collapsed by default — tap a title to open it,
-        or search to jump straight to the one you need (matches names, categories, and the content itself).
-        {skippedCount > 0 &&
-          ` ${skippedCount} topic${skippedCount === 1 ? '' : 's'} with no condensed content yet are hidden — add Summary, Key points, Red flags, or Pearls on the topic page to include them here.`}
-      </p>
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
+
+      <section className="np-hero np-fade">
+        <div className="np-glow amber" />
+        <div className="np-hrow">
+          <div className="np-txt">
+            <h1>High-Yield Summary</h1>
+            <p className="np-sub">
+              Summary, key points, red flags and pearls for every Academy topic — built for fast pre-exam
+              review.
+            </p>
+          </div>
+          <svg className="np-art hy-zap" width="74" height="84" viewBox="0 0 74 84" fill="none" aria-hidden="true">
+            <path d="M42 4 8 48h26l-6 32 38-48H40z" fill="#FFC46B" stroke="#FFE2B0" strokeWidth={2} strokeLinejoin="round" />
+          </svg>
+        </div>
+      </section>
 
       {error && <p className="form-error">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', margin: '12px 0' }}>
-        <input
-          placeholder="Search topic, category, or content…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: '1 1 220px' }}
-        />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="All">All categories ({topics.filter(hasHighYieldContent).length})</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <button type="button" className="button-secondary" onClick={expandAll}>
+      <div className="np-toolbar np-fade" style={{ animationDelay: '.08s' }}>
+        <div className="np-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <label className="np-sr" htmlFor="hy-search">
+            Search topic, category or content
+          </label>
+          <input
+            id="hy-search"
+            placeholder="Search topic, category or content"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="np-field" style={{ width: 220 }}>
+          <label className="np-sr" htmlFor="hy-cat">
+            Category
+          </label>
+          <select id="hy-cat" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="All">All categories ({topics.filter(hasHighYieldContent).length})</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="button" className="np-btn ghost sm" style={{ height: 48 }} onClick={expandAll}>
           Expand all
         </button>
-        <button type="button" className="button-secondary" onClick={collapseAll}>
+        <button type="button" className="np-btn ghost sm" style={{ height: 48 }} onClick={collapseAll}>
           Collapse all
         </button>
-        <button type="button" onClick={() => window.print()}>
-          Print / Save as PDF
+        <button type="button" className="np-btn sm" style={{ height: 48 }} onClick={() => window.print()}>
+          Print / PDF
         </button>
       </div>
 
-      {totalCount === 0 ? (
-        <div className="dash-card">
-          <EmptyState>No topics match yet.</EmptyState>
-        </div>
+      {loading ? (
+        <p>Loading…</p>
+      ) : totalCount === 0 ? (
+        <section className="np-empty np-fade">
+          <b style={{ fontSize: 15 }}>No topics match yet.</b>
+        </section>
       ) : (
-        groups.map((group) => (
-          <div key={group.category} className="dash-card">
-            <div className="dash-card-header">
-              <h2 className="dash-card-title">
-                {group.category} ({group.items.length})
-              </h2>
-            </div>
-            {group.items.map((t) => {
-              const isOpen = searching || expandedIds.has(t.id)
-              return (
-                <div key={t.id} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleExpanded(t.id)}
-                    style={{
-                      display: 'flex',
-                      width: '100%',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text)',
-                      cursor: 'pointer',
-                      textAlign: 'start',
-                      padding: 0,
-                    }}
-                  >
-                    <h3 style={{ margin: 0 }}>{t.name}</h3>
-                    <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
-                  </button>
-                  {isOpen && (
-                    <div style={{ marginTop: 8 }}>
-                      <p className="patient-meta" style={{ marginTop: 0 }}>
-                        <Link to={`/academy/${t.id}`}>Open full topic</Link>
-                      </p>
-                      {t.summary?.trim() && <MarkdownSection text={t.summary} />}
+        <div className="np-grid2">
+          {groups.map((group, gi) => (
+            <section key={group.category} className="np-card hy-grp np-fade" style={{ animationDelay: `${0.14 + gi * 0.07}s` }}>
+              <div className="np-head" style={{ padding: '4px 0 8px' }}>
+                <h2 style={{ color: '#12357A' }}>{group.category}</h2>
+                <span className="np-small">{group.items.length} topics</span>
+              </div>
+              {group.items.map((t) => {
+                const isOpen = searching || expandedIds.has(t.id)
+                return (
+                  <div key={t.id} className={isOpen ? 'hy-item open' : 'hy-item'}>
+                    <button type="button" className="hy-btn" onClick={() => toggleExpanded(t.id)}>
+                      <b dir="auto">{t.name}</b>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                    <div className="hy-body">
+                      {t.summary?.trim() && (
+                        <div className="hy-block" style={{ background: '#F2F7FF' }}>
+                          <span style={{ color: '#1546A8' }}>SUMMARY</span>
+                          <MarkdownSection text={t.summary} />
+                        </div>
+                      )}
                       {t.keyPoints.length > 0 && (
-                        <ul className="study-link-list">
-                          {t.keyPoints.map((k, i) => (
-                            <li key={i} dir="rtl">
-                              {protectNumberRanges(k)}
-                            </li>
-                          ))}
-                        </ul>
+                        <div className="hy-block" style={{ background: '#F2F7FF' }}>
+                          <span style={{ color: '#1546A8' }}>KEY POINTS</span>
+                          <ul className="study-link-list">
+                            {t.keyPoints.map((k, i) => (
+                              <li key={i} dir="rtl">
+                                {protectNumberRanges(k)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                       {t.redFlags?.trim() && (
-                        <>
-                          <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
-                            Red flags
-                          </p>
+                        <div className="hy-block" style={{ background: '#FDF0EF' }}>
+                          <span style={{ color: '#B42318' }}>RED FLAGS</span>
                           <MarkdownSection text={t.redFlags} />
-                        </>
+                        </div>
                       )}
                       {t.pearls?.trim() && (
-                        <>
-                          <p className="patient-meta" style={{ fontWeight: 600, marginBottom: 2 }}>
-                            Pearls
-                          </p>
+                        <div className="hy-block" style={{ background: '#FDF6E8' }}>
+                          <span style={{ color: '#93590B' }}>PEARLS</span>
                           <MarkdownSection text={t.pearls} />
-                        </>
+                        </div>
                       )}
+                      <span className="np-small" style={{ gridColumn: '1 / -1' }}>
+                        <Link to={`/academy/${t.id}`}>Open full topic →</Link>
+                      </span>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ))
+                  </div>
+                )
+              })}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {skippedCount > 0 && (
+        <span className="np-small">
+          {skippedCount} topic{skippedCount === 1 ? '' : 's'} with no condensed content yet are hidden.
+        </span>
       )}
     </div>
   )

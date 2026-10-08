@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { addAcademyTopic, listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { useAuth } from '../context/AuthContext'
-import { AcademyIcon } from '../components/icons'
 import { matchesSearch } from '../lib/textFilter'
 import { sortSubTopics } from '../lib/sortSubTopics'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
 
 export function AcademyPage() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [progress, setProgress] = useState<Record<string, AcademyProgress>>({})
@@ -133,73 +133,137 @@ export function AcademyPage() {
   })
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            <span className="page-title-icon">
-              <AcademyIcon />
-            </span>
-            Academy
-          </h1>
-          <p className="empty-state" style={{ margin: 0 }}>
-            {dueCount} of {topics.length} topics due for review. No content is pre-loaded — build your own
-            topic library.
-          </p>
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
+
+      <section className="np-hero np-fade">
+        <div className="np-glow amber" />
+        <div className="np-hrow">
+          <div className="np-txt">
+            <h1>Academy</h1>
+            <p className="np-sub">
+              Your own topic library on a spaced-repetition schedule. {dueCount} of {topics.length} topics due
+              for review.
+            </p>
+          </div>
+          <svg className="np-art" width="96" height="96" viewBox="0 0 90 90" fill="none" aria-hidden="true">
+            <circle className="acd-tw" cx="14" cy="16" r="2" fill="#FFE2B0" />
+            <circle className="acd-tw" cx="78" cy="22" r="2.5" fill="#FFE2B0" style={{ animationDelay: '.5s' }} />
+            <circle className="acd-tw" cx="72" cy="78" r="2" fill="#FFE2B0" style={{ animationDelay: '1s' }} />
+            <g className="acd-cap">
+              <path d="M45 22 8 38l37 16 37-16z" fill="#FFFFFF" />
+              <path d="M22 45v14c10 8 36 8 46 0V45L45 55z" fill="#9CC2FF" />
+              <path d="M76 41v18" stroke="#FFC46B" strokeWidth={3} strokeLinecap="round" />
+              <circle cx="76" cy="62" r="4" fill="#FFC46B" />
+            </g>
+          </svg>
         </div>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'New topic'}</button>
+        <div style={{ position: 'relative', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span className="np-tag" style={{ fontSize: 12, color: '#3D2A00', background: '#FFC46B', padding: '5px 10px' }}>
+            {dueCount} due
+          </span>
+          <span className="np-tag" style={{ fontSize: 12, color: '#fff', background: 'rgba(255,255,255,.12)', padding: '5px 10px' }}>
+            {topics.length} topics
+          </span>
+        </div>
+      </section>
+
+      <div className="np-toolbar np-fade" style={{ animationDelay: '.08s' }}>
+        <div className="np-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <label className="np-sr" htmlFor="acd-search">
+            Search topics (e.g. vaccinations in dialysis patients)
+          </label>
+          <input
+            id="acd-search"
+            placeholder="Search topics (e.g. vaccinations in dialysis patients)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button type="button" className="np-btn" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? (
+            'Cancel'
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New topic
+            </>
+          )}
+        </button>
       </div>
 
       {showForm && (
-        <form className="inline-form" onSubmit={(e) => void handleCreate(e)}>
-          <input placeholder="Topic name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} />
-          <button type="submit">Add</button>
+        <form className="np-card np-fade" onSubmit={(e) => void handleCreate(e)}>
+          <h2>New topic</h2>
+          <div className="np-f2">
+            <div className="np-field">
+              <label htmlFor="acd-name">Topic name</label>
+              <input id="acd-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </div>
+            <div className="np-field">
+              <label htmlFor="acd-cat">Category</label>
+              <input id="acd-cat" value={category} onChange={(e) => setCategory(e.target.value)} />
+            </div>
+          </div>
+          <button type="submit" className="np-btn">
+            Add
+          </button>
         </form>
       )}
-
-      <input
-        placeholder="Search topics… (e.g. vaccinations in dialysis patients)"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ margin: '12px 0', width: '100%', maxWidth: 420 }}
-      />
 
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
       ) : topics.length === 0 ? (
-        <p className="empty-state">No topics yet.</p>
+        <section className="np-empty np-fade">
+          <b style={{ fontSize: 15 }}>No topics yet</b>
+          <span className="np-small">Build your own topic library — add your first topic above.</span>
+        </section>
       ) : visibleTopLevelTopics.length === 0 ? (
-        <p className="empty-state">No topics match your search.</p>
+        <section className="np-empty np-fade">
+          <b style={{ fontSize: 15 }}>No topics match.</b>
+        </section>
       ) : (
-        <div className="topic-grid">
-          {visibleTopLevelTopics.map((t) => {
+        <div className="acd-tgrid">
+          {visibleTopLevelTopics.map((t, i) => {
             const p = progress[t.id]
             const due = !p || !p.nextReview || p.nextReview <= today
             const allChildren = childrenByParent.get(t.id) ?? []
             return (
-              <div key={t.id} className="topic-card">
-                <div className="topic-card-header">
-                  <span className="icon-chip">
-                    <AcademyIcon />
+              <Link
+                key={t.id}
+                to={`/academy/${t.id}`}
+                className="acd-topic np-fade"
+                style={{ animationDelay: `${0.14 + i * 0.05}s` }}
+              >
+                <div className="np-head">
+                  <span className="np-tag" style={{ color: '#1546A8', background: '#E3EDFD' }}>
+                    {t.category ?? 'Uncategorized'}
                   </span>
-                  {due && <span className="status-badge status-badge--dialysis">Due for review</span>}
+                  {due && (
+                    <span className="np-tag" style={{ color: '#93590B', background: '#FDF0DC' }}>
+                      Due
+                    </span>
+                  )}
                 </div>
-                <Link to={`/academy/${t.id}`} className="topic-card-title-link">
-                  <h3 className="topic-card-title">{t.name}</h3>
-                </Link>
-                <p className="topic-card-meta">{t.category ?? 'Uncategorized'}</p>
-                <p className="topic-card-sections">{sectionSummary(t)}</p>
-                <Link to={`/academy/${t.id}`} className="link-button">
-                  Open topic →
-                </Link>
-                {allChildren.length > 0 && (
-                  <p className="topic-card-meta topic-card-subtopic-count">
-                    {allChildren.length} sub-topic{allChildren.length === 1 ? '' : 's'} — open the topic to see them
-                  </p>
-                )}
-              </div>
+                <b dir="auto">{t.name}</b>
+                <span className="np-small">
+                  {sectionSummary(t)}
+                  {allChildren.length > 0 ? ` · ${allChildren.length} sub-topic${allChildren.length === 1 ? '' : 's'}` : ''}
+                </span>
+                <span className="acd-open-l">Open topic →</span>
+              </Link>
             )
           })}
         </div>

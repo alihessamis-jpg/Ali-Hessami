@@ -3257,7 +3257,12 @@ select.pt-ward:focus {
   .ref-drop-icon,
   .ref-drop-frame rect,
   .calc-result-tile::before,
-  .calc-cursor {
+  .calc-cursor,
+  .acd-cap,
+  .acd-tw,
+  .hy-zap,
+  .sh-flow,
+  .sh-node {
     animation: none !important;
   }
 }
@@ -4388,4 +4393,311 @@ select.pt-ward:focus {
   .dh-grid {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
+}
+
+/* ==========================================================================
+   Academy, High-Yield, Study Hub and Board Readiness (design/academy.html,
+   highyield.html, studyhub.html, board.html) — page-specific pieces that
+   extend the shared np-page/np-hero/np-card system above.
+   ========================================================================== */
+
+/* ---- Academy: topic card grid ---- */
+
+.acd-tgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.acd-topic {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid #dce7f7;
+  text-decoration: none;
+  color: #0e1f3d;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.acd-topic:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(14, 31, 61, 0.08);
+  color: #0e1f3d;
+}
+
+.acd-topic b {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.acd-open-l {
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e5bd8;
+}
+
+.acd-cap {
+  transform-origin: 45px 45px;
+  animation: acd-cap 3.6s ease-in-out infinite;
+}
+
+.acd-tw {
+  animation: acd-tw 2s ease-in-out infinite;
+}
+
+@keyframes acd-cap {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+@keyframes acd-tw {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .acd-tgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .acd-tgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ---- High-Yield: collapsible per-category group cards ---- */
+
+.hy-grp {
+  padding: 14px 16px 4px;
+  gap: 0;
+}
+
+.hy-item {
+  border-top: 1px solid #edf1f7;
+}
+
+.hy-btn {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  color: #0e1f3d;
+  font-family: inherit;
+}
+
+.hy-btn b {
+  flex: 1;
+  font-size: 15px;
+  text-align: start;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.hy-btn svg {
+  flex-shrink: 0;
+  color: #6b7a90;
+  transition: transform 0.25s;
+}
+
+.hy-item.open .hy-btn svg {
+  transform: rotate(180deg);
+}
+
+.hy-body {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 0 14px;
+  animation: np-open 0.3s ease both;
+}
+
+.hy-item.open .hy-body {
+  display: grid;
+}
+
+.hy-block {
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hy-block span:first-child {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.hy-zap {
+  animation: hy-zap 3s ease-in-out infinite;
+}
+
+@keyframes hy-zap {
+  0%,
+  45%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.92);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+/* ---- Study Hub: network hero art + mode picker ---- */
+
+.sh-net {
+  width: 140px;
+  height: auto;
+}
+
+.sh-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sh-mode {
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid #dce7f7;
+  background: #fff;
+  color: #0e1f3d;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: inherit;
+}
+
+.sh-mode svg {
+  color: #1e5bd8;
+  flex-shrink: 0;
+}
+
+.sh-mode.on {
+  border-color: #1e5bd8;
+  background: #1e5bd8;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(30, 91, 216, 0.25);
+}
+
+.sh-mode.on svg {
+  color: #fff;
+}
+
+.sh-flow {
+  animation: sh-flow 1.4s linear infinite;
+}
+
+.sh-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sh-node 2.4s ease-in-out infinite;
+}
+
+@keyframes sh-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes sh-node {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+@media (min-width: 768px) {
+  .sh-net {
+    width: 260px;
+  }
+
+  .sh-modes {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .sh-mode {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 8px;
+    min-height: 84px;
+    gap: 6px;
+  }
+}
+
+/* ---- Board Readiness: weak-topic cards + not-practiced rows ---- */
+
+.bd-weak {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #fdf3f2;
+  border: 1px solid #f6d3cf;
+}
+
+.bd-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #f6dedb;
+  overflow: hidden;
+}
+
+.bd-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #c9372c;
+  transform-origin: left;
+  animation: np-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both;
+}
+
+.bd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 4px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.bd-row:last-child {
+  border-bottom: 0;
 }
