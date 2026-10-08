@@ -769,7 +769,7 @@ legend {
 
 .dash-row {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   align-items: flex-start;
   flex-wrap: wrap;
 }
@@ -785,6 +785,27 @@ legend {
 }
 
 .dash-row-side .dash-card {
+  margin-bottom: 0;
+}
+
+/* Dashboard page: one consistent 16px gap between every top-level
+   section (hero, the patients/calendar row, topic-of-day, quick
+   tools, needs-attention, learning & research) instead of each
+   card's own margin-bottom, which gave inconsistent gaps once some
+   cards sit inside a flex row and others don't. */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-page > .dash-hero,
+.dashboard-page > .dash-row,
+.dashboard-page > .dash-card {
+  margin-bottom: 0;
+}
+
+.dashboard-page .dash-row-main {
   margin-bottom: 0;
 }
 
@@ -3059,6 +3080,7 @@ legend {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-bottom: 90px;
 }
 
 .pt-pt {
@@ -3191,6 +3213,7 @@ select.pt-ward:focus {
   border-radius: 22px;
   border: 1px dashed #c9daf5;
   padding: 28px 16px;
+  margin-bottom: 90px;
   text-align: center;
   font-weight: 700;
   color: #0e1f3d;

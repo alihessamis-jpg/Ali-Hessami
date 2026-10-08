@@ -350,7 +350,7 @@ export function DashboardPage() {
   const topicOfTheDay = dueTopics[0] ?? topics[0] ?? null
 
   return (
-    <div>
+    <div className="dashboard-page">
       <DashboardHero followUpCount={sortedPatients.length} />
 
       <div className="dash-row">
