@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { jalaaliMonthGrid, SHAMSI_MONTHS, SHAMSI_WEEKDAYS, todayJalaali, toPersianDigits } from '../lib/shamsi'
 import { CalendarIcon } from './icons'
 
-export function ShamsiCalendarWidget() {
+export function ShamsiCalendarWidget({ onCollapse }: { onCollapse?: () => void } = {}) {
   const today = todayJalaali()
   const [jy, setJy] = useState(today.jy)
   const [jm, setJm] = useState(today.jm)
@@ -36,8 +36,15 @@ export function ShamsiCalendarWidget() {
           </span>
           تقویم
         </h2>
-        <span className="patient-meta">
-          امروز: {toPersianDigits(today.jd)} {SHAMSI_MONTHS[today.jm - 1]} {toPersianDigits(today.jy)}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onCollapse && (
+            <button type="button" className="link-button" onClick={onCollapse}>
+              نمای هفته
+            </button>
+          )}
+          <span className="patient-meta">
+            امروز: {toPersianDigits(today.jd)} {SHAMSI_MONTHS[today.jm - 1]} {toPersianDigits(today.jy)}
+          </span>
         </span>
       </div>
 

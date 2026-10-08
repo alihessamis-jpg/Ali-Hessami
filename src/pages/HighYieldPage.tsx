@@ -5,6 +5,7 @@ import { sortSubTopics } from '../lib/sortSubTopics'
 import { protectNumberRanges } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import { NotesIcon } from '../components/icons'
+import { EmptyState } from '../components/illustrations/EmptyState'
 import type { AcademyTopic } from '../types/domain'
 
 function hasHighYieldContent(t: AcademyTopic): boolean {
@@ -129,7 +130,7 @@ export function HighYieldPage() {
 
       {totalCount === 0 ? (
         <div className="dash-card">
-          <p className="empty-state">No topics match yet.</p>
+          <EmptyState>No topics match yet.</EmptyState>
         </div>
       ) : (
         groups.map((group) => (

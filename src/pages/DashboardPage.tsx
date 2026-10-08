@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ShamsiCalendarWidget } from '../components/ShamsiCalendarWidget'
+import { CalendarWidget } from '../components/dashboard/CalendarWidget'
+import { DashboardHero } from '../components/dashboard/DashboardHero'
+import { PatientGlanceRow } from '../components/dashboard/PatientGlanceRow'
+import { QuickTools } from '../components/dashboard/QuickTools'
+import { EmptyState } from '../components/illustrations/EmptyState'
 import { toShamsi } from '../lib/shamsi'
 import {
   listAkiAlerts,
@@ -25,15 +29,14 @@ import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/cas
 import { listReadingItems } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { getUserSettings } from '../lib/api/settings'
-import { formatAge } from '../lib/patientAge'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
   AnalyticsIcon,
   CalendarIcon,
   CaseLogIcon,
-  DashboardIcon,
   FlashcardsIcon,
+  KidneyIcon,
   KnowledgeGapIcon,
   PatientsIcon,
   ResearchIcon,
@@ -344,14 +347,11 @@ export function DashboardPage() {
     return sa !== sb ? sa - sb : a.name.localeCompare(b.name)
   })
 
+  const topicOfTheDay = dueTopics[0] ?? topics[0] ?? null
+
   return (
     <div>
-      <h1 className="page-title">
-        <span className="page-title-icon">
-          <DashboardIcon />
-        </span>
-        Dashboard
-      </h1>
+      <DashboardHero followUpCount={sortedPatients.length} />
 
       <div className="dash-row">
         <div className="dash-card dash-row-main">
@@ -367,47 +367,38 @@ export function DashboardPage() {
             </Link>
           </div>
           {sortedPatients.length === 0 ? (
-            <p className="empty-state">No patients currently need follow-up.</p>
+            <EmptyState>No patients currently need follow-up.</EmptyState>
           ) : (
             <ul className="glance-list">
-              {sortedPatients.map((p) => {
-                const severity = patientSeverity.get(p.id)
-                return (
-                  <li key={p.id}>
-                    <Link to={`/patients/${p.id}`} className="glance-row">
-                      <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                      <span className="glance-body">
-                        <span className="glance-name">
-                          {p.name}
-                          {severity && (
-                            <span className={`status-badge status-badge--renal-${severity === 'critical' ? 'yes' : 'review'}`}>
-                              {severity === 'critical' ? 'Critical' : 'Follow-up'}
-                            </span>
-                          )}
-                        </span>
-                        <span className="glance-meta">
-                          {[formatAge(p.age), p.bed, p.diagnosis].filter(Boolean).join(' · ') ||
-                            'No details yet'}
-                        </span>
-                      </span>
-                      {(p.latestCreatinine || p.latestEGFR) && (
-                        <span className="glance-stats">
-                          {p.latestCreatinine && <strong>Cr {p.latestCreatinine.value}</strong>}
-                          {p.latestEGFR != null && <span>eGFR {p.latestEGFR.toFixed(1)}</span>}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                )
-              })}
+              {sortedPatients.map((p) => (
+                <li key={p.id}>
+                  <PatientGlanceRow patient={p} severity={patientSeverity.get(p.id)} />
+                </li>
+              ))}
             </ul>
           )}
         </div>
 
         <div className="dash-row-side">
-          <ShamsiCalendarWidget />
+          <CalendarWidget />
         </div>
       </div>
+
+      {topicOfTheDay && (
+        <div className="dash-card">
+          <Link to={`/academy/${topicOfTheDay.id}`} className="topic-of-day-row">
+            <span className="topic-of-day-avatar">
+              <KidneyIcon />
+            </span>
+            <span className="topic-of-day-body">
+              <span className="topic-of-day-name">{topicOfTheDay.name}</span>
+              <span className="topic-of-day-cta">Start reading →</span>
+            </span>
+          </Link>
+        </div>
+      )}
+
+      <QuickTools />
 
       <div className="dash-card">
         <div className="dash-card-header">
@@ -419,7 +410,7 @@ export function DashboardPage() {
           </h2>
         </div>
         {alerts.length === 0 ? (
-          <p className="empty-state">Nothing needs attention right now.</p>
+          <EmptyState>Nothing needs attention right now.</EmptyState>
         ) : (
           <ul className="alert-feed">
             {alerts.map((a) => (

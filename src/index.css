@@ -21,6 +21,20 @@
   --dur: 220ms;
   --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Plus Jakarta Sans', var(--font-body);
+
+  /* Navy/glass palette — used only by the dashboard hero, sign-in page
+     and the mobile bottom-nav glass surfaces, not a global dark mode. */
+  --navy-900: #060f24;
+  --navy-800: #0b1a3a;
+  --navy-700: #142653;
+  --navy-glow: #2f63ff;
+  --navy-text: #eef3ff;
+  --navy-text-muted: #9fb0d9;
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-strong: rgba(255, 255, 255, 0.14);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-shadow: 0 8px 32px rgba(6, 15, 36, 0.35);
+
   font-family: var(--font-body);
 }
 
@@ -59,6 +73,51 @@ body {
   }
 }
 
+/* Ambient/looping animations — kept short-lived (mount transitions) in
+   CSS budgets above via --dur/--dur-fast; these four are the slow,
+   infinite "always on" loops, all paused under prefers-reduced-motion
+   below instead of just shortened (a 0.01ms infinite loop still visibly
+   jumps every frame, so it needs an explicit pause, not a speed-up). */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+@keyframes drift-glow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -4%) scale(1.08);
+  }
+  66% {
+    transform: translate(-2%, 3%) scale(0.96);
+  }
+}
+
+@keyframes shine-sweep {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -69,6 +128,10 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  .nephron-illustration *,
+  .status-badge--renal-yes {
+    animation: none !important;
   }
 }
 
@@ -977,6 +1040,7 @@ legend {
 .status-badge--renal-yes {
   background: var(--danger-soft);
   color: var(--danger);
+  animation: pulse-glow 2.2s var(--ease-out) infinite;
 }
 
 .status-badge--alert {
@@ -1893,4 +1957,560 @@ legend {
   border: none;
   border-top: 1px solid var(--border);
   margin: 20px 0;
+}
+
+/* ============================================================
+   Mobile redesign — bottom tab bar, "More" sheet, dashboard hero,
+   week strip, quick tools, nephron illustration, sign-in page.
+   Desktop keeps the existing header nav (.app-header/.main-nav above);
+   everything in this section below the "mobile tab bar" media query
+   only applies at narrow widths.
+   ============================================================ */
+
+/* --- Nephron illustration (hero + sign-in) --- */
+.nephron-illustration {
+  display: block;
+  overflow: visible;
+}
+
+.nephron-illustration .nephron-glow {
+  animation: drift-glow 9s var(--ease-out) infinite;
+  transform-origin: center;
+}
+
+.nephron-illustration .nephron-glow--b {
+  animation-duration: 12s;
+  animation-delay: -4s;
+}
+
+.nephron-illustration .nephron-glomerulus {
+  animation: pulse-glow 2.6s var(--ease-out) infinite;
+  transform-origin: center;
+}
+
+.nephron-illustration .nephron-tubule {
+  stroke-dasharray: 6 10;
+  animation: dash-flow 2.4s linear infinite;
+}
+
+/* --- Mobile bottom tab bar --- */
+.mobile-tab-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-header .main-nav,
+  .app-header .header-actions {
+    display: none;
+  }
+
+  .app-main {
+    padding-bottom: 104px;
+  }
+
+  .mobile-tab-bar {
+    display: flex;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 40;
+    justify-content: space-between;
+    gap: 2px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 22px;
+    box-shadow: var(--glass-shadow);
+  }
+
+  .mobile-tab-bar-item {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 7px 4px;
+    border-radius: 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.68rem;
+    background: none;
+    border: none;
+  }
+
+  .mobile-tab-bar-item svg {
+    width: 20px;
+    height: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mobile-tab-bar-item span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .mobile-tab-bar-item:hover {
+    background: none;
+    box-shadow: none;
+  }
+
+  .mobile-tab-bar-item.active {
+    color: var(--accent-dark);
+    font-weight: 600;
+  }
+
+  .mobile-tab-bar-pill {
+    position: absolute;
+    inset: 0;
+    background: var(--accent-soft);
+    border-radius: 16px;
+    z-index: 0;
+  }
+}
+
+/* --- "More" sheet --- */
+.more-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(6, 15, 36, 0.45);
+}
+
+.more-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(16, 35, 61, 0.2);
+}
+
+.more-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 6px auto 16px;
+}
+
+.more-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.more-sheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px;
+  border-radius: 14px;
+  background: var(--surface-tint);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.more-sheet-item svg {
+  width: 22px;
+  height: 22px;
+  color: var(--accent-dark);
+}
+
+.more-sheet-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.more-sheet-footer .storage-usage {
+  min-width: 0;
+}
+
+.more-sheet-signout {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--danger);
+}
+
+.more-sheet-signout:hover {
+  background: var(--danger-soft);
+  box-shadow: none;
+}
+
+/* --- Dashboard hero --- */
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 22px 26px;
+  margin-bottom: 20px;
+  background: radial-gradient(120% 140% at 15% 0%, var(--navy-700) 0%, var(--navy-800) 55%, var(--navy-900) 100%);
+  color: var(--navy-text);
+  box-shadow: var(--glass-shadow);
+}
+
+.dash-hero-date {
+  font-size: 0.82rem;
+  color: var(--navy-text-muted);
+  margin: 0 0 6px;
+}
+
+.dash-hero-greeting {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+.dash-hero-followup {
+  margin: 6px 0 0;
+  color: var(--navy-text-muted);
+  font-size: 0.92rem;
+}
+
+.dash-hero-illustration {
+  position: absolute;
+  top: -10%;
+  inset-inline-end: -8%;
+  width: 46%;
+  max-width: 220px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* --- Week strip --- */
+.week-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.week-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.week-strip-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.week-strip-day--holiday {
+  color: var(--danger);
+}
+
+.week-strip-day--today {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 0 4px var(--accent-soft), 0 0 16px rgba(29, 100, 224, 0.5);
+}
+
+/* --- Quick tools --- */
+.quick-tools-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.quick-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.quick-tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.82rem;
+  text-align: center;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.quick-tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.quick-tool-card svg {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+/* --- Topic-of-the-day card --- */
+.topic-of-day-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.topic-of-day-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  flex-shrink: 0;
+}
+
+.topic-of-day-avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
+.topic-of-day-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.topic-of-day-name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topic-of-day-cta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+/* --- Patient glance avatar as kidney icon (severity-tinted) --- */
+.glance-avatar--icon {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.glance-avatar--icon.glance-avatar--critical {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.glance-avatar--icon.glance-avatar--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.glance-avatar--icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- Empty state illustration --- */
+.empty-state-illustration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state-illustration svg {
+  width: 48px;
+  height: 48px;
+  color: var(--border);
+}
+
+/* --- Sign-in page --- */
+.signin-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 32px 20px;
+  background: radial-gradient(130% 90% at 20% 0%, var(--navy-700) 0%, var(--navy-800) 45%, var(--navy-900) 100%);
+}
+
+.signin-illustration {
+  position: absolute;
+  top: 6%;
+  inset-inline-start: 6%;
+  width: 60%;
+  max-width: 320px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.signin-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+}
+
+.signin-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--navy-text-muted);
+  margin-bottom: 18px;
+}
+
+.signin-wordmark svg {
+  width: 20px;
+  height: 20px;
+  color: var(--navy-text);
+}
+
+.signin-heading {
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 10px;
+}
+
+.signin-subtitle {
+  color: var(--navy-text-muted);
+  margin: 0 0 24px;
+}
+
+.signin-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--glass-shadow);
+}
+
+.signin-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.signin-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--navy-text-muted);
+}
+
+.signin-card input {
+  background: rgba(6, 15, 36, 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: #fff;
+  font: inherit;
+}
+
+.signin-card input::placeholder {
+  color: rgba(238, 243, 255, 0.4);
+}
+
+.signin-card input:focus {
+  outline: 2px solid var(--navy-glow);
+  outline-offset: 1px;
+}
+
+.signin-card .form-error {
+  color: #ff9b94;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.signin-submit {
+  position: relative;
+  overflow: hidden;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.signin-submit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: shine-sweep 2.8s ease-in-out infinite;
+}
+
+.signin-toggle {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: var(--navy-text-muted);
+  font-size: 0.85rem;
+}
+
+.signin-toggle:hover {
+  color: var(--navy-text);
+  background: none;
+}
+
+.signin-footer-signature {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--navy-text-muted);
+  font-size: 0.78rem;
+}
+
+.signin-footer-signature strong {
+  display: block;
+  color: var(--navy-text);
+  font-size: 0.9rem;
 }

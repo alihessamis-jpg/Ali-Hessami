@@ -394,6 +394,16 @@ export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function MoreIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    </Icon>
+  )
+}
+
 export function KidneyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" {...props}>

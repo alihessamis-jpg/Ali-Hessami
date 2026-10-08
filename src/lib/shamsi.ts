@@ -18,6 +18,17 @@ export const SHAMSI_MONTHS = [
 // Jalaali week starts on Saturday.
 export const SHAMSI_WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
 
+// Full Persian weekday names, indexed by JS Date.getDay() (0 = Sunday … 6 = Saturday) —
+// used for display strings like "پنجشنبه ۱۶ مهر ۱۴۰۵", separate from the
+// Saturday-first SHAMSI_WEEKDAYS abbreviations used as calendar-grid headers.
+const WEEKDAY_NAMES_BY_JS_DAY = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه']
+
+// e.g. "پنجشنبه ۱۶ مهر ۱۴۰۵" for the given date (defaults to now).
+export function formatShamsiWeekdayLong(date: Date = new Date()): string {
+  const { jy, jm, jd } = toJalaali(date)
+  return `${WEEKDAY_NAMES_BY_JS_DAY[date.getDay()]} ${toPersianDigits(jd)} ${SHAMSI_MONTHS[jm - 1]} ${toPersianDigits(jy)}`
+}
+
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
 
 export function toPersianDigits(value: number | string): string {
