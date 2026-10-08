@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toJalaali } from 'jalaali-js'
 import { addAcademicActivity, deleteAcademicActivity, listAcademicActivities } from '../lib/api/academicActivities'
 import {
   ACADEMIC_ACTIVITY_CATEGORIES,
@@ -7,9 +8,8 @@ import {
   ACADEMIC_ACTIVITY_STATUSES,
   MANUSCRIPT_IN_PROGRESS_STATUSES,
 } from '../lib/academicActivityPresets'
-import { toShamsi } from '../lib/shamsi'
+import { SHAMSI_MONTHS, toPersianDigits } from '../lib/shamsi'
 import { matchesSearch } from '../lib/textFilter'
-import { MilestoneIcon } from '../components/icons'
 import type { AcademicActivity, AcademicActivityStatus } from '../types/domain'
 
 const emptyDraft = {
@@ -30,7 +30,26 @@ function roleLabel(role?: string | null): string {
   return ACADEMIC_ACTIVITY_ROLES.find((r) => r.value === role)?.label ?? role ?? ''
 }
 
+const STATUS_TAG_COLOR: Record<string, { color: string; background: string }> = {
+  planned: { color: '#93590B', background: '#FDF0DC' },
+  completed: { color: '#1546A8', background: '#E3EDFD' },
+  submitted: { color: '#1546A8', background: '#E3EDFD' },
+  under_review: { color: '#93590B', background: '#FDF0DC' },
+  revision_requested: { color: '#B42318', background: '#FBE7E6' },
+  accepted: { color: '#1A7F4E', background: '#E3F6EC' },
+  published: { color: '#1A7F4E', background: '#E3F6EC' },
+  rejected: { color: '#B42318', background: '#FBE7E6' },
+}
+
+function dateBadge(iso: string): { day: string; month: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) return { day: '—', month: '' }
+  const { jm, jd } = toJalaali(Number(m[1]), Number(m[2]), Number(m[3]))
+  return { day: toPersianDigits(jd), month: SHAMSI_MONTHS[jm - 1] }
+}
+
 export function AcademicActivityPage() {
+  const navigate = useNavigate()
   const [activities, setActivities] = useState<AcademicActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -101,161 +120,220 @@ export function AcademicActivityPage() {
     .filter((a) => matchesSearch([a.title, a.venue, a.notes, roleLabel(a.role), statusLabel(a.status)], search))
 
   return (
-    <div>
-      <h1 className="page-title">
-        <span className="page-title-icon">
-          <MilestoneIcon />
-        </span>
-        Academic Activity
-      </h1>
-      <p className="empty-state">
-        Track conferences, journal club, presentations/posters, and manuscripts — a personal record for fellowship
-        milestone and portfolio review.
-      </p>
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
 
-      <div className="calc-strip">
-        <div>
-          <span className="calc-label">Total activities</span>
-          <span className="calc-value">{activities.length}</span>
+      <section className="np-hero np-fade">
+        <div className="np-glow blue" />
+        <div className="np-hrow">
+          <div className="np-txt">
+            <h1>Academic Activity</h1>
+            <p className="np-sub">
+              Conferences, journal club, presentations, posters and manuscripts — your record for portfolio review.
+            </p>
+          </div>
+          <svg className="np-art" width="70" height="70" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path d="M16 58V8" stroke="#9CC2FF" strokeWidth={3} strokeLinecap="round" />
+            <path d="M16 10h32l-7 9 7 9H16z" fill="#FFC46B" className="ac-flag" />
+          </svg>
         </div>
-        <div>
-          <span className="calc-label">Conferences</span>
-          <span className="calc-value">{conferenceCount}</span>
+        <div className="np-hstats" style={{ '--n': 4 } as CSSProperties}>
+          <div>
+            <b>{activities.length}</b>
+            <span>Total</span>
+          </div>
+          <div>
+            <b>{conferenceCount}</b>
+            <span>Conferences</span>
+          </div>
+          <div>
+            <b>{manuscriptsInProgress}</b>
+            <span>In progress</span>
+          </div>
+          <div>
+            <b>{publishedCount}</b>
+            <span>Published</span>
+          </div>
         </div>
-        <div>
-          <span className="calc-label">Manuscripts in progress</span>
-          <span className="calc-value">{manuscriptsInProgress}</span>
-        </div>
-        <div>
-          <span className="calc-label">Published</span>
-          <span className="calc-value">{publishedCount}</span>
-        </div>
-      </div>
+      </section>
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Activity by category</h2>
-        </div>
-        <div style={{ width: '100%', height: 280 }}>
-          <ResponsiveContainer>
-            <BarChart data={categoryCounts} layout="vertical" margin={{ left: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="category" width={160} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => [value, 'Activities']} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {categoryCounts.map((c) => (
-                  <Cell key={c.category} fill={c.count === 0 ? 'var(--border)' : 'var(--accent)'} />
+      <div className="np-grid2">
+        <section className="np-card np-fade" style={{ animationDelay: '.1s', gap: 10 }}>
+          <h2 style={{ marginBottom: 4 }}>Activity by category</h2>
+          {categoryCounts.map((c, i) => {
+            const max = Math.max(1, ...categoryCounts.map((x) => x.count))
+            return (
+              <div key={c.category} className="ac-bar">
+                <span>{c.category}</span>
+                <div className="ac-track">
+                  <i style={{ width: `${(c.count / max) * 100}%`, animationDelay: `${0.3 + i * 0.05}s` }} />
+                </div>
+                <b>{c.count}</b>
+              </div>
+            )
+          })}
+        </section>
+
+        <form className="np-card np-fade" style={{ animationDelay: '.16s' }} onSubmit={(e) => void handleAdd(e)}>
+          <h2>Add activity</h2>
+          <div className="np-f2">
+            <div className="np-field">
+              <label htmlFor="ac-date">Date</label>
+              <input
+                id="ac-date"
+                type="date"
+                value={draft.date}
+                onChange={(e) => setDraft({ ...draft, date: e.target.value || new Date().toISOString().slice(0, 10) })}
+                required
+              />
+            </div>
+            <div className="np-field">
+              <label htmlFor="ac-cat">Category</label>
+              <select id="ac-cat" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+                {ACADEMIC_ACTIVITY_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+              </select>
+            </div>
+          </div>
+          <div className="np-field">
+            <label htmlFor="ac-title">Title</label>
+            <input
+              id="ac-title"
+              placeholder="Talk or paper title"
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              required
+            />
+          </div>
+          <div className="np-f2">
+            <div className="np-field">
+              <label htmlFor="ac-role">Role</label>
+              <select id="ac-role" value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
+                <option value="">Role</option>
+                {ACADEMIC_ACTIVITY_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="np-field">
+              <label htmlFor="ac-status">Status</label>
+              <select id="ac-status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
+                <option value="">Status</option>
+                {ACADEMIC_ACTIVITY_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="np-field">
+            <label htmlFor="ac-venue">Venue / journal</label>
+            <input
+              id="ac-venue"
+              placeholder="Optional"
+              value={draft.venue}
+              onChange={(e) => setDraft({ ...draft, venue: e.target.value })}
+            />
+          </div>
+          <div className="np-field">
+            <label htmlFor="ac-notes">Notes</label>
+            <input
+              id="ac-notes"
+              placeholder="Optional"
+              value={draft.notes}
+              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+            />
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <button type="submit" className="np-btn" disabled={submitting}>
+            Add
+          </button>
+        </form>
       </div>
 
-      <form className="lab-form" onSubmit={(e) => void handleAdd(e)}>
-        <input
-          type="date"
-          value={draft.date}
-          onChange={(e) => setDraft({ ...draft, date: e.target.value || new Date().toISOString().slice(0, 10) })}
-          required
-        />
-        <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
-          {ACADEMIC_ACTIVITY_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <input placeholder="Title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
-        <select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
-          <option value="">Role</option>
-          {ACADEMIC_ACTIVITY_ROLES.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-        <input placeholder="Venue / journal" value={draft.venue} onChange={(e) => setDraft({ ...draft, venue: e.target.value })} />
-        <select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
-          <option value="">Status</option>
-          {ACADEMIC_ACTIVITY_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <input placeholder="Notes" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
-        <button type="submit" disabled={submitting}>
-          Add
-        </button>
-      </form>
-
-      {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
       ) : activities.length === 0 ? (
-        <p className="empty-state">No academic activity logged yet.</p>
+        <section className="np-empty np-fade">
+          <b style={{ fontSize: 15 }}>No academic activity yet</b>
+          <span className="np-small">Conferences, journal club and manuscripts will appear here.</span>
+        </section>
       ) : (
         <>
-          <input
-            placeholder="Search activities…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
-          />
-          <div className="category-pills">
-            <button
-              type="button"
-              className={`category-pill ${activeCategory === 'All' ? 'active' : ''}`}
-              onClick={() => setActiveCategory('All')}
-            >
-              All ({activities.length})
-            </button>
-            {ACADEMIC_ACTIVITY_CATEGORIES.filter((c) => activities.some((a) => a.category === c)).map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`category-pill ${activeCategory === c ? 'active' : ''}`}
-                onClick={() => setActiveCategory(c)}
-              >
-                {c} ({activities.filter((a) => a.category === c).length})
+          <div className="np-toolbar np-fade" style={{ animationDelay: '.2s' }}>
+            <div className="np-chips">
+              <button type="button" className={activeCategory === 'All' ? 'np-chip on' : 'np-chip'} onClick={() => setActiveCategory('All')}>
+                All · {activities.length}
               </button>
-            ))}
+              {ACADEMIC_ACTIVITY_CATEGORIES.filter((c) => activities.some((a) => a.category === c)).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={activeCategory === c ? 'np-chip on' : 'np-chip'}
+                  onClick={() => setActiveCategory(c)}
+                >
+                  {c} · {activities.filter((a) => a.category === c).length}
+                </button>
+              ))}
+            </div>
+            <div className="np-search">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <label className="np-sr" htmlFor="ac-search">
+                Search activities
+              </label>
+              <input id="ac-search" placeholder="Search activities" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
           </div>
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Title</th>
-                <th>Role</th>
-                <th>Venue</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleActivities.map((a) => (
-                <tr key={a.id}>
-                  <td>{toShamsi(a.date)}</td>
-                  <td>{a.category}</td>
-                  <td>{a.title}</td>
-                  <td>{roleLabel(a.role)}</td>
-                  <td>{a.venue}</td>
-                  <td>{statusLabel(a.status)}</td>
-                  <td>{a.notes}</td>
-                  <td>
-                    <button className="link-button" onClick={() => void handleDelete(a.id)}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="np-stack" style={{ gap: 10 }}>
+            {visibleActivities.map((a) => {
+              const badge = dateBadge(a.date)
+              const tagColor = STATUS_TAG_COLOR[a.status ?? ''] ?? { color: '#52627A', background: '#F1F4F9' }
+              return (
+                <article key={a.id} className="np-item np-fade">
+                  <div className="np-date">
+                    <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{badge.day}</span>
+                    <span style={{ fontSize: 11 }}>{badge.month}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div className="np-head">
+                      <b style={{ fontSize: 16 }}>{a.title}</b>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {a.status && (
+                          <span className="np-tag" style={tagColor}>
+                            {statusLabel(a.status)}
+                          </span>
+                        )}
+                        <button type="button" className="link-button" onClick={() => void handleDelete(a.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <span className="np-small">
+                      {a.category}
+                      {a.role ? ` · ${roleLabel(a.role)}` : ''}
+                      {a.venue ? ` · ${a.venue}` : ''}
+                    </span>
+                    {a.notes && <span className="np-small">{a.notes}</span>}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
         </>
       )}
     </div>

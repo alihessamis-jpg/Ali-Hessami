@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   addChecklistItem,
   addChecklistTemplate,
@@ -9,12 +10,15 @@ import {
   setChecklistCompletion,
 } from '../lib/api/checklists'
 import { useAuth } from '../context/AuthContext'
-import { ChecklistIcon } from '../components/icons'
 import { protectNumberRanges } from '../lib/bidiText'
 import { matchesSearch } from '../lib/textFilter'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
 
+const RING_RADIUS = 40
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
 export function ChecklistsPage() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -95,111 +99,179 @@ export function ChecklistsPage() {
   const checkedCount = items.filter((i) => completions[i.id]).length
   const visibleTemplates = templates.filter((t) => matchesSearch([t.name, t.description], templateSearch))
   const visibleItems = items.filter((i) => matchesSearch([i.label, i.section], itemSearch))
+  const selectedTemplate = templates.find((t) => t.id === selectedId)
+
+  const sectionGroups = useMemo(() => {
+    const groups: Array<{ section: string | null; items: ChecklistItem[] }> = []
+    for (const item of visibleItems) {
+      const section = item.section ?? null
+      const last = groups[groups.length - 1]
+      if (last && last.section === section) last.items.push(item)
+      else groups.push({ section, items: [item] })
+    }
+    return groups
+  }, [visibleItems])
+
+  const ringOffset = items.length === 0 ? RING_CIRCUMFERENCE : RING_CIRCUMFERENCE * (1 - checkedCount / items.length)
+
+  const addTemplateForm = (
+    <form className="inline-form" onSubmit={(e) => void handleAddTemplate(e)} style={{ display: 'flex', gap: 8 }}>
+      <div className="np-field" style={{ flex: 1 }}>
+        <label className="np-sr" htmlFor="chk-new-name">
+          New checklist name
+        </label>
+        <input id="chk-new-name" placeholder="New checklist name" value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)} />
+      </div>
+      <button type="submit" className="np-btn sm" style={{ height: 46 }}>
+        Add
+      </button>
+    </form>
+  )
 
   return (
-    <div>
-      <h1 className="page-title">
-        <span className="page-title-icon">
-          <ChecklistIcon />
-        </span>
-        Checklists
-      </h1>
-      <p className="empty-state">
-        Completion state is per-clinician, not tied to a specific patient — same as the original app.
-      </p>
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
 
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 220 }}>
-          <form className="inline-form" onSubmit={(e) => void handleAddTemplate(e)}>
-            <input
-              placeholder="New checklist name"
-              value={newTemplateName}
-              onChange={(e) => setNewTemplateName(e.target.value)}
-            />
-            <button type="submit">Add</button>
-          </form>
-          <input
-            placeholder="Search checklists…"
-            value={templateSearch}
-            onChange={(e) => setTemplateSearch(e.target.value)}
-            style={{ margin: '8px 0', width: '100%' }}
-          />
-          <ul className="patient-list">
+      <div className="chk-wrap">
+        <div className="np-stack">
+          <div className="np-chips chk-cchips" dir="rtl">
             {visibleTemplates.map((t) => (
-              <li key={t.id}>
-                <button
-                  className={t.id === selectedId ? 'tab active' : 'tab'}
-                  style={{ width: '100%', textAlign: 'left', display: 'block' }}
-                  onClick={() => setSelectedId(t.id)}
-                >
-                  {t.name}
-                </button>
-              </li>
+              <button
+                key={t.id}
+                type="button"
+                className={t.id === selectedId ? 'np-chip chk-cchip on' : 'np-chip chk-cchip'}
+                onClick={() => setSelectedId(t.id)}
+              >
+                {t.name}
+              </button>
             ))}
-          </ul>
-        </div>
+          </div>
+          <div className="chk-mobile-add">{addTemplateForm}</div>
 
-        <div style={{ flex: 1, minWidth: 280 }}>
-          {selectedId ? (
+          {!selectedId || !selectedTemplate ? (
+            <section className="np-empty np-fade">
+              <b style={{ fontSize: 15 }}>No checklist selected</b>
+              <span className="np-small">Create a checklist to get started.</span>
+            </section>
+          ) : (
             <>
-              <div className="page-header">
-                <h2 style={{ margin: 0 }}>
-                  {templates.find((t) => t.id === selectedId)?.name} ({checkedCount}/{items.length})
-                </h2>
-                <button className="link-button" onClick={() => void handleDeleteTemplate(selectedId)}>
-                  Delete checklist
-                </button>
+              <section className="np-hero np-fade" dir="rtl">
+                <div className="np-glow cyan" />
+                <div className="np-hrow">
+                  <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+                    <circle cx="48" cy="48" r={RING_RADIUS} stroke="rgba(255,255,255,.14)" strokeWidth={8} />
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r={RING_RADIUS}
+                      stroke="#7FD4FF"
+                      strokeWidth={8}
+                      strokeLinecap="round"
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      strokeDashoffset={ringOffset}
+                      transform="rotate(-90 48 48)"
+                      style={{ transition: 'stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)' }}
+                    />
+                    <text x="48" y="54" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="800" fontFamily="Plus Jakarta Sans">
+                      {checkedCount}/{items.length}
+                    </text>
+                  </svg>
+                  <div className="np-txt">
+                    <span className="np-eyebrow">CHECKLIST</span>
+                    <h1 className="np-fa" style={{ fontSize: 22, lineHeight: 1.5, fontWeight: 700 }}>
+                      {protectNumberRanges(selectedTemplate.name)}
+                    </h1>
+                    <p className="np-sub np-fa">وضعیت تکمیل برای هر پزشک جداست، نه برای هر بیمار.</p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="np-search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <label className="np-sr" htmlFor="chk-item-search">
+                  Search items
+                </label>
+                <input id="chk-item-search" placeholder="Search items" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
               </div>
-              <input
-                placeholder="Search items…"
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                style={{ margin: '8px 0', width: '100%', maxWidth: 360 }}
-              />
-              <ul className="patient-list">
-                {visibleItems.map((item, i) => {
-                  const showHeader = item.section && item.section !== visibleItems[i - 1]?.section
-                  return (
-                    <li key={item.id}>
-                      {showHeader && (
-                        <div
-                          className="dash-card-title"
-                          dir="rtl"
-                          style={{ marginTop: i === 0 ? 0 : 16, marginBottom: 4 }}
-                        >
-                          {protectNumberRanges(item.section ?? '')}
-                        </div>
-                      )}
-                      <label style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <input
-                          type="checkbox"
-                          checked={completions[item.id] ?? false}
-                          onChange={() => void toggleItem(item.id)}
-                        />
-                        <span dir="rtl">{protectNumberRanges(item.label)}</span>
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-              <form className="inline-form" onSubmit={(e) => void handleAddItem(e)}>
-                <input
-                  placeholder="Section (optional)"
-                  value={newItemSection}
-                  onChange={(e) => setNewItemSection(e.target.value)}
-                />
-                <input
-                  placeholder="New item"
-                  value={newItemLabel}
-                  onChange={(e) => setNewItemLabel(e.target.value)}
-                />
-                <button type="submit">Add item</button>
+
+              <div className="np-stack">
+                {sectionGroups.map((group, gi) => (
+                  <section key={group.section ?? `section-${gi}`} className="np-card chk-sec np-fade" dir="rtl" style={{ animationDelay: `${0.16 + gi * 0.08}s`, gap: 0 }}>
+                    {group.section && <h2>{protectNumberRanges(group.section)}</h2>}
+                    {group.items.map((item) => {
+                      const on = completions[item.id] ?? false
+                      return (
+                        <button key={item.id} type="button" className={on ? 'chk-item on' : 'chk-item'} onClick={() => void toggleItem(item.id)}>
+                          <span className="chk-box">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={20}>
+                              <path d="m5 12 5 5 9-10" />
+                            </svg>
+                          </span>
+                          <span>{protectNumberRanges(item.label)}</span>
+                        </button>
+                      )
+                    })}
+                  </section>
+                ))}
+              </div>
+
+              <form className="np-card np-fade" onSubmit={(e) => void handleAddItem(e)}>
+                <h2>Add item</h2>
+                <div className="np-f2">
+                  <div className="np-field">
+                    <label htmlFor="chk-item-section">Section</label>
+                    <input id="chk-item-section" placeholder="Optional" value={newItemSection} onChange={(e) => setNewItemSection(e.target.value)} />
+                  </div>
+                  <div className="np-field">
+                    <label htmlFor="chk-item-label">New item</label>
+                    <input id="chk-item-label" placeholder="Item text" value={newItemLabel} onChange={(e) => setNewItemLabel(e.target.value)} />
+                  </div>
+                </div>
+                <button type="submit" className="np-btn sm" style={{ alignSelf: 'flex-start' }}>
+                  Add item
+                </button>
               </form>
             </>
-          ) : (
-            <p className="empty-state">Create a checklist to get started.</p>
           )}
         </div>
+
+        <aside className="np-card chk-sidebar np-fade" style={{ animationDelay: '.1s', gap: 10 }}>
+          <div className="np-head">
+            <h2>Checklists</h2>
+            <span className="np-small">{templates.length}</span>
+          </div>
+          <div className="np-search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <label className="np-sr" htmlFor="chk-template-search">
+              Search checklists
+            </label>
+            <input id="chk-template-search" placeholder="Search checklists" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {visibleTemplates.map((t) => (
+              <button key={t.id} type="button" className={t.id === selectedId ? 'chk-lst on' : 'chk-lst'} onClick={() => setSelectedId(t.id)}>
+                {t.name}
+              </button>
+            ))}
+          </div>
+          {addTemplateForm}
+          {selectedId && (
+            <button type="button" className="np-btn ghost sm" style={{ color: '#B42318' }} onClick={() => void handleDeleteTemplate(selectedId)}>
+              Delete checklist
+            </button>
+          )}
+        </aside>
       </div>
 
       {error && <p className="form-error">{error}</p>}

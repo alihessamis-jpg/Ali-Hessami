@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   addDialysisReference,
   deleteDialysisReference,
@@ -17,7 +18,6 @@ import {
   uploadReferenceAttachmentFile,
 } from '../lib/storage'
 import { useAuth } from '../context/AuthContext'
-import { ReferenceIcon } from '../components/icons'
 import type { DialysisRefEntry, DrugRefEntry, ReferenceAttachment } from '../types/domain'
 
 function isImagePath(path: string): boolean {
@@ -49,6 +49,7 @@ const emptyDialysisDraft = {
 }
 
 export function ReferencePage() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const [tab, setTab] = useState<Tab>('drug')
   const [search, setSearch] = useState('')
@@ -113,7 +114,7 @@ export function ReferencePage() {
     }
   }
 
-  function handleAttachmentDrop(e: DragEvent<HTMLDivElement>) {
+  function handleAttachmentDrop(e: DragEvent<HTMLButtonElement>) {
     e.preventDefault()
     setDragOver(false)
     void handleAttachmentFiles(e.dataTransfer.files)
@@ -187,102 +188,335 @@ export function ReferencePage() {
   const filteredDialysis = dialysis.filter((d) => d.medication.toLowerCase().includes(search.toLowerCase()))
   const unlinkedTabAttachments = attachments[tab].filter((a) => !a.entryId)
 
-  return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">
-          <span className="page-title-icon">
-            <ReferenceIcon />
+  const activeList = tab === 'drug' ? filteredDrugs : filteredDialysis
+  const activeAttachments = attachments[tab]
+
+  function renderMed(d: DrugRefEntry | DialysisRefEntry) {
+    const linkedAttachments = activeAttachments.filter((a) => a.entryId === d.id)
+    const unlinkedAttachments = activeAttachments.filter((a) => !a.entryId)
+    const isOpen = expandedId === d.id
+    const fields: Array<[string, string | null | undefined]> =
+      tab === 'drug'
+        ? (() => {
+            const drug = d as DrugRefEntry
+            return [
+              ['Indication', drug.indication],
+              ['Normal dose', drug.normalDose],
+              ['Pediatric dose', drug.pediatricDose],
+              ['eGFR range', drug.egfrRange],
+              ['Adjusted dose', drug.adjustedDose],
+              ['Max dose', drug.maxDose],
+              ['Frequency', drug.frequency],
+            ]
+          })()
+        : (() => {
+            const dial = d as DialysisRefEntry
+            return [
+              ['Indication', dial.indication],
+              ['Pediatric dose', dial.pediatricDose],
+              ['Route', dial.route],
+              ['Frequency', dial.frequency],
+              ['Max dose', dial.maxDose],
+            ]
+          })()
+    return (
+      <div key={d.id} className={isOpen ? 'ref-med open' : 'ref-med'}>
+        <button type="button" className="ref-medb" onClick={() => setExpandedId(isOpen ? null : d.id)}>
+          <span className="np-ic" style={{ width: 34, height: 34, borderRadius: 10 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)" />
+              <path d="m9 9 6 6" />
+            </svg>
           </span>
-          Reference
-        </h1>
-        <button onClick={() => setShowForm((v) => !v)}>{showForm ? 'Cancel' : 'Add entry'}</button>
-      </div>
-
-      <p className="empty-state">
-        This is your own personal reference list — nothing is pre-seeded. Add entries you've verified
-        yourself; each clinician's list is private to them.
-      </p>
-
-      <nav className="tab-bar">
-        <button className={tab === 'drug' ? 'tab active' : 'tab'} onClick={() => setTab('drug')}>
-          Drug dosing
+          <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'start' }}>
+            <b style={{ fontSize: 14 }}>{d.medication}</b>
+            {fields[0][1] && <span className="np-small">{fields[0][1]}</span>}
+          </span>
+          <svg className="ref-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
         </button>
-        <button className={tab === 'dialysis' ? 'tab active' : 'tab'} onClick={() => setTab('dialysis')}>
-          Dialysis medications
-        </button>
-      </nav>
-
-      <input
-        placeholder="Search medication…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ marginBottom: 16, width: '100%', maxWidth: 320 }}
-      />
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Attachments</h2>
-        </div>
-        <p className="patient-meta">
-          Photos or PDFs of tables, protocols, or other reference material for{' '}
-          {tab === 'drug' ? 'drug dosing' : 'dialysis medications'}.
-        </p>
-        {error && <p className="form-error">{error}</p>}
-        <div
-          className={`dropzone ${dragOver ? 'dropzone--active' : ''}`}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(true)
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleAttachmentDrop}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf,application/pdf"
-            multiple
-            hidden
-            onChange={(e) => void handleAttachmentFiles(e.target.files)}
-          />
-          <span className="dropzone-icon">↑</span>
-          <strong>{uploadingAttachment ? 'Uploading…' : 'Drop images or PDFs here'}</strong>
-          <span className="dropzone-hint">Choose one or more files</span>
-        </div>
-        {unlinkedTabAttachments.length === 0 ? (
-          <p className="empty-state">
-            {attachments[tab].length === 0
-              ? 'No attachments yet.'
-              : 'All uploaded attachments are linked to a medication — open it below to view.'}
-          </p>
-        ) : (
-          <ul className="document-grid">
-            {unlinkedTabAttachments.map((a) => (
-              <li key={a.id} className="document-card">
-                <div className="document-card-preview">
-                  {attachmentUrls[a.id] ? (
+        {isOpen && (
+          <div className="ref-medbody">
+            {fields
+              .filter(([, value]) => value)
+              .map(([label, value]) => (
+                <span key={label} style={{ fontSize: 13, color: '#3B4A60' }}>
+                  <strong>{label}:</strong> {value}
+                </span>
+              ))}
+            {d.notes && <span style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: '#3B4A60' }}>{d.notes}</span>}
+            {linkedAttachments.length > 0 && (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {linkedAttachments.map((a) =>
+                  attachmentUrls[a.id] ? (
                     isImagePath(a.storagePath) ? (
-                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                        <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} />
+                      <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 120, borderRadius: 10 }} />
                       </a>
                     ) : (
-                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer" className="document-card-pdf">
-                        Open PDF
+                      <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        Open PDF — {a.filename}
                       </a>
                     )
                   ) : (
-                    <span className="empty-state">Loading…</span>
+                    <span key={a.id} className="np-small">Loading…</span>
+                  )
+                )}
+              </div>
+            )}
+            <span className="np-small">Attachments: [{linkedAttachments.length}]</span>
+            {unlinkedAttachments.length > 0 && (
+              <label className="np-small" style={{ display: 'block' }}>
+                Link an uploaded photo/PDF
+                <select value="" onChange={(e) => e.target.value && void handleLinkAttachment(e.target.value, d.id)} style={{ marginTop: 4 }}>
+                  <option value="">Choose a file…</option>
+                  {unlinkedAttachments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.filename ?? 'Attachment'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="button"
+              className="np-btn ghost sm"
+              style={{ alignSelf: 'flex-start', color: '#B42318' }}
+              onClick={() =>
+                tab === 'drug'
+                  ? void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
+                  : void deleteDialysisReference(d.id).then(() => setDialysis((prev) => prev.filter((x) => x.id !== d.id)))
+              }
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
+
+      <section className="np-hero np-fade">
+        <div className="np-glow cyan" />
+        <div className="np-hrow">
+          <div className="np-txt">
+            <h1>Reference</h1>
+            <p className="np-sub">Your own verified dosing list — nothing pre-seeded, private to you.</p>
+          </div>
+          <svg className="np-art" width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden="true">
+            <g className="ref-pill">
+              <rect x="14" y="30" width="56" height="24" rx="12" fill="#FFFFFF" />
+              <path d="M42 30h16a12 12 0 0 1 0 24H42z" fill="#4F86E8" />
+            </g>
+            <circle cx="20" cy="18" r="4" fill="#7FD4FF" className="ref-dot-a" />
+            <circle cx="66" cy="68" r="3" fill="#FFC46B" className="ref-dot-b" />
+          </svg>
+        </div>
+      </section>
+
+      <div className="np-toolbar np-fade" style={{ animationDelay: '.08s' }}>
+        <div className="np-seg">
+          <button type="button" className={tab === 'drug' ? 'on' : ''} onClick={() => setTab('drug')}>
+            Drug dosing
+          </button>
+          <button type="button" className={tab === 'dialysis' ? 'on' : ''} onClick={() => setTab('dialysis')}>
+            Dialysis medications
+          </button>
+        </div>
+        <div className="np-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <label className="np-sr" htmlFor="ref-search">
+            Search medication
+          </label>
+          <input id="ref-search" placeholder="Search medication" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <button type="button" className="np-btn" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? (
+            'Cancel'
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add entry
+            </>
+          )}
+        </button>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+
+      {showForm && tab === 'drug' && (
+        <form className="np-card np-fade" onSubmit={(e) => void handleAddDrug(e)}>
+          <h2>Add drug dosing entry</h2>
+          <div className="np-f2">
+            <div className="np-field">
+              <label htmlFor="rd-med">Medication</label>
+              <input id="rd-med" value={drugDraft.medication} onChange={(e) => setDrugDraft({ ...drugDraft, medication: e.target.value })} required />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-ind">Indication</label>
+              <input id="rd-ind" value={drugDraft.indication} onChange={(e) => setDrugDraft({ ...drugDraft, indication: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-norm">Normal dose</label>
+              <input id="rd-norm" value={drugDraft.normalDose} onChange={(e) => setDrugDraft({ ...drugDraft, normalDose: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-ped">Pediatric dose</label>
+              <input id="rd-ped" value={drugDraft.pediatricDose} onChange={(e) => setDrugDraft({ ...drugDraft, pediatricDose: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-max">Max dose</label>
+              <input id="rd-max" value={drugDraft.maxDose} onChange={(e) => setDrugDraft({ ...drugDraft, maxDose: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-egfr">eGFR range</label>
+              <input id="rd-egfr" value={drugDraft.egfrRange} onChange={(e) => setDrugDraft({ ...drugDraft, egfrRange: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-adj">Adjusted dose</label>
+              <input id="rd-adj" value={drugDraft.adjustedDose} onChange={(e) => setDrugDraft({ ...drugDraft, adjustedDose: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rd-freq">Frequency</label>
+              <input id="rd-freq" value={drugDraft.frequency} onChange={(e) => setDrugDraft({ ...drugDraft, frequency: e.target.value })} />
+            </div>
+          </div>
+          <div className="np-field">
+            <label htmlFor="rd-notes">Notes</label>
+            <textarea id="rd-notes" rows={2} value={drugDraft.notes} onChange={(e) => setDrugDraft({ ...drugDraft, notes: e.target.value })} />
+          </div>
+          <button type="submit" className="np-btn">
+            Save
+          </button>
+        </form>
+      )}
+
+      {showForm && tab === 'dialysis' && (
+        <form className="np-card np-fade" onSubmit={(e) => void handleAddDialysis(e)}>
+          <h2>Add dialysis medication entry</h2>
+          <div className="np-f2">
+            <div className="np-field">
+              <label htmlFor="rl-med">Medication</label>
+              <input id="rl-med" value={dialysisDraft.medication} onChange={(e) => setDialysisDraft({ ...dialysisDraft, medication: e.target.value })} required />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rl-ind">Indication</label>
+              <input id="rl-ind" value={dialysisDraft.indication} onChange={(e) => setDialysisDraft({ ...dialysisDraft, indication: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rl-ped">Pediatric dose</label>
+              <input id="rl-ped" value={dialysisDraft.pediatricDose} onChange={(e) => setDialysisDraft({ ...dialysisDraft, pediatricDose: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rl-route">Route</label>
+              <input id="rl-route" value={dialysisDraft.route} onChange={(e) => setDialysisDraft({ ...dialysisDraft, route: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rl-freq">Frequency</label>
+              <input id="rl-freq" value={dialysisDraft.frequency} onChange={(e) => setDialysisDraft({ ...dialysisDraft, frequency: e.target.value })} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="rl-max">Max dose</label>
+              <input id="rl-max" value={dialysisDraft.maxDose} onChange={(e) => setDialysisDraft({ ...dialysisDraft, maxDose: e.target.value })} />
+            </div>
+          </div>
+          <div className="np-field">
+            <label htmlFor="rl-notes">Notes</label>
+            <textarea id="rl-notes" rows={2} value={dialysisDraft.notes} onChange={(e) => setDialysisDraft({ ...dialysisDraft, notes: e.target.value })} />
+          </div>
+          <button type="submit" className="np-btn">
+            Save
+          </button>
+        </form>
+      )}
+
+      <div className="np-grid2">
+        {loading ? (
+          <p>Loading…</p>
+        ) : activeList.length === 0 ? (
+          <section className="np-empty np-fade">
+            <b style={{ fontSize: 15 }}>No entries yet</b>
+            <span className="np-small">Add your first verified dosing entry above.</span>
+          </section>
+        ) : (
+          <section className="np-card np-fade" style={{ animationDelay: '.14s', padding: '6px 16px', gap: 0 }}>
+            {activeList.map((d) => renderMed(d))}
+          </section>
+        )}
+
+        <section className="np-card np-fade" style={{ animationDelay: '.2s' }}>
+          <h2>Attachments</h2>
+          <span className="np-small">
+            Photos or PDFs of tables, protocols or dosing charts for {tab === 'drug' ? 'drug dosing' : 'dialysis medications'}.
+          </span>
+          <button
+            type="button"
+            className="ref-drop"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e: DragEvent<HTMLButtonElement>) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleAttachmentDrop}
+          >
+            <svg className="ref-drop-frame" aria-hidden="true">
+              <rect x="1" y="1" height="158" rx="17" style={{ width: 'calc(100% - 2px)' }} fill="none" stroke="#5B8EF0" strokeWidth={2} strokeDasharray="8 4" />
+            </svg>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,application/pdf"
+              multiple
+              hidden
+              onChange={(e) => void handleAttachmentFiles(e.target.files)}
+            />
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1E5BD8" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ref-drop-icon">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            <b style={{ fontSize: 14 }}>{uploadingAttachment ? 'Uploading…' : 'Drop images or PDFs'}</b>
+            <span className="np-small">{dragOver ? 'Release to upload' : 'Choose one or more files'}</span>
+          </button>
+          {unlinkedTabAttachments.length === 0 ? (
+            <span className="np-small">
+              {attachments[tab].length === 0
+                ? 'No attachments yet.'
+                : 'Every attachment is linked to a medication — open it in the list to view.'}
+            </span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {unlinkedTabAttachments.map((a) => (
+                <div key={a.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {attachmentUrls[a.id] ? (
+                    isImagePath(a.storagePath) ? (
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: '100%', borderRadius: 10 }} />
+                      </a>
+                    ) : (
+                      <a href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
+                        Open PDF — {a.filename}
+                      </a>
+                    )
+                  ) : (
+                    <span className="np-small">Loading…</span>
                   )}
-                </div>
-                <div className="document-card-meta" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-                  <span className="patient-meta">{a.filename ?? 'Attachment'}</span>
-                  <select
-                    value={a.entryId ?? ''}
-                    onChange={(e) => void handleLinkAttachment(a.id, e.target.value)}
-                    style={{ width: '100%' }}
-                  >
+                  <span className="np-small">{a.filename ?? 'Attachment'}</span>
+                  <select value={a.entryId ?? ''} onChange={(e) => void handleLinkAttachment(a.id, e.target.value)}>
                     <option value="">Not linked to a medication</option>
                     {(tab === 'drug' ? drugs : dialysis).map((d) => (
                       <option key={d.id} value={d.id}>
@@ -290,298 +524,15 @@ export function ReferencePage() {
                       </option>
                     ))}
                   </select>
-                  <button className="link-button" style={{ alignSelf: 'flex-start' }} onClick={() => void handleDeleteAttachment(a)}>
+                  <button type="button" className="link-button" style={{ alignSelf: 'flex-start' }} onClick={() => void handleDeleteAttachment(a)}>
                     Delete
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-
-      {showForm && tab === 'drug' && (
-        <form className="soap-form" onSubmit={(e) => void handleAddDrug(e)}>
-          <div className="field-grid">
-            <label>
-              Medication
-              <input value={drugDraft.medication} onChange={(e) => setDrugDraft({ ...drugDraft, medication: e.target.value })} required />
-            </label>
-            <label>
-              Indication
-              <input value={drugDraft.indication} onChange={(e) => setDrugDraft({ ...drugDraft, indication: e.target.value })} />
-            </label>
-            <label>
-              Normal dose
-              <input value={drugDraft.normalDose} onChange={(e) => setDrugDraft({ ...drugDraft, normalDose: e.target.value })} />
-            </label>
-            <label>
-              Pediatric dose
-              <input value={drugDraft.pediatricDose} onChange={(e) => setDrugDraft({ ...drugDraft, pediatricDose: e.target.value })} />
-            </label>
-            <label>
-              Max dose
-              <input value={drugDraft.maxDose} onChange={(e) => setDrugDraft({ ...drugDraft, maxDose: e.target.value })} />
-            </label>
-            <label>
-              eGFR range
-              <input value={drugDraft.egfrRange} onChange={(e) => setDrugDraft({ ...drugDraft, egfrRange: e.target.value })} />
-            </label>
-            <label>
-              Adjusted dose
-              <input value={drugDraft.adjustedDose} onChange={(e) => setDrugDraft({ ...drugDraft, adjustedDose: e.target.value })} />
-            </label>
-            <label>
-              Frequency
-              <input value={drugDraft.frequency} onChange={(e) => setDrugDraft({ ...drugDraft, frequency: e.target.value })} />
-            </label>
-          </div>
-          <label>
-            Notes
-            <textarea value={drugDraft.notes} onChange={(e) => setDrugDraft({ ...drugDraft, notes: e.target.value })} />
-          </label>
-          <div className="form-actions">
-            <button type="submit">Save</button>
-          </div>
-        </form>
-      )}
-
-      {showForm && tab === 'dialysis' && (
-        <form className="soap-form" onSubmit={(e) => void handleAddDialysis(e)}>
-          <div className="field-grid">
-            <label>
-              Medication
-              <input value={dialysisDraft.medication} onChange={(e) => setDialysisDraft({ ...dialysisDraft, medication: e.target.value })} required />
-            </label>
-            <label>
-              Indication
-              <input value={dialysisDraft.indication} onChange={(e) => setDialysisDraft({ ...dialysisDraft, indication: e.target.value })} />
-            </label>
-            <label>
-              Pediatric dose
-              <input value={dialysisDraft.pediatricDose} onChange={(e) => setDialysisDraft({ ...dialysisDraft, pediatricDose: e.target.value })} />
-            </label>
-            <label>
-              Route
-              <input value={dialysisDraft.route} onChange={(e) => setDialysisDraft({ ...dialysisDraft, route: e.target.value })} />
-            </label>
-            <label>
-              Frequency
-              <input value={dialysisDraft.frequency} onChange={(e) => setDialysisDraft({ ...dialysisDraft, frequency: e.target.value })} />
-            </label>
-            <label>
-              Max dose
-              <input value={dialysisDraft.maxDose} onChange={(e) => setDialysisDraft({ ...dialysisDraft, maxDose: e.target.value })} />
-            </label>
-          </div>
-          <label>
-            Notes
-            <textarea value={dialysisDraft.notes} onChange={(e) => setDialysisDraft({ ...dialysisDraft, notes: e.target.value })} />
-          </label>
-          <div className="form-actions">
-            <button type="submit">Save</button>
-          </div>
-        </form>
-      )}
-
-      {error && <p className="form-error">{error}</p>}
-      {loading ? (
-        <p>Loading…</p>
-      ) : tab === 'drug' ? (
-        filteredDrugs.length === 0 ? (
-          <p className="empty-state">No drug reference entries yet.</p>
-        ) : (
-          <div className="dash-card">
-            {filteredDrugs.map((d) => {
-              const linkedAttachments = attachments.drug.filter((a) => a.entryId === d.id)
-              const unlinkedAttachments = attachments.drug.filter((a) => !a.entryId)
-              const isOpen = expandedId === d.id
-              return (
-                <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(isOpen ? null : d.id)}
-                    style={{
-                      display: 'flex',
-                      width: '100%',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text)',
-                      cursor: 'pointer',
-                      textAlign: 'start',
-                      padding: 0,
-                    }}
-                  >
-                    <strong>{d.medication}</strong>
-                    <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
-                  </button>
-                  {isOpen && (
-                    <div style={{ marginTop: 8 }}>
-                      {[
-                        ['Indication', d.indication],
-                        ['Normal dose', d.normalDose],
-                        ['Pediatric dose', d.pediatricDose],
-                        ['eGFR range', d.egfrRange],
-                        ['Adjusted dose', d.adjustedDose],
-                        ['Max dose', d.maxDose],
-                        ['Frequency', d.frequency],
-                      ]
-                        .filter(([, value]) => value)
-                        .map(([label, value]) => (
-                          <p className="patient-meta" key={label}>
-                            <strong>{label}:</strong> {value}
-                          </p>
-                        ))}
-                      {d.notes && <p style={{ whiteSpace: 'pre-wrap' }}>{d.notes}</p>}
-                      {linkedAttachments.length > 0 && (
-                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
-                          {linkedAttachments.map((a) =>
-                            attachmentUrls[a.id] ? (
-                              isImagePath(a.storagePath) ? (
-                                <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                  <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
-                                </a>
-                              ) : (
-                                <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                  Open PDF — {a.filename}
-                                </a>
-                              )
-                            ) : (
-                              <span key={a.id} className="empty-state">Loading…</span>
-                            )
-                          )}
-                        </div>
-                      )}
-                      {unlinkedAttachments.length > 0 && (
-                        <label className="patient-meta" style={{ display: 'block', marginBottom: 8 }}>
-                          Link an uploaded photo/PDF:
-                          <select value="" onChange={(e) => e.target.value && void handleLinkAttachment(e.target.value, d.id)}>
-                            <option value="">Choose a file…</option>
-                            {unlinkedAttachments.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.filename ?? 'Attachment'}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      <div className="form-actions">
-                        <button
-                          type="button"
-                          className="button-secondary"
-                          onClick={() =>
-                            void deleteDrugReference(d.id).then(() => setDrugs((prev) => prev.filter((x) => x.id !== d.id)))
-                          }
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )
-      ) : filteredDialysis.length === 0 ? (
-        <p className="empty-state">No dialysis reference entries yet.</p>
-      ) : (
-        <div className="dash-card">
-          {filteredDialysis.map((d) => {
-            const linkedAttachments = attachments.dialysis.filter((a) => a.entryId === d.id)
-            const unlinkedAttachments = attachments.dialysis.filter((a) => !a.entryId)
-            const isOpen = expandedId === d.id
-            return (
-              <div key={d.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(isOpen ? null : d.id)}
-                  style={{
-                    display: 'flex',
-                    width: '100%',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                    textAlign: 'start',
-                    padding: 0,
-                  }}
-                >
-                  <strong>{d.medication}</strong>
-                  <span className={`topic-picker-caret ${isOpen ? 'open' : ''}`}>▸</span>
-                </button>
-                {isOpen && (
-                  <div style={{ marginTop: 8 }}>
-                    {[
-                      ['Indication', d.indication],
-                      ['Pediatric dose', d.pediatricDose],
-                      ['Route', d.route],
-                      ['Frequency', d.frequency],
-                      ['Max dose', d.maxDose],
-                    ]
-                      .filter(([, value]) => value)
-                      .map(([label, value]) => (
-                        <p className="patient-meta" key={label}>
-                          <strong>{label}:</strong> {value}
-                        </p>
-                      ))}
-                    {d.notes && <p style={{ whiteSpace: 'pre-wrap' }}>{d.notes}</p>}
-                    {linkedAttachments.length > 0 && (
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
-                        {linkedAttachments.map((a) =>
-                          attachmentUrls[a.id] ? (
-                            isImagePath(a.storagePath) ? (
-                              <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                <img src={attachmentUrls[a.id]} alt={a.filename ?? 'Attachment'} style={{ maxWidth: 160, borderRadius: 8 }} />
-                              </a>
-                            ) : (
-                              <a key={a.id} href={attachmentUrls[a.id]} target="_blank" rel="noreferrer">
-                                Open PDF — {a.filename}
-                              </a>
-                            )
-                          ) : (
-                            <span key={a.id} className="empty-state">Loading…</span>
-                          )
-                        )}
-                      </div>
-                    )}
-                    {unlinkedAttachments.length > 0 && (
-                      <label className="patient-meta" style={{ display: 'block', marginBottom: 8 }}>
-                        Link an uploaded photo/PDF:
-                        <select value="" onChange={(e) => e.target.value && void handleLinkAttachment(e.target.value, d.id)}>
-                          <option value="">Choose a file…</option>
-                          {unlinkedAttachments.map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.filename ?? 'Attachment'}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    <div className="form-actions">
-                      <button
-                        type="button"
-                        className="button-secondary"
-                        onClick={() =>
-                          void deleteDialysisReference(d.id).then(() =>
-                            setDialysis((prev) => prev.filter((x) => x.id !== d.id))
-                          )
-                        }
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }
