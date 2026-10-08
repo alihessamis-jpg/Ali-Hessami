@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
@@ -7,10 +7,92 @@ import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
-import { AcademyIcon, CalendarIcon, FlashcardsIcon, TodayIcon } from '../components/icons'
+import { AcademyIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
+import { EmptyState } from '../components/illustrations/EmptyState'
 import type { AcademyTopic, Flashcard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
 
 type Rating = 'easy' | 'moderate' | 'difficult'
+
+// The design's 4-point Again/Hard/Good/Easy grading maps onto the app's
+// existing 3-tier scheduler (scheduleReview in lib/srs.ts): Again and Hard
+// both reset the interval (not yet solid), Good advances one step, Easy
+// advances two.
+const GRADE_TO_RATING: Record<'again' | 'hard' | 'good' | 'easy', Rating> = {
+  again: 'difficult',
+  hard: 'difficult',
+  good: 'moderate',
+  easy: 'easy',
+}
+
+function DueReviewCard({
+  icon,
+  title,
+  pillText,
+  meta,
+  question,
+  answer,
+  showBack,
+  onShowBack,
+  onGrade,
+  animationClass,
+}: {
+  icon: ReactNode
+  title: string
+  pillText: string
+  meta?: string | null
+  question: string
+  answer: string | null | undefined
+  showBack: boolean
+  onShowBack: () => void
+  onGrade: (rating: Rating) => void
+  animationClass: string
+}) {
+  return (
+    <div className={`td-card td-fade ${animationClass}`}>
+      <div className="td-head">
+        <div className="td-head-l">
+          <span className="td-ic">{icon}</span>
+          <h2>{title}</h2>
+        </div>
+        <span className="td-pill">{pillText}</span>
+      </div>
+      {meta && <p className="td-meta">{meta}</p>}
+      <div className="td-flipwrap">
+        <div className={showBack ? 'td-flip on' : 'td-flip'}>
+          <div className="td-face td-front" dir="rtl">
+            <span className="td-small">سؤال</span>
+            <p className="td-q">{question}</p>
+            <span className="td-small">&nbsp;</span>
+          </div>
+          <div className="td-face td-back" dir="rtl">
+            <span className="td-small">پاسخ</span>
+            <p className="td-q">{answer || '—'}</p>
+          </div>
+        </div>
+      </div>
+      {!showBack ? (
+        <button type="button" className="td-btn" onClick={onShowBack}>
+          Show answer
+        </button>
+      ) : (
+        <div className="td-grades">
+          <button type="button" className="td-grade-again" onClick={() => onGrade(GRADE_TO_RATING.again)}>
+            Again
+          </button>
+          <button type="button" className="td-grade-hard" onClick={() => onGrade(GRADE_TO_RATING.hard)}>
+            Hard
+          </button>
+          <button type="button" className="td-grade-good" onClick={() => onGrade(GRADE_TO_RATING.good)}>
+            Good
+          </button>
+          <button type="button" className="td-grade-easy" onClick={() => onGrade(GRADE_TO_RATING.easy)}>
+            Easy
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function TodayPage() {
   const { session } = useAuth()
@@ -19,7 +101,6 @@ export function TodayPage() {
 
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicNextReview, setTopicNextReview] = useState<Record<string, string | null>>({})
-  const [topicsExpanded, setTopicsExpanded] = useState(false)
 
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [flashcardIndex, setFlashcardIndex] = useState(0)
@@ -104,156 +185,129 @@ export function TodayPage() {
   if (loading) return <p>Loading…</p>
 
   return (
-    <div>
-      <h1 className="page-title">
-        <span className="page-title-icon">
-          <TodayIcon />
-        </span>
-        Today
-      </h1>
-      <p className="empty-state">
-        Everything due for spaced-repetition review, in one place — work through each section instead of hunting
-        across Academy, Flashcards, and Reading Review.
-      </p>
+    <div className="today-page">
+      <section className="td-hero td-fade">
+        <div className="td-hero-glow" />
+        <div className="td-hero-body">
+          <span className="td-eyebrow">TODAY</span>
+          <h1>Review queue</h1>
+          <p>Everything due for spaced repetition, in one place.</p>
+        </div>
+        <svg width="112" height="112" viewBox="0 0 112 112" fill="none" aria-hidden="true" style={{ position: 'relative', flexShrink: 0 }}>
+          <circle cx="56" cy="56" r="48" stroke="rgba(255,255,255,.12)" strokeWidth="8" />
+          <circle
+            cx="56"
+            cy="56"
+            r="48"
+            stroke="#FFC46B"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray="302"
+            strokeDashoffset="60"
+            transform="rotate(-90 56 56)"
+            style={{ animation: 'td-ring 1.4s cubic-bezier(.2,.8,.2,1) both' }}
+          />
+          <g className="td-ring-dots">
+            <circle cx="56" cy="20" r="3" fill="#FFE2B0" />
+            <circle cx="92" cy="56" r="2" fill="#FFE2B0" />
+            <circle cx="20" cy="56" r="2" fill="#FFE2B0" />
+          </g>
+          <text x="56" y="56" textAnchor="middle" fill="#fff" fontSize="24" fontWeight="800" fontFamily="Plus Jakarta Sans">
+            {totalDue}
+          </text>
+          <text x="56" y="73" textAnchor="middle" fill="#A9C6FF" fontSize="10" fontFamily="Plus Jakarta Sans">
+            items due
+          </text>
+        </svg>
+      </section>
 
       {error && <p className="form-error">{error}</p>}
 
       {totalDue === 0 ? (
-        <div className="dash-card">
-          <p className="empty-state">Nothing due today — you're all caught up.</p>
+        <div className="td-card td-fade d1">
+          <EmptyState>Nothing due today — you're all caught up.</EmptyState>
         </div>
       ) : (
         <>
           {dueFlashcards.length > 0 && currentFlashcard && (
-            <div className="dash-card">
-              <div className="dash-card-header">
-                <h2 className="dash-card-title">
-                  <span className="icon-chip">
-                    <FlashcardsIcon />
-                  </span>
-                  Flashcards due ({dueFlashcards.length})
-                </h2>
-              </div>
-              <p style={{ fontSize: '1.1rem' }}>{currentFlashcard.front}</p>
-              {flashcardShowBack && <p style={{ color: 'var(--text-muted)' }}>{currentFlashcard.back}</p>}
-              {!flashcardShowBack ? (
-                <div className="form-actions">
-                  <button type="button" onClick={() => setFlashcardShowBack(true)}>
-                    Show answer
-                  </button>
-                </div>
-              ) : (
-                <div className="form-actions">
-                  <button type="button" className="button-secondary" onClick={() => void handleRateFlashcard('difficult')}>
-                    Difficult
-                  </button>
-                  <button type="button" className="button-secondary" onClick={() => void handleRateFlashcard('moderate')}>
-                    Moderate
-                  </button>
-                  <button type="button" onClick={() => void handleRateFlashcard('easy')}>
-                    Easy
-                  </button>
-                </div>
-              )}
-            </div>
+            <DueReviewCard
+              icon={<FlashcardsIcon />}
+              title="Flashcards due"
+              pillText={`${(flashcardIndex % dueFlashcards.length) + 1} / ${dueFlashcards.length}`}
+              question={currentFlashcard.front}
+              answer={currentFlashcard.back}
+              showBack={flashcardShowBack}
+              onShowBack={() => setFlashcardShowBack(true)}
+              onGrade={(rating) => void handleRateFlashcard(rating)}
+              animationClass="d1"
+            />
           )}
 
           {dueLeitnerItems.length > 0 && currentLeitner && (
-            <div className="dash-card">
-              <div className="dash-card-header">
-                <h2 className="dash-card-title">
-                  <span className="icon-chip">
-                    <CalendarIcon />
-                  </span>
-                  Saved questions due ({dueLeitnerItems.length})
-                </h2>
-              </div>
-              <p className="patient-meta">{currentLeitner.origin}</p>
-              <p style={{ fontSize: '1.1rem' }}>{currentLeitner.title}</p>
-              {leitnerShowBack && currentLeitner.answer && <p style={{ color: 'var(--text-muted)' }}>{currentLeitner.answer}</p>}
-              {!leitnerShowBack ? (
-                <div className="form-actions">
-                  <button type="button" onClick={() => setLeitnerShowBack(true)}>
-                    Show answer
-                  </button>
-                </div>
-              ) : (
-                <div className="form-actions">
-                  <button type="button" className="button-secondary" onClick={() => void handleRateLeitner('difficult')}>
-                    Difficult
-                  </button>
-                  <button type="button" className="button-secondary" onClick={() => void handleRateLeitner('moderate')}>
-                    Moderate
-                  </button>
-                  <button type="button" onClick={() => void handleRateLeitner('easy')}>
-                    Easy
-                  </button>
-                </div>
-              )}
-            </div>
+            <DueReviewCard
+              icon={<CalendarIcon />}
+              title="Saved questions due"
+              pillText={`${(leitnerIndex % dueLeitnerItems.length) + 1} / ${dueLeitnerItems.length}`}
+              meta={currentLeitner.origin}
+              question={currentLeitner.title}
+              answer={currentLeitner.answer}
+              showBack={leitnerShowBack}
+              onShowBack={() => setLeitnerShowBack(true)}
+              onGrade={(rating) => void handleRateLeitner(rating)}
+              animationClass="d2"
+            />
           )}
 
           {dueCheckpoints.length > 0 && (
-            <div className="dash-card">
-              <div className="dash-card-header">
-                <h2 className="dash-card-title">
-                  <span className="icon-chip">
+            <div className="td-card td-fade">
+              <div className="td-head">
+                <div className="td-head-l">
+                  <span className="td-ic">
                     <CalendarIcon />
                   </span>
-                  Reading checkpoints due ({dueCheckpoints.length})
-                </h2>
+                  <h2>Reading checkpoints due</h2>
+                </div>
+                <span className="td-pill">{dueCheckpoints.length}</span>
               </div>
-              <ul className="note-timeline">
-                {dueCheckpoints.map(({ item, checkpoint, dueDate }) => (
-                  <li key={`${item.id}-${checkpoint.key}`}>
-                    <div className="note-header">
-                      <strong>{item.title}</strong>
-                      <button className="link-button" onClick={() => void handleCompleteCheckpoint(item, checkpoint.key)}>
-                        Mark done
-                      </button>
-                    </div>
-                    <p className="patient-meta">
-                      {checkpoint.label} checkpoint — due {toShamsi(dueDate)}
-                      {item.source ? ` · ${item.source}` : ''}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              {dueCheckpoints.map(({ item, checkpoint, dueDate }) => (
+                <div className="td-row" key={`${item.id}-${checkpoint.key}`}>
+                  <span className="td-dot" style={{ background: '#1E5BD8' }} />
+                  <b>
+                    {item.title} — {checkpoint.label} · {toShamsi(dueDate)}
+                  </b>
+                  <button
+                    type="button"
+                    className="td-row-action"
+                    onClick={() => void handleCompleteCheckpoint(item, checkpoint.key)}
+                  >
+                    Mark done
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
           {dueTopics.length > 0 && (
-            <div className="dash-card">
-              <button
-                type="button"
-                className="dash-card-header"
-                style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', textAlign: 'start' }}
-                onClick={() => setTopicsExpanded((v) => !v)}
-              >
-                <h2 className="dash-card-title">
-                  <span className="icon-chip">
+            <div className="td-card td-fade">
+              <div className="td-head">
+                <div className="td-head-l">
+                  <span className="td-ic">
                     <AcademyIcon />
                   </span>
-                  Academy topics due ({dueTopics.length})
-                </h2>
-                <span className={`topic-picker-caret ${topicsExpanded ? 'open' : ''}`}>▸</span>
-              </button>
-              {topicsExpanded && (
-                <ul className="note-timeline">
-                  {dueTopics.map((t) => (
-                    <li key={t.id}>
-                      <div className="note-header">
-                        <Link to={`/academy/${t.id}`}>
-                          <strong>{t.name}</strong>
-                        </Link>
-                      </div>
-                      <p className="patient-meta">
-                        {[t.category, t.summary].filter(Boolean).join(' · ') || 'Open to review and rate yourself'}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                  <h2>Academy topics due</h2>
+                </div>
+                <span className="td-pill td-pill--amber">{dueTopics.length}</span>
+              </div>
+              {dueTopics.slice(0, 3).map((t) => (
+                <Link key={t.id} to={`/academy/${t.id}`} className="td-row">
+                  <span className="td-dot" />
+                  <b>{t.name}</b>
+                  <span className="td-small">{t.category}</span>
+                </Link>
+              ))}
+              <Link to="/academy" className="td-outline">
+                {dueTopics.length > 3 ? `Start review · ${dueTopics.length - 3} more` : 'Start review'}
+              </Link>
             </div>
           )}
         </>

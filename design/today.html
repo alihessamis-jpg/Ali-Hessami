@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nephron — Today (target design)</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0A2352;--accent:#1E5BD8;--bg:#EEF4FD;--ink:#0E1F3D;--muted:#52627A;--line:#DCE7F7;--chip:#E3EDFD}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans','Vazirmatn',sans-serif;color:var(--ink)}
+button{font:inherit}
+.page{max-width:430px;margin:0 auto;padding:18px 16px 120px;display:flex;flex-direction:column;gap:16px}
+.card{background:#fff;border-radius:22px;border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:14px}
+.fade{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) both}
+.d1{animation-delay:.1s}.d2{animation-delay:.2s}
+.hero{position:relative;overflow:hidden;border-radius:26px;background:var(--navy);color:#fff;padding:20px;display:flex;align-items:center;gap:14px}
+.glow{position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,190,90,.35),rgba(255,190,90,0) 70%);top:-100px;right:-70px;animation:drift 9s ease-in-out infinite}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;color:#A9C6FF}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.hero p{margin:0;font-size:13px;line-height:1.45;color:#C9DAF8}
+.head{display:flex;align-items:center;justify-content:space-between}
+.head-l{display:flex;align-items:center;gap:10px}
+.ic{width:36px;height:36px;border-radius:12px;background:var(--chip);display:flex;align-items:center;justify-content:center}
+h2{margin:0;font-size:16px;font-weight:700}
+.pill{font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px}
+.flipwrap{perspective:1000px;height:168px}
+.flip{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.flip.on{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;padding:18px;display:flex;flex-direction:column;font-family:'Vazirmatn',sans-serif}
+.front{background:#F5F8FE;border:1px solid var(--line);justify-content:space-between}
+.back{background:var(--navy);color:#fff;transform:rotateY(180deg);justify-content:center;gap:10px}
+.small{font-size:12px;color:var(--muted)}
+.q{margin:0;font-size:17px;line-height:1.7;font-weight:500}
+.btn{height:48px;border:0;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+.grades{display:none;grid-template-columns:repeat(4,1fr);gap:8px;animation:pop .3s ease both}
+.grades.on{display:grid}
+.grades button{height:48px;border:0;border-radius:14px;font-size:13px;font-weight:700;cursor:pointer}
+.row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:#F5F8FE;text-decoration:none;color:var(--ink)}
+.row .dot{width:8px;height:8px;border-radius:50%;background:#E0A33A;flex-shrink:0}
+.row b{flex:1;font-size:14px;font-weight:600}
+.outline{height:48px;border-radius:14px;border:1px solid #C9DAF5;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--accent);text-decoration:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-10px)}}
+@keyframes ring{from{stroke-dashoffset:302}}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="page">
+
+<section class="hero fade">
+<div class="glow"></div>
+<div style="position:relative;flex:1;display:flex;flex-direction:column;gap:6px">
+<span class="eyebrow">TODAY</span>
+<h1>Review queue</h1>
+<p>Everything due for spaced repetition, in one place.</p>
+</div>
+<svg width="112" height="112" viewBox="0 0 112 112" fill="none" aria-hidden="true" style="position:relative;flex-shrink:0">
+<circle cx="56" cy="56" r="48" stroke="rgba(255,255,255,.12)" stroke-width="8"/>
+<circle cx="56" cy="56" r="48" stroke="#FFC46B" stroke-width="8" stroke-linecap="round" stroke-dasharray="302" stroke-dashoffset="60" transform="rotate(-90 56 56)" style="animation:ring 1.4s cubic-bezier(.2,.8,.2,1) both"/>
+<g style="transform-origin:56px 56px;animation:spin 18s linear infinite"><circle cx="56" cy="20" r="3" fill="#FFE2B0"/><circle cx="92" cy="56" r="2" fill="#FFE2B0"/><circle cx="20" cy="56" r="2" fill="#FFE2B0"/></g>
+<text x="56" y="56" text-anchor="middle" fill="#fff" font-size="24" font-weight="800" font-family="Plus Jakarta Sans">120</text>
+<text x="56" y="73" text-anchor="middle" fill="#A9C6FF" font-size="10" font-family="Plus Jakarta Sans">items due</text>
+</svg>
+</section>
+
+<section class="card fade d1">
+<div class="head">
+<div class="head-l"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E5BD8" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/></svg></span><h2>Flashcards due</h2></div>
+<span class="pill" style="color:#1E5BD8;background:#E3EDFD">1 / 12</span>
+</div>
+<div class="flipwrap"><div class="flip" id="flip">
+<div class="face front" dir="rtl"><span class="small">سؤال</span><p class="q">سه‌گانه‌ی سلولی کلاسیک تومور ویلمز با هیستولوژی favorable چیست؟</p><span class="small">&nbsp;</span></div>
+<div class="face back" dir="rtl"><span class="small" style="color:#A9C6FF">پاسخ</span><p class="q" style="font-size:18px;font-weight:700">بلاستمال، اپی‌تلیال و استرومال (Triphasic)</p></div>
+</div></div>
+<button class="btn" id="show">Show answer</button>
+<div class="grades" id="grades">
+<button style="background:#FDE8E7;color:#B42318">Again</button>
+<button style="background:#FDF0DC;color:#93590B">Hard</button>
+<button style="background:#E3EDFD;color:#1546A8">Good</button>
+<button style="background:#DDF3E6;color:#17663A">Easy</button>
+</div>
+</section>
+
+<section class="card fade d2" style="gap:12px">
+<div class="head">
+<div class="head-l"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E5BD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5"/></svg></span><h2>Academy topics due</h2></div>
+<span class="pill" style="color:#93590B;background:#FDF0DC">108</span>
+</div>
+<a class="row" href="#"><span class="dot"></span><b>Dialysis: Indications &amp; Modalities</b><span class="small">Dialysis</span></a>
+<a class="row" href="#"><span class="dot"></span><b>Hematuria</b><span class="small">Glomerular</span></a>
+<a class="row" href="#"><span class="dot"></span><b>Nephrolithiasis</b><span class="small">Stones</span></a>
+<a class="outline" href="#">Start review · 105 more</a>
+</section>
+
+</main>
+<script>
+var flip=document.getElementById('flip'),show=document.getElementById('show'),grades=document.getElementById('grades');
+show.onclick=function(){flip.classList.add('on');show.style.display='none';grades.classList.add('on');};
+grades.querySelectorAll('button').forEach(function(b){b.onclick=function(){flip.classList.remove('on');grades.classList.remove('on');show.style.display='';};});
+</script>
+</body>
+</html>

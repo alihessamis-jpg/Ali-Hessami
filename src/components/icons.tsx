@@ -413,6 +413,31 @@ export function SearchIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function PersonIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </Icon>
+  )
+}
+
+export function ZapIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props} strokeLinejoin="round">
+      <path d="M13 2 3 14h9l-1 8 10-12h-9z" />
+    </Icon>
+  )
+}
+
+export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  )
+}
+
 export function KidneyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" {...props}>

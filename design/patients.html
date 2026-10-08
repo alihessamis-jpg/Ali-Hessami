@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nephron — Patients (target design)</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0A2352;--accent:#1E5BD8;--bg:#EEF4FD;--ink:#0E1F3D;--muted:#52627A;--line:#DCE7F7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:'Plus Jakarta Sans','Vazirmatn',sans-serif;color:var(--ink)}
+button,input{font:inherit}
+.page{max-width:430px;margin:0 auto;padding:18px 16px 190px;display:flex;flex-direction:column;gap:14px}
+.fade{animation:fadeUp .6s cubic-bezier(.2,.8,.2,1) both}
+.hero{position:relative;overflow:hidden;border-radius:26px;background:var(--navy);color:#fff;padding:20px 20px 14px;display:flex;flex-direction:column;gap:14px}
+.glow{position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(64,130,255,.5),rgba(64,130,255,0) 70%);top:-100px;right:-60px;animation:drift 9s ease-in-out infinite}
+.hero-top{position:relative;display:flex;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.glass{height:40px;padding:0 14px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-decoration:none}
+.stats{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats b{display:block;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;color:#A9C6FF}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.chip{flex-shrink:0;height:40px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid #D5E2F6;background:#fff;color:#3B4A60;transition:all .25s}
+.chip.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.search{position:relative}
+.search svg{position:absolute;left:14px;top:15px}
+.search input{width:100%;height:48px;border-radius:14px;border:1px solid #D5E2F6;background:#fff;padding:0 14px 0 42px;font-size:14px;color:var(--ink)}
+.list{display:flex;flex-direction:column;gap:10px}
+.pt{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:#fff;border:1px solid var(--line);text-decoration:none;color:var(--ink);animation:fadeUp .5s cubic-bezier(.2,.8,.2,1) both}
+.av{width:46px;height:46px;border-radius:50%;background:#DCE8FC;color:#1E5BD8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.name{font-family:'Vazirmatn',sans-serif;font-weight:700;font-size:15px}
+.sub{font-size:12px;color:var(--muted)}
+.ward{font-size:11px;font-weight:600;color:#1546A8;background:#E3EDFD;padding:4px 9px;border-radius:999px}
+.alert{font-size:12px;font-weight:700;color:#B42318;background:#FDE8E7;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:4px;animation:pulse 2s infinite}
+.pt.crit{border-color:#F6C9C5}.pt.crit .av{background:#FDE8E7;color:#B42318}
+.fab{position:fixed;right:max(20px,calc(50% - 195px));bottom:102px;height:56px;padding:0 20px;border-radius:18px;background:var(--accent);color:#fff;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 12px 28px rgba(30,91,216,.4);animation:pop .5s cubic-bezier(.2,1.4,.4,1) .5s both}
+.empty{background:#fff;border-radius:22px;border:1px dashed #C9DAF5;padding:28px 16px;text-align:center;font-weight:700;animation:pop .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-10px)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(200,30,30,.45)}70%{box-shadow:0 0 0 9px rgba(200,30,30,0)}100%{box-shadow:0 0 0 0 rgba(200,30,30,0)}}
+@keyframes ecg{to{stroke-dashoffset:-400}}
+@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="page">
+
+<section class="hero fade">
+<div class="glow"></div>
+<div class="hero-top">
+<h1>Patients</h1>
+<a class="glass" href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFC46B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>Quick AKI entry</a>
+</div>
+<svg viewBox="0 0 350 40" width="100%" height="40" fill="none" aria-hidden="true" style="position:relative;display:block">
+<path d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350" stroke="rgba(127,212,255,.25)" stroke-width="2"/>
+<path d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350" stroke="#7FD4FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="80 320" style="animation:ecg 3s linear infinite"/>
+</svg>
+<div class="stats">
+<div><b data-to="4">0</b><span>Inpatient F1</span></div>
+<div><b data-to="4">0</b><span>Outpatient / HD</span></div>
+<div><b data-to="19">0</b><span>Discharged</span></div>
+</div>
+</section>
+
+<div class="chips fade" style="animation-delay:.08s">
+<button class="chip on" data-t="0">Inpatient F1 · 4</button>
+<button class="chip" data-t="1">Outpatient / Dialysis · 4</button>
+<button class="chip" data-t="2">Discharged · 19</button>
+</div>
+
+<div class="search fade" style="animation-delay:.14s">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7A90" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+<input aria-label="Search patients" placeholder="Search by name or diagnosis">
+</div>
+
+<div class="list" id="list">
+<a class="pt" href="#" style="animation-delay:.2s"><span class="av"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="info"><span class="name" dir="rtl" style="text-align:left">بیمار ۱</span><span class="sub">2mo · Pyelonephritis</span></span><span class="ward">Inpatient</span></a>
+<a class="pt" href="#" style="animation-delay:.27s"><span class="av"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="info"><span class="name" dir="rtl" style="text-align:left">بیمار ۲</span><span class="sub">2mo · AKI</span></span><span class="ward">Inpatient</span></a>
+<a class="pt" href="#" style="animation-delay:.34s"><span class="av"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="info"><span class="name" dir="rtl" style="text-align:left">بیمار ۳</span><span class="sub">13y · SLE</span></span><span class="ward">Inpatient</span></a>
+<a class="pt crit" href="#" style="animation-delay:.41s"><span class="av"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="info"><span class="name" dir="rtl" style="text-align:left">بیمار ۴</span><span class="sub">13y · CKD-VUR-UTI</span></span><span class="alert"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 2 21h20zM12 10v5M12 18h.01"/></svg>Hb 7.7</span><span class="ward">Inpatient</span></a>
+</div>
+<div class="empty" id="empty" hidden>Same card layout for this ward.</div>
+
+</main>
+<a class="fab" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New patient</a>
+<script>
+(function(){
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var els=[].slice.call(document.querySelectorAll('[data-to]'));
+  if(reduce){els.forEach(function(e){e.textContent=e.dataset.to});}
+  else{var t0=performance.now();(function step(now){var k=Math.min(1,(now-t0)/1000),e=1-Math.pow(1-k,3);els.forEach(function(el){el.textContent=Math.round(el.dataset.to*e)});if(k<1)requestAnimationFrame(step)})(t0);}
+  var chips=document.querySelectorAll('.chip'),list=document.getElementById('list'),empty=document.getElementById('empty');
+  chips.forEach(function(c){c.onclick=function(){chips.forEach(function(x){x.classList.toggle('on',x===c)});var on=c.dataset.t==='0';list.hidden=!on;empty.hidden=on;};});
+})();
+</script>
+</body>
+</html>

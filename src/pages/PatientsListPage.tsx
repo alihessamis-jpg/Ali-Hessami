@@ -1,24 +1,34 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
 import { listLabEntriesByTest } from '../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
 import { formatAge } from '../lib/patientAge'
-import { KidneyIcon, PatientsIcon, SearchIcon } from '../components/icons'
+import { useCountUp } from '../hooks/useCountUp'
+import { PersonIcon, PlusIcon, SearchIcon, WarningIcon, ZapIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
 import type { Patient, PatientCareStatus } from '../types/domain'
 
-const WARDS: Array<{ id: PatientCareStatus; label: string }> = [
-  { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)' },
-  { id: 'outpatient', label: 'Outpatient / Dialysis clinic' },
-  { id: 'discharged', label: 'Discharged patients' },
+const WARDS: Array<{ id: PatientCareStatus; label: string; chipLabel: string }> = [
+  { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)', chipLabel: 'Inpatient F1' },
+  { id: 'outpatient', label: 'Outpatient / Dialysis clinic', chipLabel: 'Outpatient / Dialysis' },
+  { id: 'discharged', label: 'Discharged patients', chipLabel: 'Discharged' },
 ]
 
 const CARE_STATUS_LABELS: Record<PatientCareStatus, string> = {
   inpatient: 'Inpatient',
   outpatient: 'Outpatient',
   discharged: 'Discharged',
+}
+
+function StatCount({ value, label }: { value: number; label: string }) {
+  const animated = useCountUp(value, 1000)
+  return (
+    <div>
+      <b>{Math.round(animated ?? 0)}</b>
+      <span>{label}</span>
+    </div>
+  )
 }
 
 export function PatientsListPage() {
@@ -104,31 +114,48 @@ export function PatientsListPage() {
     )
   }, [wardPatients, query])
 
+  const countByWard = (id: PatientCareStatus) => patients.filter((p) => p.careStatus === id).length
+
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">
-          <span className="page-title-icon">
-            <PatientsIcon />
-          </span>
-          Patients
-        </h1>
-        <div className="page-header-actions">
-          <Link to="/patients/quick-aki" className="button-link">
+    <div className="patients-page">
+      <section className="pt-hero td-fade">
+        <div className="pt-hero-glow" />
+        <div className="pt-hero-top">
+          <h1>Patients</h1>
+          <Link to="/patients/quick-aki" className="pt-glass">
+            <ZapIcon />
             Quick AKI entry
           </Link>
-          <button onClick={() => setShowNewForm((v) => !v)}>
-            {showNewForm ? 'Cancel' : 'New patient'}
-          </button>
         </div>
-      </div>
+        <svg viewBox="0 0 350 40" width="100%" height="40" fill="none" aria-hidden="true" style={{ position: 'relative', display: 'block' }}>
+          <path
+            d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350"
+            stroke="rgba(127,212,255,.25)"
+            strokeWidth="2"
+          />
+          <path
+            d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350"
+            stroke="#7FD4FF"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="80 320"
+            className="pt-ecg-path"
+          />
+        </svg>
+        <div className="pt-stats">
+          <StatCount value={countByWard('inpatient')} label="Inpatient F1" />
+          <StatCount value={countByWard('outpatient')} label="Outpatient / HD" />
+          <StatCount value={countByWard('discharged')} label="Discharged" />
+        </div>
+      </section>
 
       {showNewForm && (
-        <div className="dash-card new-patient-card">
-          <p className="patient-meta" style={{ marginTop: 0 }}>
+        <div className="pt-new-form td-fade">
+          <p className="patient-meta" style={{ margin: 0 }}>
             Will be added to: {WARDS.find((w) => w.id === ward)?.label}
           </p>
-          <form className="inline-form" onSubmit={(e) => void handleCreate(e)}>
+          <form className="inline-form" style={{ marginBottom: 0 }} onSubmit={(e) => void handleCreate(e)}>
             <input
               placeholder="Patient name"
               value={name}
@@ -142,163 +169,87 @@ export function PatientsListPage() {
         </div>
       )}
 
-      <nav className="ward-tabs" aria-label="Care ward">
-        {WARDS.map((w) => {
-          const active = w.id === ward
-          return (
-            <button
-              key={w.id}
-              type="button"
-              className={active ? 'ward-tab active' : 'ward-tab'}
-              onClick={() => setWard(w.id)}
-            >
-              {active && (
-                <motion.span
-                  layoutId="ward-tab-pill"
-                  className="ward-tab-pill"
-                  transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                />
-              )}
-              <span className="ward-tab-label">{w.label}</span>
-              <span className="ward-tab-count">{patients.filter((p) => p.careStatus === w.id).length}</span>
-            </button>
-          )
-        })}
+      <nav className="pt-chips td-fade" aria-label="Care ward" style={{ animationDelay: '.08s' }}>
+        {WARDS.map((w) => (
+          <button
+            key={w.id}
+            type="button"
+            className={w.id === ward ? 'pt-chip on' : 'pt-chip'}
+            onClick={() => setWard(w.id)}
+          >
+            {w.chipLabel} · {countByWard(w.id)}
+          </button>
+        ))}
       </nav>
 
-      <label className="search-field">
+      <label className="pt-search td-fade" style={{ animationDelay: '.14s' }}>
         <SearchIcon />
         <input
-          placeholder="Search by patient name or diagnosis…"
+          aria-label="Search patients"
+          placeholder="Search by name or diagnosis"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
       </label>
 
       {error && <p className="form-error">{error}</p>}
+
       {loading ? (
         <p>Loading…</p>
       ) : visiblePatients.length === 0 ? (
-        <div className="dash-card">
+        <div className="pt-empty">
           <EmptyState>
             {wardPatients.length === 0 ? 'No patients here yet.' : 'No patients match your search.'}
           </EmptyState>
         </div>
       ) : (
-        <>
-          <div className="patient-table-wrap">
-            <table className="patient-table">
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Age</th>
-                  <th>Bed</th>
-                  <th>Diagnosis</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiblePatients.map((p, i) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => navigate(`/patients/${p.id}`)}
-                    style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
-                  >
-                    <td>
-                      <Link to={`/patients/${p.id}`} className="patient-table-name">
-                        <span
-                          className={
-                            lowHbByPatient[p.id] != null
-                              ? 'glance-avatar glance-avatar--icon glance-avatar--critical'
-                              : 'glance-avatar glance-avatar--icon'
-                          }
-                        >
-                          <KidneyIcon />
-                        </span>
-                        <span>
-                          <span className="patient-name">{p.name}</span>
-                          {p.code && <span className="patient-meta">{p.code}</span>}
-                        </span>
-                      </Link>
-                    </td>
-                    <td>{formatAge(p.age) ?? '—'}</td>
-                    <td>{p.bed || '—'}</td>
-                    <td>{p.diagnosis || '—'}</td>
-                    <td>
-                      {lowHbByPatient[p.id] != null && (
-                        <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
-                      )}
-                      {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
-                      {p.transplantStatus && (
-                        <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
-                      )}
-                      {!p.dialysisStatus && !p.transplantStatus && lowHbByPatient[p.id] == null && '—'}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <select value={p.careStatus} onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}>
-                        {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
-                          <option key={status} value={status}>
-                            {CARE_STATUS_LABELS[status]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="patient-card-list">
-            {visiblePatients.map((p, i) => (
-              <li key={p.id} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
-                <Link to={`/patients/${p.id}`} className="patient-card">
-                  <span
-                    className={
-                      lowHbByPatient[p.id] != null
-                        ? 'glance-avatar glance-avatar--icon glance-avatar--critical'
-                        : 'glance-avatar glance-avatar--icon'
-                    }
-                  >
-                    <KidneyIcon />
+        <div className="pt-list">
+          {visiblePatients.map((p, i) => {
+            const critical = lowHbByPatient[p.id] != null
+            return (
+              <Link
+                key={p.id}
+                to={`/patients/${p.id}`}
+                className={critical ? 'pt-pt crit' : 'pt-pt'}
+                style={{ animationDelay: `${Math.min(i, 8) * 0.07}s` }}
+              >
+                <span className="pt-av">
+                  <PersonIcon />
+                </span>
+                <span className="pt-info">
+                  <span className="pt-name" dir="rtl" style={{ textAlign: 'left' }}>
+                    {p.name}
                   </span>
-                  <span className="patient-card-body">
-                    <span className="patient-card-top">
-                      <span className="patient-name">{p.name}</span>
-                      {lowHbByPatient[p.id] != null && (
-                        <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
-                      )}
-                    </span>
-                    <span className="patient-meta">
-                      {[formatAge(p.age), p.bed, p.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}
-                    </span>
-                    {(p.dialysisStatus || p.transplantStatus) && (
-                      <span className="patient-card-badges">
-                        {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
-                        {p.transplantStatus && (
-                          <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
-                        )}
-                      </span>
-                    )}
+                  <span className="pt-sub">{[formatAge(p.age), p.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}</span>
+                </span>
+                {critical && (
+                  <span className="pt-alert">
+                    <WarningIcon />
+                    Hb {lowHbByPatient[p.id]}
                   </span>
-                  <select
-                    value={p.careStatus}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
-                  >
-                    {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
-                      <option key={status} value={status}>
-                        {CARE_STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
+                )}
+                <select
+                  className="pt-ward"
+                  value={p.careStatus}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
+                >
+                  {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
+                    <option key={status} value={status}>
+                      {CARE_STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </Link>
+            )
+          })}
+        </div>
       )}
+
+      <button type="button" className="pt-fab" onClick={() => setShowNewForm((v) => !v)}>
+        <PlusIcon />
+        {showNewForm ? 'Cancel' : 'New patient'}
+      </button>
     </div>
   )
 }
