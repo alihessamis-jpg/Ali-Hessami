@@ -130,7 +130,8 @@ body {
     transition-duration: 0.01ms !important;
   }
   .nephron-illustration *,
-  .status-badge--renal-yes {
+  .status-badge--renal-yes,
+  .status-badge--alert {
     animation: none !important;
   }
 }
@@ -1046,6 +1047,7 @@ legend {
 .status-badge--alert {
   background: var(--danger-soft);
   color: var(--danger);
+  animation: pulse-glow 2.2s var(--ease-out) infinite;
 }
 
 .status-badge--weak {
@@ -2513,4 +2515,205 @@ legend {
   display: block;
   color: var(--navy-text);
   font-size: 0.9rem;
+}
+
+/* ---- Patients page: ward pill switcher, search, cards ---- */
+
+.new-patient-card {
+  margin-bottom: 20px;
+}
+
+.ward-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 14px;
+  background: var(--surface-tint);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ward-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.ward-tab:hover {
+  background: none;
+  color: var(--accent-dark);
+}
+
+.ward-tab.active {
+  color: var(--accent-dark);
+}
+
+.ward-tab-pill {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  z-index: 0;
+}
+
+.ward-tab-label,
+.ward-tab-count {
+  position: relative;
+  z-index: 1;
+}
+
+.ward-tab-count {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ward-tab.active .ward-tab-count {
+  color: var(--accent);
+}
+
+.search-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+  margin: 4px 0 16px;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-field svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.search-field input {
+  flex: 1;
+  border: none;
+  box-shadow: none;
+  padding: 10px 0;
+  background: none;
+}
+
+.search-field input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.patient-table tbody tr {
+  animation: fade-in-up var(--dur) var(--ease-out) both;
+}
+
+/* Card list: same patient data as the table, shown instead of it on
+   narrow screens where a multi-column table would need horizontal
+   scroll. Toggled purely via CSS so both share one data source. */
+.patient-card-list {
+  display: none;
+}
+
+.patient-card-list li {
+  animation: fade-in-up var(--dur) var(--ease-out) both;
+}
+
+.patient-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.patient-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.patient-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patient-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.patient-card-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.patient-card select {
+  flex-shrink: 0;
+  width: auto;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 768px) {
+  .patient-table-wrap {
+    display: none;
+  }
+
+  .patient-card-list {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .ward-tabs {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .search-field {
+    max-width: none;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .page-header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .page-header-actions > * {
+    flex: 1;
+  }
 }

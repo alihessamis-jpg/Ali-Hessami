@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
 import { listLabEntriesByTest } from '../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
 import { formatAge } from '../lib/patientAge'
-import { PatientsIcon } from '../components/icons'
+import { KidneyIcon, PatientsIcon, SearchIcon } from '../components/icons'
+import { EmptyState } from '../components/illustrations/EmptyState'
 import type { Patient, PatientCareStatus } from '../types/domain'
 
 const WARDS: Array<{ id: PatientCareStatus; label: string }> = [
@@ -111,7 +113,7 @@ export function PatientsListPage() {
           </span>
           Patients
         </h1>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="page-header-actions">
           <Link to="/patients/quick-aki" className="button-link">
             Quick AKI entry
           </Link>
@@ -122,8 +124,8 @@ export function PatientsListPage() {
       </div>
 
       {showNewForm && (
-        <>
-          <p className="patient-meta">
+        <div className="dash-card new-patient-card">
+          <p className="patient-meta" style={{ marginTop: 0 }}>
             Will be added to: {WARDS.find((w) => w.id === ward)?.label}
           </p>
           <form className="inline-form" onSubmit={(e) => void handleCreate(e)}>
@@ -137,87 +139,165 @@ export function PatientsListPage() {
               Add
             </button>
           </form>
-        </>
+        </div>
       )}
 
-      <nav className="tab-bar">
-        {WARDS.map((w) => (
-          <button
-            key={w.id}
-            className={w.id === ward ? 'tab active' : 'tab'}
-            onClick={() => setWard(w.id)}
-          >
-            {w.label} ({patients.filter((p) => p.careStatus === w.id).length})
-          </button>
-        ))}
+      <nav className="ward-tabs" aria-label="Care ward">
+        {WARDS.map((w) => {
+          const active = w.id === ward
+          return (
+            <button
+              key={w.id}
+              type="button"
+              className={active ? 'ward-tab active' : 'ward-tab'}
+              onClick={() => setWard(w.id)}
+            >
+              {active && (
+                <motion.span
+                  layoutId="ward-tab-pill"
+                  className="ward-tab-pill"
+                  transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                />
+              )}
+              <span className="ward-tab-label">{w.label}</span>
+              <span className="ward-tab-count">{patients.filter((p) => p.careStatus === w.id).length}</span>
+            </button>
+          )
+        })}
       </nav>
 
-      <input
-        placeholder="Search by patient name or diagnosis…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
-      />
+      <label className="search-field">
+        <SearchIcon />
+        <input
+          placeholder="Search by patient name or diagnosis…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </label>
 
       {error && <p className="form-error">{error}</p>}
       {loading ? (
         <p>Loading…</p>
       ) : visiblePatients.length === 0 ? (
-        <p className="empty-state">
-          {wardPatients.length === 0 ? 'No patients here yet.' : 'No patients match your search.'}
-        </p>
-      ) : (
-        <div className="patient-table-wrap">
-          <table className="patient-table">
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Age</th>
-                <th>Bed</th>
-                <th>Diagnosis</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePatients.map((p) => (
-                <tr key={p.id} onClick={() => navigate(`/patients/${p.id}`)}>
-                  <td>
-                    <Link to={`/patients/${p.id}`} className="patient-table-name">
-                      <span className="glance-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                      <span>
-                        <span className="patient-name">{p.name}</span>
-                        {p.code && <span className="patient-meta">{p.code}</span>}
-                      </span>
-                    </Link>
-                  </td>
-                  <td>{formatAge(p.age) ?? '—'}</td>
-                  <td>{p.bed || '—'}</td>
-                  <td>{p.diagnosis || '—'}</td>
-                  <td>
-                    {lowHbByPatient[p.id] != null && (
-                      <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
-                    )}
-                    {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
-                    {p.transplantStatus && (
-                      <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
-                    )}
-                    {!p.dialysisStatus && !p.transplantStatus && lowHbByPatient[p.id] == null && '—'}
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <select value={p.careStatus} onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}>
-                      {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
-                        <option key={status} value={status}>
-                          {CARE_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="dash-card">
+          <EmptyState>
+            {wardPatients.length === 0 ? 'No patients here yet.' : 'No patients match your search.'}
+          </EmptyState>
         </div>
+      ) : (
+        <>
+          <div className="patient-table-wrap">
+            <table className="patient-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Age</th>
+                  <th>Bed</th>
+                  <th>Diagnosis</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiblePatients.map((p, i) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate(`/patients/${p.id}`)}
+                    style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+                  >
+                    <td>
+                      <Link to={`/patients/${p.id}`} className="patient-table-name">
+                        <span
+                          className={
+                            lowHbByPatient[p.id] != null
+                              ? 'glance-avatar glance-avatar--icon glance-avatar--critical'
+                              : 'glance-avatar glance-avatar--icon'
+                          }
+                        >
+                          <KidneyIcon />
+                        </span>
+                        <span>
+                          <span className="patient-name">{p.name}</span>
+                          {p.code && <span className="patient-meta">{p.code}</span>}
+                        </span>
+                      </Link>
+                    </td>
+                    <td>{formatAge(p.age) ?? '—'}</td>
+                    <td>{p.bed || '—'}</td>
+                    <td>{p.diagnosis || '—'}</td>
+                    <td>
+                      {lowHbByPatient[p.id] != null && (
+                        <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
+                      )}
+                      {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
+                      {p.transplantStatus && (
+                        <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
+                      )}
+                      {!p.dialysisStatus && !p.transplantStatus && lowHbByPatient[p.id] == null && '—'}
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <select value={p.careStatus} onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}>
+                        {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
+                          <option key={status} value={status}>
+                            {CARE_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="patient-card-list">
+            {visiblePatients.map((p, i) => (
+              <li key={p.id} style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}>
+                <Link to={`/patients/${p.id}`} className="patient-card">
+                  <span
+                    className={
+                      lowHbByPatient[p.id] != null
+                        ? 'glance-avatar glance-avatar--icon glance-avatar--critical'
+                        : 'glance-avatar glance-avatar--icon'
+                    }
+                  >
+                    <KidneyIcon />
+                  </span>
+                  <span className="patient-card-body">
+                    <span className="patient-card-top">
+                      <span className="patient-name">{p.name}</span>
+                      {lowHbByPatient[p.id] != null && (
+                        <span className="status-badge status-badge--alert">⚠ Hb {lowHbByPatient[p.id]}</span>
+                      )}
+                    </span>
+                    <span className="patient-meta">
+                      {[formatAge(p.age), p.bed, p.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}
+                    </span>
+                    {(p.dialysisStatus || p.transplantStatus) && (
+                      <span className="patient-card-badges">
+                        {p.dialysisStatus && <span className="status-badge status-badge--dialysis">{p.dialysisStatus}</span>}
+                        {p.transplantStatus && (
+                          <span className="status-badge status-badge--transplant">{p.transplantStatus}</span>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                  <select
+                    value={p.careStatus}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
+                  >
+                    {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
+                      <option key={status} value={status}>
+                        {CARE_STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )
