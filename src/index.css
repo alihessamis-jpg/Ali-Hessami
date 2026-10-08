@@ -374,6 +374,184 @@ label {
   padding: 24px 16px 64px;
 }
 
+/* A page using the shared np-page container (Dashboard/Today/Patients)
+   owns its own max-width/padding at every breakpoint, so app-main gets
+   out of the way for it instead of adding a second layer of spacing. */
+.app-main:has(> .np-page) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shell-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- Sidebar (tablet/desktop primary nav) ---- */
+
+.side {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .app-header {
+    display: none;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 76px;
+    flex-shrink: 0;
+    padding: 18px 12px;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-right: 1px solid #dce7f7;
+    overflow-y: auto;
+  }
+
+  .slogo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+    font-size: 20px;
+    font-weight: 800;
+    color: #12357a;
+    letter-spacing: -0.02em;
+    padding: 4px 0 6px;
+  }
+
+  .slogo span,
+  .sitem span,
+  .slabel,
+  .sfoot {
+    display: none;
+  }
+
+  .snav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sgroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px solid #dce7f7;
+  }
+
+  .sitem {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 46px;
+    border-radius: 14px;
+    color: #3b4a60;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .sitem:hover {
+    background: #f1f5fc;
+    color: #0e1f3d;
+  }
+
+  .sitem.on {
+    background: rgba(30, 91, 216, 0.12);
+    color: #1e5bd8;
+  }
+
+  .sitem svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 1100px) {
+  .side {
+    width: 248px;
+    padding: 22px 16px;
+  }
+
+  .slogo {
+    justify-content: flex-start;
+    padding: 4px 10px 6px;
+  }
+
+  .slogo span,
+  .sitem span {
+    display: inline;
+  }
+
+  .sitem {
+    justify-content: flex-start;
+    padding: 0 12px;
+  }
+
+  .slabel {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #7a889c;
+    text-transform: uppercase;
+    padding: 4px 12px;
+  }
+
+  .sfoot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    padding: 14px 12px 0;
+    border-top: 1px solid #dce7f7;
+  }
+
+  .sfoot .storage-usage {
+    min-width: 0;
+  }
+
+  .semail {
+    font-size: 12px;
+    color: #52627a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sout {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #b42318;
+    cursor: pointer;
+  }
+
+  .sout:hover {
+    background: none;
+    color: #8e1c13;
+  }
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -767,48 +945,6 @@ legend {
   animation-delay: 200ms;
 }
 
-.dash-row {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.dash-row-main {
-  flex: 2;
-  min-width: 280px;
-}
-
-.dash-row-side {
-  flex: 1;
-  min-width: 260px;
-}
-
-.dash-row-side .dash-card {
-  margin-bottom: 0;
-}
-
-/* Dashboard page: one consistent 16px gap between every top-level
-   section (hero, the patients/calendar row, topic-of-day, quick
-   tools, needs-attention, learning & research) instead of each
-   card's own margin-bottom, which gave inconsistent gaps once some
-   cards sit inside a flex row and others don't. */
-.dashboard-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.dashboard-page > .dash-hero,
-.dashboard-page > .dash-row,
-.dashboard-page > .dash-card {
-  margin-bottom: 0;
-}
-
-.dashboard-page .dash-row-main {
-  margin-bottom: 0;
-}
-
 .dash-card-header {
   display: flex;
   align-items: center;
@@ -914,63 +1050,6 @@ legend {
   display: block;
   font-size: 0.95rem;
   color: var(--text);
-}
-
-.alert-feed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.alert-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 11px 13px;
-  border-radius: 10px;
-  text-decoration: none;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.alert-row:hover {
-  transform: translateX(2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.alert-row svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.alert-row .alert-title {
-  font-weight: 600;
-  display: block;
-}
-
-.alert-row .alert-detail {
-  font-size: 0.85rem;
-  opacity: 0.85;
-  display: block;
-}
-
-.alert-row--critical {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.alert-row--warning {
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-
-.alert-row--info {
-  background: var(--accent-soft);
-  color: var(--accent-dark);
 }
 
 .status-badge {
@@ -1653,70 +1732,6 @@ legend {
   background: var(--surface-tint);
 }
 
-/* ---- Dashboard: learning & research checklist widget ---- */
-
-.checklist-widget {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.checklist-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  border-radius: 10px;
-  text-decoration: none;
-  color: inherit;
-  transition: background 0.12s ease;
-}
-
-.checklist-row:hover {
-  background: var(--surface-tint);
-}
-
-.checklist-dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--surface-tint);
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.checklist-dot svg {
-  width: 15px;
-  height: 15px;
-}
-
-.checklist-dot--due {
-  background: var(--warning-soft);
-  color: var(--warning);
-}
-
-.checklist-dot--done {
-  background: var(--accent-soft);
-  color: var(--accent-dark);
-}
-
-.checklist-label {
-  flex: 1;
-  font-weight: 500;
-}
-
-.checklist-count {
-  font-weight: 700;
-  color: var(--text);
-  min-width: 20px;
-  text-align: right;
-}
 
 /* ---- Calculators: card grid with result tiles ---- */
 
@@ -2121,172 +2136,6 @@ legend {
   box-shadow: none;
 }
 
-/* --- Dashboard hero --- */
-.dash-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  padding: 22px 22px 26px;
-  margin-bottom: 20px;
-  background: radial-gradient(120% 140% at 15% 0%, var(--navy-700) 0%, var(--navy-800) 55%, var(--navy-900) 100%);
-  color: var(--navy-text);
-  box-shadow: var(--glass-shadow);
-}
-
-.dash-hero-date {
-  font-size: 0.82rem;
-  color: var(--navy-text-muted);
-  margin: 0 0 6px;
-}
-
-.dash-hero-greeting {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin: 0;
-  color: #fff;
-}
-
-.dash-hero-followup {
-  margin: 6px 0 0;
-  color: var(--navy-text-muted);
-  font-size: 0.92rem;
-}
-
-.dash-hero-illustration {
-  position: absolute;
-  top: -10%;
-  inset-inline-end: -8%;
-  width: 46%;
-  max-width: 220px;
-  opacity: 0.9;
-  pointer-events: none;
-}
-
-/* --- Week strip --- */
-.week-strip-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.week-strip-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-
-.week-strip-day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 2px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.week-strip-day--holiday {
-  color: var(--danger);
-}
-
-.week-strip-day--today {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  box-shadow: 0 0 0 4px var(--accent-soft), 0 0 16px rgba(29, 100, 224, 0.5);
-}
-
-/* --- Quick tools --- */
-.quick-tools-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin: 0 0 10px;
-}
-
-.quick-tools-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.quick-tool-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
-  border-radius: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  color: var(--text);
-  text-decoration: none;
-  font-size: 0.82rem;
-  text-align: center;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.quick-tool-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.quick-tool-card svg {
-  width: 22px;
-  height: 22px;
-  color: var(--accent);
-}
-
-/* --- Topic-of-the-day card --- */
-.topic-of-day-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  color: inherit;
-}
-
-.topic-of-day-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent-dark);
-  flex-shrink: 0;
-}
-
-.topic-of-day-avatar svg {
-  width: 22px;
-  height: 22px;
-}
-
-.topic-of-day-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.topic-of-day-name {
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.topic-of-day-cta {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--accent);
-  margin-top: 2px;
-}
-
 /* --- Patient glance avatar as kidney icon (severity-tinted) --- */
 .glance-avatar--icon {
   background: var(--accent-soft);
@@ -2507,17 +2356,6 @@ legend {
    they can't collide with any existing global rule.
    ========================================================================== */
 
-.today-page,
-.patients-page {
-  max-width: 430px;
-  margin: 0 auto;
-  padding-bottom: 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
-  color: #0e1f3d;
-}
 
 @keyframes td-fade-up {
   from {
@@ -2592,16 +2430,6 @@ legend {
   }
 }
 
-.td-fade {
-  animation: td-fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.td-fade.d1 {
-  animation-delay: 0.1s;
-}
-.td-fade.d2 {
-  animation-delay: 0.2s;
-}
-
 /* ---- Today hero ---- */
 
 .td-hero {
@@ -2662,70 +2490,21 @@ legend {
   animation: td-spin 18s linear infinite;
 }
 
-/* ---- Today cards ---- */
+/* ---- Today: 2-column layout at 1024px+ ---- */
 
-.td-card {
-  background: #fff;
-  border-radius: 22px;
-  border: 1px solid #dce7f7;
-  padding: 16px;
+.td-cols {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-.td-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.td-head-l {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.td-ic {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #e3edfd;
-  color: #1e5bd8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.td-ic svg {
-  width: 18px;
-  height: 18px;
-}
-
-.td-card h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
-  color: #0e1f3d;
-}
-
-.td-pill {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  color: #1e5bd8;
-  background: #e3edfd;
-}
-
-.td-pill--amber {
-  color: #93590b;
-  background: #fdf0dc;
+@media (min-width: 1024px) {
+  .td-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+  }
 }
 
 .td-flipwrap {
@@ -2771,12 +2550,7 @@ legend {
   gap: 10px;
 }
 
-.td-small {
-  font-size: 12px;
-  color: #52627a;
-}
-
-.td-back .td-small {
+.td-back .np-small {
   color: #a9c6ff;
 }
 
@@ -2964,20 +2738,32 @@ legend {
   font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
 }
 
-.pt-glass {
+.pt-hero-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pt-glass,
+.pt-solid {
   flex-shrink: 0;
   height: 40px;
   padding: 0 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
+  border: 0;
+  cursor: pointer;
+}
+
+.pt-glass {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 .pt-glass:hover {
@@ -2988,6 +2774,17 @@ legend {
   width: 16px;
   height: 16px;
   color: #ffc46b;
+}
+
+.pt-solid {
+  display: none;
+  padding: 0 16px;
+  background: #fff;
+  color: #12357a;
+}
+
+.pt-solid:hover {
+  background: #eef4fd;
 }
 
 .pt-ecg-path {
@@ -3012,6 +2809,14 @@ legend {
 .pt-stats span {
   font-size: 12px;
   color: #a9c6ff;
+}
+
+/* ---- Patients toolbar (chips + search) ---- */
+
+.pt-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* ---- Patients ward chips ---- */
@@ -3238,5 +3043,490 @@ select.pt-ward:focus {
   .pt-alert,
   .pt-fab {
     animation: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .pt-hero {
+    padding: 28px 32px 22px;
+  }
+
+  .pt-hero h1 {
+    font-size: 32px;
+  }
+
+  .pt-solid {
+    display: flex;
+  }
+
+  .pt-fab {
+    display: none;
+  }
+
+  .pt-stats {
+    grid-template-columns: repeat(3, minmax(0, 180px));
+  }
+
+  .pt-stats b {
+    font-size: 30px;
+  }
+
+  .pt-list {
+    margin-bottom: 0;
+  }
+
+  .pt-empty {
+    margin-bottom: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pt-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .pt-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pt-search {
+    width: 320px;
+    flex-shrink: 0;
+  }
+}
+
+/* ==========================================================================
+   Shared page shell for Dashboard/Today/Patients (design/dashboard.html,
+   design/today.html, design/patients.html) — the 1100px container and
+   the card/hero/pill building blocks all three pages share, plus the
+   tablet+ sidebar layout.
+   ========================================================================== */
+
+.np-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 16px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
+  color: #0e1f3d;
+}
+
+.np-card {
+  background: #fff;
+  border-radius: 22px;
+  border: 1px solid #dce7f7;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.np-fade {
+  animation: td-fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.np-card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
+  color: #0e1f3d;
+}
+
+.np-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.np-head-l {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.np-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #e3edfd;
+  color: #1e5bd8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.np-ic svg {
+  width: 18px;
+  height: 18px;
+}
+
+.np-pill {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.np-small {
+  font-size: 12px;
+  color: #52627a;
+}
+
+.np-fa {
+  font-family: 'Vazirmatn', sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-glow {
+    animation: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .np-page {
+    padding: 28px 28px 48px;
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .np-page {
+    padding: 32px 36px 56px;
+  }
+}
+
+/* ==========================================================================
+   Dashboard (design/dashboard.html) — hero with the inline nephron
+   illustration, and the 2-col card grid.
+   ========================================================================== */
+
+@keyframes dh-flow {
+  to {
+    stroke-dashoffset: -56;
+  }
+}
+
+@keyframes dh-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes dh-glowd {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px rgba(30, 91, 216, 0.35);
+  }
+  50% {
+    box-shadow: 0 6px 28px rgba(30, 91, 216, 0.6);
+  }
+}
+
+.dh-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #0a2352;
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 150px;
+  justify-content: center;
+}
+
+.dh-hero-glow {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(64, 130, 255, 0.55), rgba(64, 130, 255, 0) 70%);
+  top: -90px;
+  right: -60px;
+  animation: td-drift 9s ease-in-out infinite;
+}
+
+.dh-hero-glow2 {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(120, 220, 255, 0.3), rgba(120, 220, 255, 0) 70%);
+  bottom: -80px;
+  left: -40px;
+  animation: td-drift 11s ease-in-out infinite reverse;
+}
+
+.dh-hero-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dh-hero-date {
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 13px;
+  color: #a9c6ff;
+  align-self: flex-start;
+}
+
+.dh-hero h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
+}
+
+.dh-hero p {
+  margin: 0;
+  font-size: 14px;
+  color: #c9daf8;
+}
+
+.dh-neph {
+  position: relative;
+  display: block;
+  margin-top: 8px;
+  width: 100%;
+  height: 120px;
+}
+
+.dh-neph-beat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dh-beat 2.4s ease-in-out infinite;
+}
+
+.dh-neph-flow {
+  animation: dh-flow 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-hero-glow,
+  .dh-hero-glow2,
+  .dh-neph-beat,
+  .dh-neph-flow {
+    animation: none !important;
+  }
+}
+
+.dh-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.dh-ptrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f5f8fe;
+  text-decoration: none;
+  color: #0e1f3d;
+}
+
+.dh-av {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #fde8e7;
+  color: #b42318;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dh-ptrow-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  animation: pt-pulse 2s infinite;
+}
+
+.dh-ptrow-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dh-ptrow-stats b {
+  font-size: 17px;
+}
+
+.dh-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  font-family: 'Vazirmatn', sans-serif;
+}
+
+.dh-week > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-radius: 14px;
+}
+
+.dh-week span:first-child {
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.dh-week .now {
+  background: #1e5bd8;
+  color: #fff;
+  animation: dh-glowd 2.6s ease-in-out infinite;
+}
+
+.dh-week .now span:first-child {
+  color: #d6e4ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-week .now {
+    animation: none !important;
+  }
+}
+
+.dh-tools {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.dh-tool {
+  background: #fff;
+  border: 1px solid #dce7f7;
+  border-radius: 18px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #0e1f3d;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dh-tool:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(14, 31, 61, 0.08);
+}
+
+.dh-tool svg {
+  color: #1e5bd8;
+}
+
+.dh-att {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  text-decoration: none;
+}
+
+.dh-att svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.dh-att b {
+  display: block;
+  font-size: 14px;
+}
+
+.dh-att span {
+  font-size: 12px;
+}
+
+.dh-lr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #edf1f7;
+  text-decoration: none;
+  color: #0e1f3d;
+}
+
+.dh-lr:last-child {
+  border-bottom: 0;
+}
+
+.dh-lr .np-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.dh-lr .np-ic svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dh-lr b {
+  margin-left: auto;
+  font-size: 16px;
+}
+
+@media (min-width: 768px) {
+  .dh-hero {
+    flex-direction: row;
+    align-items: center;
+    padding: 28px 32px;
+    min-height: 180px;
+  }
+
+  .dh-hero h1 {
+    font-size: 34px;
+  }
+
+  .dh-neph {
+    width: 380px;
+    height: 140px;
+    margin: 0 0 0 auto;
+  }
+
+  .dh-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dh-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 }

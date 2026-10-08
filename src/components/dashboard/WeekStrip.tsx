@@ -33,31 +33,30 @@ export function WeekStrip({ onExpand }: { onExpand: () => void }) {
   const days = currentWeekDays()
 
   return (
-    <div className="dash-card">
-      <div className="dash-card-header week-strip-header">
+    <section className="np-card np-fade">
+      <div className="np-head np-fa" dir="rtl">
+        <div className="np-head-l">
+          <span className="np-ic">
+            <CalendarIcon />
+          </span>
+          <h2>
+            تقویم · {SHAMSI_MONTHS[today.jm - 1]} {toPersianDigits(today.jy)}
+          </h2>
+        </div>
         <button type="button" className="link-button" onClick={onExpand}>
           ماه کامل
         </button>
-        <h2 className="dash-card-title">
-          <span className="icon-chip">
-            <CalendarIcon />
-          </span>
-          تقویم {toPersianDigits(today.jy)} · {SHAMSI_MONTHS[today.jm - 1]}
-        </h2>
       </div>
-      <div className="week-strip-grid" dir="rtl">
+      <div className="dh-week" dir="rtl">
         {days.map((d, i) => (
-          <span
-            key={i}
-            className={`week-strip-day ${d.isHoliday ? 'week-strip-day--holiday' : ''} ${
-              d.isToday ? 'week-strip-day--today' : ''
-            }`}
-          >
+          <div key={i} className={d.isToday ? 'now' : ''}>
             <span>{d.weekday}</span>
-            <strong>{d.day}</strong>
-          </span>
+            <span style={{ fontSize: 15, fontWeight: d.isToday ? 700 : 400, color: !d.isToday && d.isHoliday ? '#B42318' : undefined }}>
+              {d.day}
+            </span>
+          </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }

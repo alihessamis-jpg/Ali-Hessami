@@ -34,7 +34,7 @@ function DueReviewCard({
   showBack,
   onShowBack,
   onGrade,
-  animationClass,
+  animationDelay,
 }: {
   icon: ReactNode
   title: string
@@ -45,27 +45,29 @@ function DueReviewCard({
   showBack: boolean
   onShowBack: () => void
   onGrade: (rating: Rating) => void
-  animationClass: string
+  animationDelay: string
 }) {
   return (
-    <div className={`td-card td-fade ${animationClass}`}>
-      <div className="td-head">
-        <div className="td-head-l">
-          <span className="td-ic">{icon}</span>
+    <div className="np-card np-fade" style={{ animationDelay }}>
+      <div className="np-head">
+        <div className="np-head-l">
+          <span className="np-ic">{icon}</span>
           <h2>{title}</h2>
         </div>
-        <span className="td-pill">{pillText}</span>
+        <span className="np-pill" style={{ color: '#1E5BD8', background: '#E3EDFD' }}>
+          {pillText}
+        </span>
       </div>
       {meta && <p className="td-meta">{meta}</p>}
       <div className="td-flipwrap">
         <div className={showBack ? 'td-flip on' : 'td-flip'}>
           <div className="td-face td-front" dir="rtl">
-            <span className="td-small">سؤال</span>
+            <span className="np-small">سؤال</span>
             <p className="td-q">{question}</p>
-            <span className="td-small">&nbsp;</span>
+            <span className="np-small">&nbsp;</span>
           </div>
           <div className="td-face td-back" dir="rtl">
-            <span className="td-small">پاسخ</span>
+            <span className="np-small">پاسخ</span>
             <p className="td-q">{answer || '—'}</p>
           </div>
         </div>
@@ -185,8 +187,8 @@ export function TodayPage() {
   if (loading) return <p>Loading…</p>
 
   return (
-    <div className="today-page">
-      <section className="td-hero td-fade">
+    <div className="np-page">
+      <section className="td-hero np-fade">
         <div className="td-hero-glow" />
         <div className="td-hero-body">
           <span className="td-eyebrow">TODAY</span>
@@ -224,11 +226,11 @@ export function TodayPage() {
       {error && <p className="form-error">{error}</p>}
 
       {totalDue === 0 ? (
-        <div className="td-card td-fade d1">
+        <div className="np-card np-fade">
           <EmptyState>Nothing due today — you're all caught up.</EmptyState>
         </div>
       ) : (
-        <>
+        <div className="td-cols">
           {dueFlashcards.length > 0 && currentFlashcard && (
             <DueReviewCard
               icon={<FlashcardsIcon />}
@@ -239,7 +241,7 @@ export function TodayPage() {
               showBack={flashcardShowBack}
               onShowBack={() => setFlashcardShowBack(true)}
               onGrade={(rating) => void handleRateFlashcard(rating)}
-              animationClass="d1"
+              animationDelay="0.1s"
             />
           )}
 
@@ -254,20 +256,22 @@ export function TodayPage() {
               showBack={leitnerShowBack}
               onShowBack={() => setLeitnerShowBack(true)}
               onGrade={(rating) => void handleRateLeitner(rating)}
-              animationClass="d2"
+              animationDelay="0.2s"
             />
           )}
 
           {dueCheckpoints.length > 0 && (
-            <div className="td-card td-fade">
-              <div className="td-head">
-                <div className="td-head-l">
-                  <span className="td-ic">
+            <div className="np-card np-fade" style={{ animationDelay: '0.26s' }}>
+              <div className="np-head">
+                <div className="np-head-l">
+                  <span className="np-ic">
                     <CalendarIcon />
                   </span>
                   <h2>Reading checkpoints due</h2>
                 </div>
-                <span className="td-pill">{dueCheckpoints.length}</span>
+                <span className="np-pill" style={{ color: '#1E5BD8', background: '#E3EDFD' }}>
+                  {dueCheckpoints.length}
+                </span>
               </div>
               {dueCheckpoints.map(({ item, checkpoint, dueDate }) => (
                 <div className="td-row" key={`${item.id}-${checkpoint.key}`}>
@@ -288,21 +292,23 @@ export function TodayPage() {
           )}
 
           {dueTopics.length > 0 && (
-            <div className="td-card td-fade">
-              <div className="td-head">
-                <div className="td-head-l">
-                  <span className="td-ic">
+            <div className="np-card np-fade" style={{ animationDelay: '0.32s' }}>
+              <div className="np-head">
+                <div className="np-head-l">
+                  <span className="np-ic">
                     <AcademyIcon />
                   </span>
                   <h2>Academy topics due</h2>
                 </div>
-                <span className="td-pill td-pill--amber">{dueTopics.length}</span>
+                <span className="np-pill" style={{ color: '#93590B', background: '#FDF0DC' }}>
+                  {dueTopics.length}
+                </span>
               </div>
               {dueTopics.slice(0, 3).map((t) => (
                 <Link key={t.id} to={`/academy/${t.id}`} className="td-row">
                   <span className="td-dot" />
                   <b>{t.name}</b>
-                  <span className="td-small">{t.category}</span>
+                  <span className="np-small">{t.category}</span>
                 </Link>
               ))}
               <Link to="/academy" className="td-outline">
@@ -310,7 +316,7 @@ export function TodayPage() {
               </Link>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

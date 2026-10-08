@@ -117,29 +117,37 @@ export function PatientsListPage() {
   const countByWard = (id: PatientCareStatus) => patients.filter((p) => p.careStatus === id).length
 
   return (
-    <div className="patients-page">
-      <section className="pt-hero td-fade">
+    <div className="np-page">
+      <section className="pt-hero np-fade">
         <div className="pt-hero-glow" />
         <div className="pt-hero-top">
           <h1>Patients</h1>
-          <Link to="/patients/quick-aki" className="pt-glass">
-            <ZapIcon />
-            Quick AKI entry
-          </Link>
+          <div className="pt-hero-actions">
+            <Link to="/patients/quick-aki" className="pt-glass">
+              <ZapIcon />
+              Quick AKI entry
+            </Link>
+            <button type="button" className="pt-solid" onClick={() => setShowNewForm((v) => !v)}>
+              <PlusIcon />
+              New patient
+            </button>
+          </div>
         </div>
-        <svg viewBox="0 0 350 40" width="100%" height="40" fill="none" aria-hidden="true" style={{ position: 'relative', display: 'block' }}>
+        <svg viewBox="0 0 700 40" width="100%" height="40" fill="none" preserveAspectRatio="none" aria-hidden="true" style={{ position: 'relative', display: 'block' }}>
           <path
-            d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350"
+            d="M0 22H120l8-14 10 28 8-20 6 6H330l8-14 10 28 8-20 6 6H540l8-14 10 28 8-20 6 6H700"
             stroke="rgba(127,212,255,.25)"
             strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
           />
           <path
-            d="M0 22H70l8-14 10 28 8-20 6 6H180l8-14 10 28 8-20 6 6H350"
+            d="M0 22H120l8-14 10 28 8-20 6 6H330l8-14 10 28 8-20 6 6H540l8-14 10 28 8-20 6 6H700"
             stroke="#7FD4FF"
             strokeWidth="2.4"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeDasharray="80 320"
+            strokeDasharray="120 480"
+            vectorEffect="non-scaling-stroke"
             className="pt-ecg-path"
           />
         </svg>
@@ -151,7 +159,7 @@ export function PatientsListPage() {
       </section>
 
       {showNewForm && (
-        <div className="pt-new-form td-fade">
+        <div className="pt-new-form np-fade">
           <p className="patient-meta" style={{ margin: 0 }}>
             Will be added to: {WARDS.find((w) => w.id === ward)?.label}
           </p>
@@ -169,28 +177,30 @@ export function PatientsListPage() {
         </div>
       )}
 
-      <nav className="pt-chips td-fade" aria-label="Care ward" style={{ animationDelay: '.08s' }}>
-        {WARDS.map((w) => (
-          <button
-            key={w.id}
-            type="button"
-            className={w.id === ward ? 'pt-chip on' : 'pt-chip'}
-            onClick={() => setWard(w.id)}
-          >
-            {w.chipLabel} · {countByWard(w.id)}
-          </button>
-        ))}
-      </nav>
+      <div className="pt-toolbar np-fade" style={{ animationDelay: '.08s' }}>
+        <nav className="pt-chips" aria-label="Care ward">
+          {WARDS.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              className={w.id === ward ? 'pt-chip on' : 'pt-chip'}
+              onClick={() => setWard(w.id)}
+            >
+              {w.chipLabel} · {countByWard(w.id)}
+            </button>
+          ))}
+        </nav>
 
-      <label className="pt-search td-fade" style={{ animationDelay: '.14s' }}>
-        <SearchIcon />
-        <input
-          aria-label="Search patients"
-          placeholder="Search by name or diagnosis"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </label>
+        <label className="pt-search">
+          <SearchIcon />
+          <input
+            aria-label="Search patients"
+            placeholder="Search by name or diagnosis"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      </div>
 
       {error && <p className="form-error">{error}</p>}
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCountUp } from '../../hooks/useCountUp'
 import { formatAge } from '../../lib/patientAge'
-import { KidneyIcon } from '../icons'
+import { PersonIcon } from '../icons'
 import type { PatientGlance } from '../../lib/api/dashboard'
 
 export function PatientGlanceRow({
@@ -15,27 +15,36 @@ export function PatientGlanceRow({
   const egfr = useCountUp(patient.latestEGFR)
 
   return (
-    <Link to={`/patients/${patient.id}`} className="glance-row">
-      <span className={`glance-avatar glance-avatar--icon glance-avatar--${severity ?? 'neutral'}`}>
-        <KidneyIcon />
+    <Link to={`/patients/${patient.id}`} className="dh-ptrow">
+      <span className="dh-av">
+        <PersonIcon />
       </span>
-      <span className="glance-body">
-        <span className="glance-name">
-          {patient.name}
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <b className="np-fa" style={{ fontSize: 15 }}>
+            {patient.name}
+          </b>
           {severity && (
-            <span className={`status-badge status-badge--renal-${severity === 'critical' ? 'yes' : 'review'}`}>
+            <span
+              className="dh-ptrow-badge"
+              style={
+                severity === 'critical'
+                  ? { background: '#FDE8E7', color: '#B42318' }
+                  : { background: '#FDF0DC', color: '#93590B', animation: 'none' }
+              }
+            >
               {severity === 'critical' ? 'Critical' : 'Follow-up'}
             </span>
           )}
         </span>
-        <span className="glance-meta">
+        <span className="np-small">
           {[formatAge(patient.age), patient.bed, patient.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}
         </span>
       </span>
       {(patient.latestCreatinine || patient.latestEGFR != null) && (
-        <span className="glance-stats">
-          {creatinine != null && <strong>Cr {creatinine.toFixed(2)}</strong>}
-          {egfr != null && <span>eGFR {egfr.toFixed(1)}</span>}
+        <span className="dh-ptrow-stats">
+          {creatinine != null && <b>Cr {creatinine.toFixed(2)}</b>}
+          {egfr != null && <span className="np-small">eGFR {egfr.toFixed(1)}</span>}
         </span>
       )}
     </Link>

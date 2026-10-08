@@ -36,11 +36,11 @@ import {
   CalendarIcon,
   CaseLogIcon,
   FlashcardsIcon,
-  KidneyIcon,
   KnowledgeGapIcon,
   PatientsIcon,
   ResearchIcon,
   WarningIcon,
+  ZapIcon,
 } from '../components/icons'
 import type { AcademyTopic, Flashcard, KnowledgeGap, ReadingItem, ResearchProject } from '../types/domain'
 
@@ -350,158 +350,139 @@ export function DashboardPage() {
   const topicOfTheDay = dueTopics[0] ?? topics[0] ?? null
 
   return (
-    <div className="dashboard-page">
+    <div className="np-page">
       <DashboardHero followUpCount={sortedPatients.length} />
 
-      <div className="dash-row">
-        <div className="dash-card dash-row-main">
-          <div className="dash-card-header">
-            <h2 className="dash-card-title">
-              <span className="icon-chip">
+      <div className="dh-grid">
+        <section className="np-card np-fade" style={{ animationDelay: '.08s' }}>
+          <div className="np-head">
+            <div className="np-head-l">
+              <span className="np-ic">
                 <PatientsIcon />
               </span>
-              Patients needing follow-up
-            </h2>
-            <Link to="/patients" className="link-button">
+              <h2>Patients needing follow-up</h2>
+            </div>
+            <Link to="/patients" style={{ fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
               View all
             </Link>
           </div>
           {sortedPatients.length === 0 ? (
             <EmptyState>No patients currently need follow-up.</EmptyState>
           ) : (
-            <ul className="glance-list">
-              {sortedPatients.map((p) => (
-                <li key={p.id}>
-                  <PatientGlanceRow patient={p} severity={patientSeverity.get(p.id)} />
-                </li>
-              ))}
-            </ul>
+            sortedPatients.map((p) => <PatientGlanceRow key={p.id} patient={p} severity={patientSeverity.get(p.id)} />)
           )}
-        </div>
+        </section>
 
-        <div className="dash-row-side">
-          <CalendarWidget />
-        </div>
-      </div>
+        <CalendarWidget />
 
-      {topicOfTheDay && (
-        <div className="dash-card">
-          <Link to={`/academy/${topicOfTheDay.id}`} className="topic-of-day-row">
-            <span className="topic-of-day-avatar">
-              <KidneyIcon />
+        {topicOfTheDay && (
+          <section className="np-card np-fade" style={{ animationDelay: '.2s', flexDirection: 'row', alignItems: 'center' }}>
+            <span className="np-ic" style={{ width: 56, height: 56, borderRadius: '50%' }}>
+              <ZapIcon />
             </span>
-            <span className="topic-of-day-body">
-              <span className="topic-of-day-name">{topicOfTheDay.name}</span>
-              <span className="topic-of-day-cta">Start reading →</span>
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: '#1E5BD8' }}>
+                HIGH-YIELD OF THE DAY
+              </span>
+              <b className="np-fa" dir="rtl" style={{ textAlign: 'left', fontSize: 16 }}>
+                {topicOfTheDay.name}
+              </b>
             </span>
-          </Link>
-        </div>
-      )}
+            <Link to={`/academy/${topicOfTheDay.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+              Start reading →
+            </Link>
+          </section>
+        )}
 
-      <QuickTools />
+        <QuickTools />
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">
-            <span className="icon-chip">
+        <section className="np-card np-fade" style={{ animationDelay: '.32s', gap: 10 }}>
+          <div className="np-head-l">
+            <span className="np-ic">
               <WarningIcon />
             </span>
-            Needs attention
-          </h2>
-        </div>
-        {alerts.length === 0 ? (
-          <EmptyState>Nothing needs attention right now.</EmptyState>
-        ) : (
-          <ul className="alert-feed">
-            {alerts.map((a) => (
-              <li key={a.id}>
-                <Link to={a.to} className={`alert-row alert-row--${a.severity}`}>
+            <h2>Needs attention</h2>
+          </div>
+          {alerts.length === 0 ? (
+            <EmptyState>Nothing needs attention right now.</EmptyState>
+          ) : (
+            alerts.map((a) => {
+              const colors =
+                a.severity === 'critical'
+                  ? { background: '#FDECEB', color: '#8E1C13', detail: '#9B3A31' }
+                  : a.severity === 'warning'
+                    ? { background: '#FDF0DC', color: '#6B4108', detail: '#7A5418' }
+                    : { background: '#E8F0FD', color: '#12357A', detail: '#3B5A93' }
+              return (
+                <Link key={a.id} to={a.to} className="dh-att" style={{ background: colors.background, color: colors.color }}>
                   <WarningIcon />
                   <span>
-                    <span className="alert-title">{a.title}</span>
-                    <span className="alert-detail">{a.detail}</span>
+                    <b>{a.title}</b>
+                    <span style={{ color: colors.detail }}>{a.detail}</span>
                   </span>
                 </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              )
+            })
+          )}
+        </section>
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">
-            <span className="icon-chip">
+        <section className="np-card np-fade" style={{ animationDelay: '.38s', gap: 4 }}>
+          <div className="np-head-l" style={{ marginBottom: 6 }}>
+            <span className="np-ic">
               <AcademyIcon />
             </span>
-            Learning &amp; research
-          </h2>
-        </div>
-        <ul className="checklist-widget">
-          <li>
-            <Link to="/today" className="checklist-row">
-              <span className={`checklist-dot ${dueTopics.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
-                <AcademyIcon />
-              </span>
-              <span className="checklist-label">Academy topics due for review</span>
-              <span className="checklist-count">{dueTopics.length}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/today" className="checklist-row">
-              <span className={`checklist-dot ${dueFlashcards.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
-                <FlashcardsIcon />
-              </span>
-              <span className="checklist-label">Flashcards due for review</span>
-              <span className="checklist-count">{dueFlashcards.length}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/today" className="checklist-row">
-              <span className={`checklist-dot ${dueReadingCount > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
-                <CalendarIcon />
-              </span>
-              <span className="checklist-label">Reading reviews due</span>
-              <span className="checklist-count">{dueReadingCount}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/board-readiness" className="checklist-row">
-              <span className={`checklist-dot ${weakTopicCount > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
-                <AnalyticsIcon />
-              </span>
-              <span className="checklist-label">Weak topics (Board Readiness)</span>
-              <span className="checklist-count">{weakTopicCount}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/study" className="checklist-row">
-              <span className={`checklist-dot ${openGaps.length > 0 ? 'checklist-dot--due' : 'checklist-dot--done'}`}>
-                <KnowledgeGapIcon />
-              </span>
-              <span className="checklist-label">Open knowledge gaps</span>
-              <span className="checklist-count">{openGaps.length}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/research" className="checklist-row">
-              <span className={`checklist-dot ${researchProjects.length > 0 ? 'checklist-dot--done' : ''}`}>
-                <ResearchIcon />
-              </span>
-              <span className="checklist-label">Active research projects</span>
-              <span className="checklist-count">{researchProjects.length}</span>
-            </Link>
-          </li>
-          <li>
-            <Link to="/case-log" className="checklist-row">
-              <span className={`checklist-dot ${caseLogThisMonth > 0 ? 'checklist-dot--done' : ''}`}>
-                <CaseLogIcon />
-              </span>
-              <span className="checklist-label">Case log entries this month</span>
-              <span className="checklist-count">{caseLogThisMonth}</span>
-            </Link>
-          </li>
-        </ul>
+            <h2>Learning &amp; research</h2>
+          </div>
+          <Link to="/today" className="dh-lr">
+            <span className="np-ic" style={{ background: '#FDF0DC', color: '#93590B' }}>
+              <AcademyIcon />
+            </span>
+            Academy topics due
+            <b>{dueTopics.length}</b>
+          </Link>
+          <Link to="/today" className="dh-lr">
+            <span className="np-ic" style={{ background: '#FDF0DC', color: '#93590B' }}>
+              <FlashcardsIcon />
+            </span>
+            Flashcards due
+            <b>{dueFlashcards.length}</b>
+          </Link>
+          <Link to="/today" className="dh-lr">
+            <span className="np-ic">
+              <CalendarIcon />
+            </span>
+            Reading reviews due
+            <b>{dueReadingCount}</b>
+          </Link>
+          <Link to="/board-readiness" className="dh-lr">
+            <span className="np-ic" style={{ background: '#FDE8E7', color: '#B42318' }}>
+              <AnalyticsIcon />
+            </span>
+            Weak topics (Board Readiness)
+            <b>{weakTopicCount}</b>
+          </Link>
+          <Link to="/study" className="dh-lr">
+            <span className="np-ic">
+              <KnowledgeGapIcon />
+            </span>
+            Open knowledge gaps
+            <b>{openGaps.length}</b>
+          </Link>
+          <Link to="/research" className="dh-lr">
+            <span className="np-ic">
+              <ResearchIcon />
+            </span>
+            Active research projects
+            <b>{researchProjects.length}</b>
+          </Link>
+          <Link to="/case-log" className="dh-lr">
+            <span className="np-ic">
+              <CaseLogIcon />
+            </span>
+            Case log entries this month
+            <b>{caseLogThisMonth}</b>
+          </Link>
+        </section>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { MobileTabBar } from './MobileTabBar'
+import { Sidebar } from './Sidebar'
 import { NAV_LINKS } from '../lib/navLinks'
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -41,7 +42,10 @@ export function Layout({ children }: { children: ReactNode }) {
           <button onClick={() => void signOut()}>Sign out</button>
         </div>
       </header>
-      <main className="app-main">{children}</main>
+      <div className="shell-row">
+        <Sidebar />
+        <main className="app-main">{children}</main>
+      </div>
       <MobileTabBar currentPath={location.pathname} />
     </div>
   )
