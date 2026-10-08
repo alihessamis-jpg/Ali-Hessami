@@ -6,13 +6,13 @@ import { NAV_LINKS } from '../lib/navLinks'
 
 const PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log']
 
-const GROUPS: Array<{ label: string; paths: string[] }> = [
+export const GROUPS: Array<{ label: string; paths: string[] }> = [
   { label: 'Clinical', paths: ['/academic-activity', '/reference', '/calculators', '/checklists'] },
   { label: 'Study', paths: ['/academy', '/high-yield', '/study', '/board-readiness'] },
   { label: 'Research & portfolio', paths: ['/research', '/thesis-form', '/cv', '/export'] },
 ]
 
-function findLink(path: string) {
+export function findLink(path: string) {
   const link = NAV_LINKS.find((l) => l.to === path)
   if (!link) throw new Error(`Sidebar: no NAV_LINKS entry for "${path}"`)
   return link

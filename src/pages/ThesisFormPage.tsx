@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, Legend, XAxis, YAxis } from 'recharts'
 import {
   addLusStudySession,
@@ -15,7 +15,7 @@ import { downloadCsv } from '../lib/csvExport'
 import { matchesSearch } from '../lib/textFilter'
 import { toShamsi } from '../lib/shamsi'
 import { describeError } from '../lib/describeError'
-import { FormBuilderIcon } from '../components/icons'
+import { useCountUp } from '../hooks/useCountUp'
 import { LusStudySessionForm } from '../components/patient/LusStudySessionForm'
 import type { LusStudySessionWithPatient } from '../lib/api/lusStudy'
 import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient, PatientCareStatus } from '../types/domain'
@@ -150,6 +150,7 @@ function exportSessionsCsv(sessions: LusStudySessionWithPatient[], groupByPatien
 }
 
 export function ThesisFormPage() {
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState<LusStudySessionWithPatient[]>([])
   const [enrollments, setEnrollments] = useState<LusStudyEnrollment[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
@@ -285,241 +286,369 @@ export function ThesisFormPage() {
 
   const visibleSessions = sessions.filter((s) => matchesSearch([s.patientName, s.notes, s.sessionDate], search))
 
-  if (loading) return <p>Loading…</p>
-
   const g1 = bySessionGroup.group1_standard.filter((s) => s.postLusTotal != null)
   const g2 = bySessionGroup.group2_lus_guided.filter((s) => s.postLusTotal != null)
   const decreaseCount = bySessionGroup.group2_lus_guided.filter((s) => s.lusGuidedDecision === 'decrease').length
   const increaseCount = bySessionGroup.group2_lus_guided.filter((s) => s.lusGuidedDecision === 'increase').length
   const g2Complete = bySessionGroup.group2_lus_guided.filter((s) => s.postHdWeightKg != null).length
+  const g1MeanPostLus = mean(g1.map((s) => s.postLusTotal as number))
+  const g2MeanPostLus = mean(g2.map((s) => s.postLusTotal as number))
+  const g1MeanPreLus = mean(g1.map((s) => s.preLusTotal as number).filter((v) => v != null))
+  const g2MeanPreLus = mean(g2.map((s) => s.preLusTotal as number).filter((v) => v != null))
+  const g1MeanChange = mean(g1.map((s) => s.lusChange as number).filter((v) => v != null))
+  const g2MeanChange = mean(g2.map((s) => s.lusChange as number).filter((v) => v != null))
+  const lusBarMax = Math.max(1, ...[g1MeanPreLus, g1MeanPostLus, g2MeanPreLus, g2MeanPostLus].filter((v): v is number => v != null)) * 1.15
+  const barPct = (v: number | null) => (v == null ? 0 : Math.min(100, Math.round((v / lusBarMax) * 100)))
+
+  const enrolledDisplay = useCountUp(enrollments.length)
+  const sessionsDisplay = useCountUp(sessions.length)
+  const g1MeanDisplay = useCountUp(g1MeanPostLus ?? 0)
+  const g2MeanDisplay = useCountUp(g2MeanPostLus ?? 0)
+
+  if (loading) return <p>Loading…</p>
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">
-          <span className="page-title-icon">
-            <FormBuilderIcon />
-          </span>
-          Thesis Data Collection — LUS Volume-Assessment Study
-        </h1>
+    <div className="np-page">
+      <button type="button" className="np-backlink" onClick={() => navigate(-1)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+        Back
+      </button>
+
+      <section className="np-hero th-hero np-fade">
+        <div className="np-hrow">
+          <div className="np-txt">
+            <span className="np-eyebrow" style={{ color: '#7FD4FF' }}>
+              THESIS DATA COLLECTION
+            </span>
+            <h1 style={{ lineHeight: 1.2 }}>LUS Volume-Assessment Study</h1>
+            <p className="np-sub">
+              Study-level view: every session across patients, and Group 1 vs Group 2. Log sessions from each
+              patient's own "LUS Study" tab.
+            </p>
+          </div>
+          <svg className="np-art th-us" viewBox="0 0 350 120" fill="none" aria-hidden="true">
+            <defs>
+              <clipPath id="th-sec">
+                <path d="M175 6 70 116h210z" />
+              </clipPath>
+            </defs>
+            <path d="M175 6 70 116h210z" fill="#0E1E3E" />
+            <g clipPath="url(#th-sec)">
+              <path d="M90 40h170" stroke="#5E7BB0" strokeWidth={3} opacity={0.7} />
+              <path d="M95 62h160" stroke="#4A6496" strokeWidth={2} opacity={0.45} />
+              <path d="M150 40V120" stroke="#DCE8FF" strokeWidth={5} className="th-bline" />
+              <path d="M188 40V120" stroke="#DCE8FF" strokeWidth={5} className="th-bline" style={{ animationDelay: '.6s' }} />
+              <path d="M222 40V120" stroke="#DCE8FF" strokeWidth={5} className="th-bline" style={{ animationDelay: '1.2s' }} />
+              <path d="M175 6v114" stroke="#7FD4FF" strokeWidth={1.5} opacity={0.6} className="th-sweep" />
+            </g>
+            <text x="292" y="112" fill="#7F93B8" fontSize="10" fontFamily="Plus Jakarta Sans">
+              B-lines
+            </text>
+          </svg>
+        </div>
+      </section>
+
+      <div className="th-sgrid">
+        <div className="th-sbox np-fade" style={{ animationDelay: '.08s' }}>
+          <b>{Math.round(enrolledDisplay ?? 0)}</b>
+          <span className="np-small">Patients enrolled</span>
+        </div>
+        <div className="th-sbox np-fade" style={{ animationDelay: '.12s' }}>
+          <b>{Math.round(sessionsDisplay ?? 0)}</b>
+          <span className="np-small">Sessions logged</span>
+        </div>
+        <div className="th-sbox np-fade" style={{ animationDelay: '.16s' }}>
+          <b>{g1.length ? fmt(g1MeanDisplay) : '—'}</b>
+          <span className="np-small">Group 1 mean post-HD LUS</span>
+        </div>
+        <div className="th-sbox np-fade" style={{ animationDelay: '.2s' }}>
+          <b>{g2.length ? fmt(g2MeanDisplay) : '—'}</b>
+          <span className="np-small">Group 2 mean post-HD LUS</span>
+        </div>
       </div>
-      <p className="empty-state">
-        Log sessions from each enrolled patient's own chart (their "LUS Study" tab). This page is the study-level
-        view: every session across patients, and a Group 1 vs Group 2 comparison.
-      </p>
 
       {error && <p className="form-error">{error}</p>}
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Enroll a patient</h2>
-          <button type="button" className="link-button" onClick={() => setShowNewPatientForm((v) => !v)}>
-            {showNewPatientForm ? 'Cancel' : '+ New patient'}
-          </button>
-        </div>
+      <div className="np-grid2">
+        <section className="np-card np-fade" style={{ animationDelay: '.14s' }}>
+          <h2>Group comparison</h2>
 
-        {showNewPatientForm && (
-          <div className="field-grid" style={{ marginBottom: 16 }}>
-            <label>
-              Name
-              <input
-                value={newPatientName}
-                onChange={(e) => setNewPatientName(e.target.value)}
-                placeholder="Patient name"
-              />
-            </label>
-            <label>
-              Care status
-              <select value={newPatientCareStatus} onChange={(e) => setNewPatientCareStatus(e.target.value as PatientCareStatus)}>
-                <option value="outpatient">Outpatient (e.g. dialysis-only, not admitted)</option>
-                <option value="inpatient">Inpatient</option>
-              </select>
-            </label>
-            <div className="form-actions" style={{ alignSelf: 'end' }}>
-              <button type="button" disabled={!newPatientName.trim() || creatingPatient} onClick={() => void handleCreatePatient()}>
-                {creatingPatient ? 'Adding…' : 'Add patient'}
-              </button>
-            </div>
+          {g1.length > 0 && (
+            <>
+              <div className="np-head">
+                <b style={{ fontSize: 13 }}>{GROUP_LABELS.group1_standard}</b>
+                <span className="np-small">{g1.length} complete session{g1.length === 1 ? '' : 's'}</span>
+              </div>
+              <div className="th-cmp">
+                <span className="np-small">Pre-HD</span>
+                <div className="th-tr">
+                  <i style={{ width: `${barPct(g1MeanPreLus)}%`, background: '#9CB8E8', animationDelay: '.3s' }} />
+                </div>
+                <b>{fmt(g1MeanPreLus)}</b>
+                <span className="np-small">Post-HD</span>
+                <div className="th-tr">
+                  <i style={{ width: `${barPct(g1MeanPostLus)}%`, background: 'var(--accent)', animationDelay: '.5s' }} />
+                </div>
+                <b>{fmt(g1MeanPostLus)}</b>
+              </div>
+              {g1MeanChange != null && (
+                <span className="np-tag" style={{ alignSelf: 'flex-start', fontSize: 12, color: '#17663A', background: '#DDF3E6', padding: '4px 10px' }}>
+                  Mean change {g1MeanChange > 0 ? '+' : ''}
+                  {g1MeanChange.toFixed(1)}
+                </span>
+              )}
+              <div style={{ height: 1, background: '#EDF1F7' }} />
+            </>
+          )}
+
+          <div className="np-head">
+            <b style={{ fontSize: 13 }}>{GROUP_LABELS.group2_lus_guided}</b>
+            <span className="np-small">{g2.length > 0 ? `${g2.length} complete session${g2.length === 1 ? '' : 's'}` : 'No complete sessions'}</span>
           </div>
-        )}
+          {g2.length > 0 && (
+            <>
+              <div className="th-cmp">
+                <span className="np-small">Pre-HD</span>
+                <div className="th-tr">
+                  <i style={{ width: `${barPct(g2MeanPreLus)}%`, background: '#9CB8E8', animationDelay: '.3s' }} />
+                </div>
+                <b>{fmt(g2MeanPreLus)}</b>
+                <span className="np-small">Post-HD</span>
+                <div className="th-tr">
+                  <i style={{ width: `${barPct(g2MeanPostLus)}%`, background: 'var(--accent)', animationDelay: '.5s' }} />
+                </div>
+                <b>{fmt(g2MeanPostLus)}</b>
+              </div>
+              {g2MeanChange != null && (
+                <span className="np-tag" style={{ alignSelf: 'flex-start', fontSize: 12, color: '#17663A', background: '#DDF3E6', padding: '4px 10px' }}>
+                  Mean change {g2MeanChange > 0 ? '+' : ''}
+                  {g2MeanChange.toFixed(1)}
+                </span>
+              )}
+            </>
+          )}
 
-        {unenrolledPatients.length === 0 ? (
-          <p className="empty-state">
-            {patients.length === 0 ? 'Add a patient above first.' : 'Every patient is already enrolled — add a new one above.'}
-          </p>
-        ) : (
-          <>
-            <div className="field-grid">
-              <label>
-                Patient
-                <select value={enrollPatientId} onChange={(e) => setEnrollPatientId(e.target.value)}>
-                  <option value="">Choose a patient…</option>
-                  {unenrolledPatients.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Study group
-                <select value={enrollGroup} onChange={(e) => setEnrollGroup(e.target.value as LusStudyGroup)}>
-                  <option value="group1_standard">{GROUP_LABELS.group1_standard}</option>
-                  <option value="group2_lus_guided">{GROUP_LABELS.group2_lus_guided}</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              Notes
-              <textarea value={enrollNotes} onChange={(e) => setEnrollNotes(e.target.value)} placeholder="Consent, randomization reference, etc." />
-            </label>
-            <div className="form-actions">
-              <button type="button" disabled={!enrollPatientId || enrolling} onClick={() => void handleEnroll()}>
-                {enrolling ? 'Enrolling…' : 'Enroll patient'}
+          <div style={{ overflowX: 'auto' }}>
+            <table className="th-tbl">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>{GROUP_LABELS.group1_standard}</th>
+                  <th>{GROUP_LABELS.group2_lus_guided}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Sessions (complete)</td>
+                  <td>{g1.length}</td>
+                  <td>{g2.length}</td>
+                </tr>
+                <tr>
+                  <td>Mean pre-HD LUS</td>
+                  <td>{fmt(g1MeanPreLus)}</td>
+                  <td>{fmt(g2MeanPreLus)}</td>
+                </tr>
+                <tr>
+                  <td>Mean post-HD LUS</td>
+                  <td>{fmt(g1MeanPostLus)}</td>
+                  <td>{fmt(g2MeanPostLus)}</td>
+                </tr>
+                <tr>
+                  <td>Mean LUS change</td>
+                  <td>{fmt(g1MeanChange)}</td>
+                  <td>{fmt(g2MeanChange)}</td>
+                </tr>
+                <tr>
+                  <td>Mean weight loss (%)</td>
+                  <td>{fmt(mean(g1.map((s) => s.weightLossPct as number).filter((v) => v != null)))}</td>
+                  <td>{fmt(mean(g2.map((s) => s.weightLossPct as number).filter((v) => v != null)))}</td>
+                </tr>
+                <tr>
+                  <td>Intradialytic hypotension rate</td>
+                  <td>{g1.length ? `${((g1.filter((s) => s.intradialyticHypotension).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
+                  <td>{g2.length ? `${((g2.filter((s) => s.intradialyticHypotension).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
+                </tr>
+                <tr>
+                  <td>Muscle cramp rate</td>
+                  <td>{g1.length ? `${((g1.filter((s) => s.intradialyticMuscleCramp).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
+                  <td>{g2.length ? `${((g2.filter((s) => s.intradialyticMuscleCramp).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
+                </tr>
+                <tr>
+                  <td>Dry weight decreased / increased (Group 2 process)</td>
+                  <td>—</td>
+                  <td>
+                    {decreaseCount} / {increaseCount} of {g2Complete} sessions
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div className="np-stack">
+          <section className="np-card np-fade" style={{ animationDelay: '.2s' }}>
+            <div className="np-head">
+              <h2>Enroll a patient</h2>
+              <button type="button" className="link-button" onClick={() => setShowNewPatientForm((v) => !v)}>
+                {showNewPatientForm ? 'Cancel' : '+ New patient'}
               </button>
             </div>
-          </>
-        )}
-      </div>
 
-      <div className="dash-card" ref={logSessionCardRef}>
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Log a session</h2>
-        </div>
-        {enrolledPatients.length === 0 ? (
-          <p className="empty-state">Enroll a patient above first.</p>
-        ) : (
-          <>
-            <label>
-              Patient
-              <select
-                value={logPatientId}
-                onChange={(e) => {
-                  setLogPatientId(e.target.value)
-                  setFormMode('closed')
-                }}
-              >
-                <option value="">Choose a patient…</option>
-                {enrolledPatients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({GROUP_LABELS[groupByPatientId.get(p.id) as LusStudyGroup]})
-                  </option>
-                ))}
-              </select>
-            </label>
-            {logPatient &&
-              logEnrollment &&
-              (formMode === 'closed' ? (
-                <div className="form-actions">
-                  <button type="button" onClick={() => { setError(null); setFormMode('new') }}>
-                    Log new session
+            {showNewPatientForm && (
+              <div className="np-f2">
+                <div className="np-field">
+                  <label htmlFor="th-new-name">Name</label>
+                  <input
+                    id="th-new-name"
+                    value={newPatientName}
+                    onChange={(e) => setNewPatientName(e.target.value)}
+                    placeholder="Patient name"
+                  />
+                </div>
+                <div className="np-field">
+                  <label htmlFor="th-new-status">Care status</label>
+                  <select
+                    id="th-new-status"
+                    value={newPatientCareStatus}
+                    onChange={(e) => setNewPatientCareStatus(e.target.value as PatientCareStatus)}
+                  >
+                    <option value="outpatient">Outpatient (e.g. dialysis-only, not admitted)</option>
+                    <option value="inpatient">Inpatient</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="np-btn sm"
+                  style={{ gridColumn: '1 / -1', justifySelf: 'start' }}
+                  disabled={!newPatientName.trim() || creatingPatient}
+                  onClick={() => void handleCreatePatient()}
+                >
+                  {creatingPatient ? 'Adding…' : 'Add patient'}
+                </button>
+              </div>
+            )}
+
+            {unenrolledPatients.length === 0 ? (
+              <span className="np-small">
+                {patients.length === 0 ? 'Add a patient above first.' : 'Every patient is already enrolled — add a new one above.'}
+              </span>
+            ) : (
+              <>
+                <div className="np-field">
+                  <label htmlFor="th-enroll-patient">Patient</label>
+                  <select id="th-enroll-patient" value={enrollPatientId} onChange={(e) => setEnrollPatientId(e.target.value)}>
+                    <option value="">Choose a patient…</option>
+                    {unenrolledPatients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="np-small" style={{ fontWeight: 600 }}>
+                  Study group
+                </span>
+                <div className="np-seg">
+                  <button
+                    type="button"
+                    className={enrollGroup === 'group1_standard' ? 'on' : ''}
+                    onClick={() => setEnrollGroup('group1_standard')}
+                  >
+                    Group 1 · Standard
+                  </button>
+                  <button
+                    type="button"
+                    className={enrollGroup === 'group2_lus_guided' ? 'on' : ''}
+                    onClick={() => setEnrollGroup('group2_lus_guided')}
+                  >
+                    Group 2 · LUS/IVC
                   </button>
                 </div>
-              ) : (
-                <LusStudySessionForm
-                  patientId={logPatient.id}
-                  studyGroup={logEnrollment.studyGroup}
-                  patientAge={logPatient.age}
-                  underlyingDisease={logPatient.underlyingDisease}
-                  dialysisStartDate={logPatient.dialysisStartDate}
-                  defaultHeightCm={logPatient.height}
-                  defaultWeightKg={logPatient.weight}
-                  defaultTargetWeightKg={logPatientSessions[0]?.targetWeightKg ?? logPatient.weight}
-                  previousPostHdWeightKg={logPatientSessions[0]?.postHdWeightKg}
-                  existing={formMode === 'new' ? null : logPatientSessions.find((s) => s.id === formMode) ?? null}
-                  onSaved={(draft) => void handleSaveSession(draft)}
-                  onCancel={() => setFormMode('closed')}
-                />
-              ))}
-          </>
-        )}
+                <div className="np-field">
+                  <label htmlFor="th-enroll-notes">Notes</label>
+                  <textarea
+                    id="th-enroll-notes"
+                    rows={2}
+                    value={enrollNotes}
+                    onChange={(e) => setEnrollNotes(e.target.value)}
+                    placeholder="Consent, randomization reference, etc."
+                  />
+                </div>
+                <button type="button" className="np-btn" disabled={!enrollPatientId || enrolling} onClick={() => void handleEnroll()}>
+                  {enrolling ? 'Enrolling…' : 'Enroll patient'}
+                </button>
+              </>
+            )}
+          </section>
+
+          <section className="np-card np-fade" ref={logSessionCardRef} style={{ animationDelay: '.26s' }}>
+            <h2>Log a session</h2>
+            {enrolledPatients.length === 0 ? (
+              <span className="np-small">Enroll a patient above first.</span>
+            ) : (
+              <>
+                <div className="np-field">
+                  <label htmlFor="th-log-patient">Patient</label>
+                  <select
+                    id="th-log-patient"
+                    value={logPatientId}
+                    onChange={(e) => {
+                      setLogPatientId(e.target.value)
+                      setFormMode('closed')
+                    }}
+                  >
+                    <option value="">Choose a patient…</option>
+                    {enrolledPatients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({GROUP_LABELS[groupByPatientId.get(p.id) as LusStudyGroup]})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {logPatient &&
+                  logEnrollment &&
+                  (formMode === 'closed' ? (
+                    <button
+                      type="button"
+                      className="np-btn"
+                      onClick={() => {
+                        setError(null)
+                        setFormMode('new')
+                      }}
+                    >
+                      Log new session
+                    </button>
+                  ) : (
+                    <LusStudySessionForm
+                      patientId={logPatient.id}
+                      studyGroup={logEnrollment.studyGroup}
+                      patientAge={logPatient.age}
+                      underlyingDisease={logPatient.underlyingDisease}
+                      dialysisStartDate={logPatient.dialysisStartDate}
+                      defaultHeightCm={logPatient.height}
+                      defaultWeightKg={logPatient.weight}
+                      defaultTargetWeightKg={logPatientSessions[0]?.targetWeightKg ?? logPatient.weight}
+                      previousPostHdWeightKg={logPatientSessions[0]?.postHdWeightKg}
+                      existing={formMode === 'new' ? null : logPatientSessions.find((s) => s.id === formMode) ?? null}
+                      onSaved={(draft) => void handleSaveSession(draft)}
+                      onCancel={() => setFormMode('closed')}
+                    />
+                  ))}
+              </>
+            )}
+          </section>
+        </div>
       </div>
 
-      <div className="calc-strip">
-        <div>
-          <span className="calc-label">Patients enrolled</span>
-          <span className="calc-value">{enrollments.length}</span>
-        </div>
-        <div>
-          <span className="calc-label">Sessions logged</span>
-          <span className="calc-value">{sessions.length}</span>
-        </div>
-        <div>
-          <span className="calc-label">Group 1 mean post-HD LUS</span>
-          <span className="calc-value">{fmt(mean(g1.map((s) => s.postLusTotal as number)))}</span>
-        </div>
-        <div>
-          <span className="calc-label">Group 2 mean post-HD LUS</span>
-          <span className="calc-value">{fmt(mean(g2.map((s) => s.postLusTotal as number)))}</span>
-        </div>
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Group comparison</h2>
-        </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>{GROUP_LABELS.group1_standard}</th>
-              <th>{GROUP_LABELS.group2_lus_guided}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Sessions (complete)</td>
-              <td>{g1.length}</td>
-              <td>{g2.length}</td>
-            </tr>
-            <tr>
-              <td>Mean pre-HD LUS</td>
-              <td>{fmt(mean(g1.map((s) => s.preLusTotal as number).filter((v) => v != null)))}</td>
-              <td>{fmt(mean(g2.map((s) => s.preLusTotal as number).filter((v) => v != null)))}</td>
-            </tr>
-            <tr>
-              <td>Mean post-HD LUS</td>
-              <td>{fmt(mean(g1.map((s) => s.postLusTotal as number)))}</td>
-              <td>{fmt(mean(g2.map((s) => s.postLusTotal as number)))}</td>
-            </tr>
-            <tr>
-              <td>Mean LUS change</td>
-              <td>{fmt(mean(g1.map((s) => s.lusChange as number).filter((v) => v != null)))}</td>
-              <td>{fmt(mean(g2.map((s) => s.lusChange as number).filter((v) => v != null)))}</td>
-            </tr>
-            <tr>
-              <td>Mean weight loss (%)</td>
-              <td>{fmt(mean(g1.map((s) => s.weightLossPct as number).filter((v) => v != null)))}</td>
-              <td>{fmt(mean(g2.map((s) => s.weightLossPct as number).filter((v) => v != null)))}</td>
-            </tr>
-            <tr>
-              <td>Intradialytic hypotension rate</td>
-              <td>{g1.length ? `${((g1.filter((s) => s.intradialyticHypotension).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
-              <td>{g2.length ? `${((g2.filter((s) => s.intradialyticHypotension).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
-            </tr>
-            <tr>
-              <td>Muscle cramp rate</td>
-              <td>{g1.length ? `${((g1.filter((s) => s.intradialyticMuscleCramp).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
-              <td>{g2.length ? `${((g2.filter((s) => s.intradialyticMuscleCramp).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
-            </tr>
-            <tr>
-              <td>Dry weight decreased / increased (Group 2 process)</td>
-              <td>—</td>
-              <td>
-                {decreaseCount} / {increaseCount} of {g2Complete} sessions
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Post-HD LUS by session number</h2>
-          <span className="patient-meta">Aligned by each patient's 1st, 2nd, 3rd… session, not calendar date</span>
+      <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+        <div className="np-head">
+          <h2>Post-HD LUS by session number</h2>
+          <span className="np-small">Aligned by each patient's 1st, 2nd, 3rd… session, not calendar date</span>
         </div>
         {trend.length < 2 ? (
-          <p className="empty-state">Need at least two session numbers with data to plot a trend.</p>
+          <span className="np-small">Need at least two session numbers with data to plot a trend.</span>
         ) : (
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
@@ -535,63 +664,69 @@ export function ThesisFormPage() {
             </ResponsiveContainer>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">All sessions</h2>
+      <section className="np-card np-fade" style={{ animationDelay: '.34s' }}>
+        <div className="np-head">
+          <h2>All sessions</h2>
           <button type="button" className="link-button" onClick={() => exportSessionsCsv(sessions, groupByPatientId)}>
             Export CSV (all fields)
           </button>
         </div>
-        <input
-          placeholder="Search sessions…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ margin: '12px 0', width: '100%', maxWidth: 360 }}
-        />
+        <div className="np-search" style={{ maxWidth: 360 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <label className="np-sr" htmlFor="th-search">
+            Search sessions
+          </label>
+          <input id="th-search" placeholder="Search sessions…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         {visibleSessions.length === 0 ? (
-          <p className="empty-state">No sessions logged yet — start from a patient's "LUS Study" tab.</p>
+          <span className="np-small">No sessions logged yet — start from a patient's "LUS Study" tab.</span>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Group</th>
-                <th>Date</th>
-                <th>Pre/Post LUS</th>
-                <th>Weight loss</th>
-                <th>Decision</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleSessions.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <Link to={`/patients/${s.patientId}`}>{s.patientName ?? 'Unknown'}</Link>
-                  </td>
-                  <td>{GROUP_LABELS[groupByPatientId.get(s.patientId) as LusStudyGroup] ?? '—'}</td>
-                  <td>{toShamsi(s.sessionDate)}</td>
-                  <td>
-                    {s.preLusTotal ?? '—'} → {s.postLusTotal ?? '—'}
-                  </td>
-                  <td>{s.weightLossKg != null ? `${s.weightLossKg.toFixed(2)} kg` : '—'}</td>
-                  <td>{s.lusGuidedDecision ? s.lusGuidedDecision.replace('_', ' ') : '—'}</td>
-                  <td>
-                    <button className="link-button" onClick={() => handleEditSession(s)}>
-                      Edit
-                    </button>
-                    <button className="link-button" onClick={() => void handleDeleteSession(s.id)}>
-                      Delete
-                    </button>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="th-tbl">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Group</th>
+                  <th>Date</th>
+                  <th>Pre/Post LUS</th>
+                  <th>Weight loss</th>
+                  <th>Decision</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleSessions.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <Link to={`/patients/${s.patientId}`}>{s.patientName ?? 'Unknown'}</Link>
+                    </td>
+                    <td>{GROUP_LABELS[groupByPatientId.get(s.patientId) as LusStudyGroup] ?? '—'}</td>
+                    <td>{toShamsi(s.sessionDate)}</td>
+                    <td>
+                      {s.preLusTotal ?? '—'} → {s.postLusTotal ?? '—'}
+                    </td>
+                    <td>{s.weightLossKg != null ? `${s.weightLossKg.toFixed(2)} kg` : '—'}</td>
+                    <td>{s.lusGuidedDecision ? s.lusGuidedDecision.replace('_', ' ') : '—'}</td>
+                    <td>
+                      <button className="link-button" onClick={() => handleEditSession(s)}>
+                        Edit
+                      </button>
+                      <button className="link-button" onClick={() => void handleDeleteSession(s.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

@@ -2,11 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
-import { NAV_LINKS, MOBILE_PRIMARY_PATHS } from '../lib/navLinks'
+import { SettingsIcon } from './icons'
+import { GROUPS, findLink } from './Sidebar'
 
 export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { session, signOut } = useAuth()
-  const otherLinks = NAV_LINKS.filter((link) => !MOBILE_PRIMARY_PATHS.includes(link.to))
+  const initial = session?.user.email?.[0]?.toUpperCase() ?? '?'
 
   return (
     <AnimatePresence>
@@ -30,24 +31,45 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
           >
             <div className="more-sheet-handle" />
-            <div className="more-sheet-grid">
-              {otherLinks.map((link) => {
-                const LinkIcon = link.icon
-                return (
-                  <Link key={link.to} to={link.to} className="more-sheet-item" onClick={onClose}>
-                    <LinkIcon />
-                    {link.label}
-                  </Link>
-                )
-              })}
-            </div>
-            <div className="more-sheet-footer">
-              <StorageUsageIndicator />
-              {session && <span className="header-email">{session.user.email}</span>}
-              <button className="more-sheet-signout" onClick={() => void signOut()}>
+
+            <div className="more-sheet-acct">
+              <span className="more-sheet-avatar">{initial}</span>
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <b style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {session?.user.email}
+                </b>
+                <StorageUsageIndicator />
+              </span>
+              <button type="button" className="more-sheet-signout" onClick={() => void signOut()}>
                 Sign out
               </button>
             </div>
+
+            {GROUPS.map((group) => (
+              <div key={group.label}>
+                <h2 className="more-sheet-group-heading">{group.label}</h2>
+                <div className="more-sheet-tiles">
+                  {group.paths.map((path) => {
+                    const link = findLink(path)
+                    const LinkIcon = link.icon
+                    return (
+                      <Link key={path} to={path} className="more-sheet-tile" onClick={onClose}>
+                        <LinkIcon />
+                        {link.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            <Link to="/settings" className="more-sheet-tile more-sheet-tile--wide" onClick={onClose}>
+              <SettingsIcon />
+              <span>Settings</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7A90" strokeWidth={2} strokeLinecap="round">
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </Link>
           </motion.div>
         </>
       )}

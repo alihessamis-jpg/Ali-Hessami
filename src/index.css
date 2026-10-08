@@ -136,6 +136,54 @@ body {
   }
 }
 
+/* Settings → Animations switch: a user override that forces the same
+   reduced-motion behavior as the OS-level prefers-reduced-motion media
+   query above, applied as a class on <html> (set in SettingsPage) since
+   a user preference can't be expressed as a media feature. Mirrors every
+   selector list from the prefers-reduced-motion blocks below — keep the
+   two in sync when adding a new ambient/looping animation. */
+html.force-reduced-motion {
+  scroll-behavior: auto;
+}
+html.force-reduced-motion *,
+html.force-reduced-motion *::before,
+html.force-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+html.force-reduced-motion .nephron-illustration *,
+html.force-reduced-motion .status-badge--renal-yes,
+html.force-reduced-motion .status-badge--alert,
+html.force-reduced-motion .td-hero-glow,
+html.force-reduced-motion .pt-hero-glow,
+html.force-reduced-motion .td-ring-dots,
+html.force-reduced-motion .pt-ecg-path,
+html.force-reduced-motion .pt-alert,
+html.force-reduced-motion .pt-fab,
+html.force-reduced-motion .np-glow,
+html.force-reduced-motion .np-art-float,
+html.force-reduced-motion .ac-flag,
+html.force-reduced-motion .ref-pill,
+html.force-reduced-motion .ref-dot-a,
+html.force-reduced-motion .ref-dot-b,
+html.force-reduced-motion .ref-drop-icon,
+html.force-reduced-motion .ref-drop-frame rect,
+html.force-reduced-motion .calc-result-tile::before,
+html.force-reduced-motion .calc-cursor,
+html.force-reduced-motion .acd-cap,
+html.force-reduced-motion .acd-tw,
+html.force-reduced-motion .hy-zap,
+html.force-reduced-motion .sh-flow,
+html.force-reduced-motion .sh-node,
+html.force-reduced-motion .dh-hero-glow,
+html.force-reduced-motion .dh-hero-glow2,
+html.force-reduced-motion .dh-neph-beat,
+html.force-reduced-motion .dh-neph-flow,
+html.force-reduced-motion .dh-week .now {
+  animation: none !important;
+}
+
 /* The UI shell is English/LTR, but most clinical content is typed in
    Persian and often mixes in English words/abbreviations (e.g. "PTH",
    "mEq/kg"). Without this, the browser resolves bidi runs assuming an
@@ -2187,12 +2235,17 @@ legend {
 
 .more-sheet-signout {
   background: none;
-  border: 1px solid var(--border);
+  border: 0;
+  padding: 12px 4px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--danger);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .more-sheet-signout:hover {
-  background: var(--danger-soft);
+  background: none;
   box-shadow: none;
 }
 
@@ -3398,6 +3451,17 @@ select.pt-ward:focus {
   background: #fff;
   border: 1px solid #c9daf5;
   color: #12357a;
+}
+
+.np-btn.white {
+  background: #fff;
+  color: #12357a;
+}
+
+.np-btn.glass {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 .np-btn.sm {
@@ -4700,4 +4764,904 @@ select.pt-ward:focus {
 
 .bd-row:last-child {
   border-bottom: 0;
+}
+
+/* ==========================================================================
+   Research, Thesis Form, Export, Academic CV, Settings, More and Login
+   (design/research.html, thesis.html, export.html, cv.html, settings.html,
+   more.html, login.html) — final batch, extending the shared np- system.
+   ========================================================================== */
+
+/* ---- Research: stage stepper + empty-state illustration ---- */
+
+.rsc-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rsc-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  position: relative;
+}
+
+.rsc-step:not(:last-child):before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: #dce6f5;
+}
+
+.rsc-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e3edfd;
+  color: #1546a8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.rsc-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #dce7f7;
+  text-decoration: none;
+  color: #0e1f3d;
+}
+
+.rsc-spin {
+  transform-origin: 45px 45px;
+  animation: rsc-spin 14s linear infinite;
+}
+
+.rsc-bubble {
+  animation: rsc-bubble 2.6s ease-in infinite;
+}
+
+.rsc-slosh {
+  animation: rsc-slosh 3s ease-in-out infinite;
+}
+
+@keyframes rsc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rsc-bubble {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-70px);
+    opacity: 0;
+  }
+}
+
+@keyframes rsc-slosh {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
+}
+
+/* ---- Thesis Form: dark ultrasound hero + stat boxes + comparison table ---- */
+
+.th-hero {
+  background: #050f24;
+}
+
+.th-hero .np-hrow {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.th-us {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  align-self: center;
+}
+
+.th-sgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.th-sbox {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid #dce7f7;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.th-sbox b {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1546a8;
+}
+
+.th-cmp {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 10px;
+}
+
+.th-tr {
+  height: 14px;
+  border-radius: 4px;
+  background: #f1f4f9;
+}
+
+.th-tr i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transform-origin: left;
+  animation: np-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.th-cmp b {
+  font-size: 13px;
+  text-align: right;
+}
+
+.th-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.th-tbl th {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #1546a8;
+  text-align: left;
+  padding: 8px 6px;
+  background: #f2f7ff;
+}
+
+.th-tbl td {
+  padding: 9px 6px;
+  border-top: 1px solid #edf1f7;
+}
+
+.th-bline {
+  animation: th-bline 1.8s ease-in-out infinite;
+}
+
+.th-sweep {
+  transform-origin: 175px 6px;
+  animation: th-sweep 4s ease-in-out infinite;
+}
+
+@keyframes th-bline {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes th-sweep {
+  0%,
+  100% {
+    transform: rotate(-28deg);
+  }
+  50% {
+    transform: rotate(28deg);
+  }
+}
+
+@media (min-width: 768px) {
+  .th-hero .np-hrow {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .th-us {
+    width: 320px;
+  }
+
+  .th-sgrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---- Export: backup/restore cards + progress states ---- */
+
+.exp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.exp-grid .np-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #52627a;
+}
+
+.exp-grid .np-card .np-btn {
+  margin-top: auto;
+}
+
+.exp-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fdf0dc;
+  border: 1px solid #f3d7a6;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.exp-banner.ok {
+  background: #ddf3e6;
+  border-color: #b6e2c7;
+}
+
+.exp-busy {
+  position: relative;
+  overflow: hidden;
+  height: 48px;
+  border-radius: 14px;
+  background: #e3edfd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+}
+
+.exp-busy:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #c3d6f8;
+  transform-origin: left;
+  animation: exp-load 1.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.exp-busy span {
+  position: relative;
+  font-size: 14px;
+  font-weight: 700;
+  color: #12357a;
+}
+
+.exp-done {
+  height: 48px;
+  border-radius: 14px;
+  background: #ddf3e6;
+  color: #17663a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  animation: td-pop 0.3s ease both;
+  margin-top: auto;
+}
+
+.exp-drop {
+  animation: exp-drop 2.2s ease-in-out infinite;
+}
+
+@keyframes exp-drop {
+  0% {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+@keyframes exp-load {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .exp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+/* ---- Academic CV: activity timeline ---- */
+
+.cv-tl {
+  position: relative;
+  padding-left: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cv-tl:before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: #c9daf5;
+  transform-origin: top;
+  animation: cv-line 0.8s ease 0.3s both;
+}
+
+.cv-pin {
+  position: absolute;
+  left: 2px;
+  top: 30px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1e5bd8;
+  border: 3px solid #e3edfd;
+  box-sizing: border-box;
+  animation: cv-dot 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) 0.7s both;
+}
+
+.cv-ent {
+  padding: 14px;
+  border-radius: 16px;
+  background: #f5f8fe;
+  border: 1px solid #e3ebf7;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: td-fade-up 0.5s ease 0.8s both;
+}
+
+.cv-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cv-paper {
+  animation: cv-paper 4s ease-in-out infinite;
+}
+
+@keyframes cv-paper {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+@keyframes cv-line {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes cv-dot {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ---- Settings: threshold fields + animated toggle switch ---- */
+
+.set-tf {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.set-tf label {
+  min-height: 30px;
+}
+
+.set-unit {
+  position: relative;
+}
+
+.set-unit input {
+  padding-right: 58px !important;
+  font-size: 17px !important;
+  font-weight: 700;
+  background: #f7faff !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-unit span {
+  position: absolute;
+  right: 10px;
+  top: 15px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7a90;
+}
+
+.set-sw {
+  min-height: 60px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: #0e1f3d;
+  width: 100%;
+  font-family: inherit;
+}
+
+.set-trk {
+  width: 52px;
+  height: 32px;
+  border-radius: 16px;
+  position: relative;
+  flex-shrink: 0;
+  background: #1e5bd8;
+  transition: background 0.25s;
+}
+
+.set-trk i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform: translateX(20px);
+}
+
+.set-sw[aria-checked='false'] .set-trk {
+  background: #c3d0e4;
+}
+
+.set-sw[aria-checked='false'] .set-trk i {
+  transform: none;
+}
+
+.set-span2 {
+  grid-column: 1 / -1;
+}
+
+.set-spin {
+  transform-origin: 32px 36px;
+  animation: set-spin 8s linear infinite;
+}
+
+.set-spin2 {
+  transform-origin: 60px 58px;
+  animation: set-spin2 6s linear infinite;
+}
+
+@keyframes set-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes set-spin2 {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* ---- More sheet: account card + grouped tiles ---- */
+
+.more-sheet-acct {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.more-sheet-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0a2352;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.more-sheet-group-heading {
+  margin: 10px 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.more-sheet-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.more-sheet-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.more-sheet-tile svg {
+  width: 20px;
+  height: 20px;
+  color: #1e5bd8;
+}
+
+.more-sheet-tile--wide {
+  flex-direction: row;
+  align-items: center;
+}
+
+.more-sheet-tile--wide span {
+  flex: 1;
+}
+
+.more-sheet-tile--wide svg:last-child {
+  width: 18px;
+  height: 18px;
+  color: #6b7a90;
+}
+
+/* ---- Login: split hero + glass card (design/login.html) ---- */
+
+.login-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #061838;
+  color: #fff;
+}
+
+.login-glow {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.login-glow.g1 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(46, 110, 240, 0.6), rgba(46, 110, 240, 0) 68%);
+  top: -140px;
+  left: -140px;
+  animation: login-d1 12s ease-in-out infinite;
+}
+
+.login-glow.g2 {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(90, 210, 255, 0.35), rgba(90, 210, 255, 0) 68%);
+  bottom: 60px;
+  right: -150px;
+  animation: login-d2 14s ease-in-out infinite;
+}
+
+.login-wrap {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.login-vis {
+  position: relative;
+  height: 300px;
+}
+
+.login-vis svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.6;
+}
+
+.login-beat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: login-beat 2.6s ease-in-out infinite;
+}
+
+.login-flow {
+  animation: login-flow 1.8s linear infinite;
+}
+
+.login-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 22px;
+  padding: 0 20px 40px;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9cc2ff;
+}
+
+.login-side h1 {
+  margin: 0;
+  font-size: 38px;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.login-lead {
+  margin: 0;
+  font-size: 15px;
+  color: #b7c9ea;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.login-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #d3e0f7;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-form input {
+  height: 50px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(6, 24, 56, 0.5);
+  color: #fff;
+  padding: 0 14px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.login-form input::placeholder {
+  color: #8ea3c6;
+}
+
+.login-go {
+  position: relative;
+  overflow: hidden;
+  margin-top: 6px;
+  height: 52px;
+  border-radius: 16px;
+  border: 0;
+  background: #1e5bd8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(30, 91, 216, 0.45);
+}
+
+.login-go:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  animation: shine-sweep 3s ease-in-out 1.4s infinite;
+}
+
+.login-forgot {
+  align-self: center;
+  font-size: 13px;
+  padding: 10px;
+  color: #9cc2ff;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.login-footer-signature {
+  text-align: center;
+  color: #8ea3c6;
+  font-size: 12px;
+}
+
+.login-footer-signature strong {
+  display: block;
+  color: #d3e0f7;
+  font-size: 13px;
+}
+
+@keyframes login-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes login-flow {
+  to {
+    stroke-dashoffset: -56;
+  }
+}
+
+@keyframes login-d1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -24px) scale(1.1);
+  }
+}
+
+@keyframes login-d2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-26px, 30px) scale(1.08);
+  }
+}
+
+@media (min-width: 768px) {
+  .login-wrap {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 48px;
+    padding: 48px;
+  }
+
+  .login-vis {
+    height: min(70vh, 560px);
+  }
+
+  .login-vis svg {
+    opacity: 0.9;
+  }
+
+  .login-side {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .login-side h1 {
+    font-size: 48px;
+  }
+
+  .login-form {
+    padding: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rsc-spin,
+  .rsc-bubble,
+  .rsc-slosh,
+  .th-bline,
+  .th-sweep,
+  .exp-drop,
+  .cv-paper,
+  .set-spin,
+  .set-spin2,
+  .login-glow,
+  .login-beat,
+  .login-flow {
+    animation: none !important;
+  }
+}
+
+html.force-reduced-motion .rsc-spin,
+html.force-reduced-motion .rsc-bubble,
+html.force-reduced-motion .rsc-slosh,
+html.force-reduced-motion .th-bline,
+html.force-reduced-motion .th-sweep,
+html.force-reduced-motion .exp-drop,
+html.force-reduced-motion .cv-paper,
+html.force-reduced-motion .set-spin,
+html.force-reduced-motion .set-spin2,
+html.force-reduced-motion .login-glow,
+html.force-reduced-motion .login-beat,
+html.force-reduced-motion .login-flow {
+  animation: none !important;
 }
