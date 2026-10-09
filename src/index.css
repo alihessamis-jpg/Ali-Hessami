@@ -1981,6 +1981,7 @@ legend {
 
 .academy-markdown {
   line-height: 1.7;
+  position: relative;
 }
 
 .academy-markdown h1,
@@ -2001,21 +2002,35 @@ legend {
   padding-inline-start: 24px;
 }
 
+/* Ordered-list markers ("1.", "2.") are a Latin/number run — isolate them so
+   the browser's bidi algorithm doesn't reorder the digit and the dot inside
+   an RTL list. */
+.academy-markdown ol,
+.academy-markdown li::marker {
+  unicode-bidi: isolate;
+}
+
 .academy-markdown li {
   margin-bottom: 4px;
 }
 
+.academy-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
 .academy-markdown table {
   width: 100%;
+  min-width: 420px;
   border-collapse: collapse;
-  margin: 12px 0;
   font-size: 0.95rem;
 }
 
 .academy-markdown th,
 .academy-markdown td {
   border: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 10px 14px;
   text-align: start;
 }
 
@@ -2026,6 +2041,51 @@ legend {
 
 .academy-markdown tr:nth-child(even) td {
   background: var(--surface-tint);
+}
+
+/* First column (row label) stays visible while the rest of a wide table
+   scrolls horizontally on phone. */
+.academy-markdown th:first-child,
+.academy-markdown td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.academy-markdown th:first-child {
+  background: var(--surface-tint);
+  z-index: 1;
+}
+
+.academy-markdown tr:nth-child(even) td:first-child {
+  background: var(--surface-tint);
+}
+
+.academy-table-cardbtn {
+  margin-top: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  cursor: pointer;
+}
+
+.academy-makecard-btn {
+  position: absolute;
+  z-index: 5;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: none;
+  background: var(--text);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
 }
 
 /* "جمع‌بندی" callouts in the source are written as markdown blockquotes —
@@ -2047,6 +2107,75 @@ legend {
   border: none;
   border-top: 1px solid var(--border);
   margin: 20px 0;
+}
+
+.academy-toc {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 2px;
+  margin-bottom: 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+}
+
+.academy-toc a {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.academy-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: start;
+}
+
+.academy-section-toggle h3 {
+  margin: 18px 0 8px;
+}
+
+.academy-chevron {
+  flex-shrink: 0;
+  margin-inline-start: 8px;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.academy-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.academy-back-to-top {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 20;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--text);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
 }
 
 /* ============================================================

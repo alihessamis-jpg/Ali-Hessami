@@ -10,7 +10,7 @@ import {
   setChecklistCompletion,
 } from '../lib/api/checklists'
 import { useAuth } from '../context/AuthContext'
-import { protectNumberRanges } from '../lib/bidiText'
+import { isolateLatinRuns } from '../lib/bidiText'
 import { matchesSearch } from '../lib/textFilter'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
 
@@ -184,7 +184,7 @@ export function ChecklistsPage() {
                   <div className="np-txt">
                     <span className="np-eyebrow">CHECKLIST</span>
                     <h1 className="np-fa" style={{ fontSize: 22, lineHeight: 1.5, fontWeight: 700 }}>
-                      {protectNumberRanges(selectedTemplate.name)}
+                      {isolateLatinRuns(selectedTemplate.name)}
                     </h1>
                     <p className="np-sub np-fa">وضعیت تکمیل برای هر پزشک جداست، نه برای هر بیمار.</p>
                   </div>
@@ -205,7 +205,7 @@ export function ChecklistsPage() {
               <div className="np-stack">
                 {sectionGroups.map((group, gi) => (
                   <section key={group.section ?? `section-${gi}`} className="np-card chk-sec np-fade" dir="rtl" style={{ animationDelay: `${0.16 + gi * 0.08}s`, gap: 0 }}>
-                    {group.section && <h2>{protectNumberRanges(group.section)}</h2>}
+                    {group.section && <h2>{isolateLatinRuns(group.section)}</h2>}
                     {group.items.map((item) => {
                       const on = completions[item.id] ?? false
                       return (
@@ -215,7 +215,7 @@ export function ChecklistsPage() {
                               <path d="m5 12 5 5 9-10" />
                             </svg>
                           </span>
-                          <span>{protectNumberRanges(item.label)}</span>
+                          <span>{isolateLatinRuns(item.label)}</span>
                         </button>
                       )
                     })}

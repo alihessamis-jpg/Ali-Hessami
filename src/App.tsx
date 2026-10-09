@@ -16,6 +16,8 @@ import { CalculatorsPage } from './pages/CalculatorsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { AcademyPage } from './pages/AcademyPage'
 import { AcademyTopicPage } from './pages/AcademyTopicPage'
+import { BooksPage } from './pages/BooksPage'
+import { BookDetailPage } from './pages/BookDetailPage'
 import { HighYieldPage } from './pages/HighYieldPage'
 import { StudyHubPage } from './pages/StudyHubPage'
 import { BoardReadinessPage } from './pages/BoardReadinessPage'
@@ -49,6 +51,8 @@ export function App() {
           <Route path="/checklists" element={protect(<ChecklistsPage />)} />
           <Route path="/academy" element={protect(<AcademyPage />)} />
           <Route path="/academy/:id" element={protect(<AcademyTopicPage />)} />
+          <Route path="/books" element={protect(<BooksPage />)} />
+          <Route path="/books/:id" element={protect(<BookDetailPage />)} />
           <Route path="/high-yield" element={protect(<HighYieldPage />)} />
           <Route path="/study" element={protect(<StudyHubPage />)} />
           <Route path="/board-readiness" element={protect(<BoardReadinessPage />)} />

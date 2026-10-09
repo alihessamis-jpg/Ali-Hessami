@@ -295,6 +295,57 @@ export interface AcademyProgress extends SrsState {
   topicId: string
 }
 
+export type AcademyCardKind = 'cloze' | 'cell'
+
+export interface AcademyCard extends SrsState {
+  id: string
+  topicId: string
+  kind: AcademyCardKind
+  sectionKey?: string | null
+  bookPage?: number | null
+  prompt: string
+  answer: string
+  createdAt: string
+}
+
+export type AcademyCardDraft = Pick<AcademyCard, 'topicId' | 'kind' | 'sectionKey' | 'bookPage' | 'prompt' | 'answer'>
+
+export interface Book {
+  id: string
+  title: string
+  author?: string | null
+  totalPages?: number | null
+  createdAt: string
+}
+
+export type BookDraft = Pick<Book, 'title' | 'author' | 'totalPages'>
+
+export interface BookChapter {
+  id: string
+  bookId: string
+  title: string
+  chapterIndex: number
+  pagesFrom?: number | null
+  pagesTo?: number | null
+}
+
+export type BookChapterDraft = Pick<BookChapter, 'bookId' | 'title' | 'chapterIndex' | 'pagesFrom' | 'pagesTo'>
+
+export type BookSectionStatus = 'unread' | 'read' | 'carded' | 'mastered'
+
+export interface BookSection {
+  id: string
+  chapterId: string
+  title: string
+  sectionIndex: number
+  pagesFrom?: number | null
+  pagesTo?: number | null
+  status: BookSectionStatus
+  readAt?: string | null
+}
+
+export type BookSectionDraft = Pick<BookSection, 'chapterId' | 'title' | 'sectionIndex' | 'pagesFrom' | 'pagesTo'>
+
 export interface StudyNote {
   id: string
   title?: string | null
@@ -800,5 +851,6 @@ export interface UserSettings {
   biopsyPlateletMin: number
   biopsyInrMax: number
   husLdhUpperLimit: number
+  readingDailyGoal: number
   lastBackupAt?: string | null
 }

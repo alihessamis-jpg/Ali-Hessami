@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listAcademyTopics } from '../lib/api/academy'
+import { listAllAcademyCards } from '../lib/api/academyCards'
 import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { listFlashcards } from '../lib/api/flashcards'
 import { computeTopicReadiness, type TopicReadiness } from '../lib/examReadiness'
 import { useCountUp } from '../hooks/useCountUp'
-import { protectNumberRanges } from '../lib/bidiText'
+import { isolateLatinRuns } from '../lib/bidiText'
 
 const STATUS_LABEL: Record<TopicReadiness['status'], string> = {
   'no-data': 'Not practiced',
@@ -33,9 +34,9 @@ export function BoardReadinessPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([listBoardQuestions(), listBoardQuestionAttempts(), listFlashcards(), listAcademyTopics()])
-      .then(([questions, attempts, flashcards, topics]) => {
-        setReadiness(computeTopicReadiness(questions, attempts, flashcards, topics))
+    Promise.all([listBoardQuestions(), listBoardQuestionAttempts(), listFlashcards(), listAcademyTopics(), listAllAcademyCards()])
+      .then(([questions, attempts, flashcards, topics, cards]) => {
+        setReadiness(computeTopicReadiness(questions, attempts, flashcards, topics, cards))
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load readiness data'))
       .finally(() => setLoading(false))
@@ -183,7 +184,7 @@ export function BoardReadinessPage() {
                   <div key={r.topic} className="bd-row">
                     <div className="np-head" dir="rtl">
                       <span className="np-fa" style={{ fontSize: 14, fontWeight: 600 }}>
-                        {protectNumberRanges(r.topic)}
+                        {isolateLatinRuns(r.topic)}
                       </span>
                       <span className="np-tag" dir="ltr" style={{ color: '#52627A', background: '#EEF2F8' }}>
                         Not practiced
@@ -220,6 +221,10 @@ export function BoardReadinessPage() {
                     {r.flashcardCount > 0 &&
                       ` · ${r.flashcardCount} flashcard${r.flashcardCount === 1 ? '' : 's'}${
                         r.flashcardConfidencePct != null ? ` (${r.flashcardConfidencePct}% confidence)` : ''
+                      }`}
+                    {r.cardCount > 0 &&
+                      ` · ${r.cardCount} topic card${r.cardCount === 1 ? '' : 's'}${
+                        r.cardConfidencePct != null ? ` (${r.cardConfidencePct}% confidence)` : ''
                       }`}
                   </span>
                 </div>

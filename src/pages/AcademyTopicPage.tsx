@@ -9,6 +9,7 @@ import {
 } from '../lib/api/academy'
 import { addAcademyAttachment, deleteAcademyAttachment, listAcademyAttachments } from '../lib/api/academyAttachments'
 import { linkTopicPatient, listPatientIdsForTopic, unlinkTopicPatient } from '../lib/api/academyTopicPatients'
+import { addAcademyCard, addAcademyCards, listAcademyCardsForTopic } from '../lib/api/academyCards'
 import { listPatients } from '../lib/api/patients'
 import { listReadingItems } from '../lib/api/readingItems'
 import {
@@ -20,19 +21,24 @@ import { scheduleReview } from '../lib/srs'
 import { sortSubTopics } from '../lib/sortSubTopics'
 import { getAcademyDiagram } from '../lib/academyDiagrams'
 import { formatAge } from '../lib/patientAge'
-import { protectNumberRanges } from '../lib/bidiText'
-import { MarkdownSection } from '../components/MarkdownSection'
+import { isolateLatinRuns } from '../lib/bidiText'
+import { MarkdownSection, type MakeCardPayload } from '../components/MarkdownSection'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import type {
   AcademyAttachment,
   AcademyAttachmentKind,
+  AcademyCard,
   AcademyProgress,
   AcademyTopic,
   Patient,
   ReadingItem,
   StudyLink,
 } from '../types/domain'
+
+// A card counts as "learned" once it has survived into at least the third
+// Leitner box (7+ day interval) — used for the header's mastery % only.
+const MASTERED_INTERVAL_INDEX = 2
 
 function guessAttachmentKind(file: File): AcademyAttachmentKind {
   if (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|aac)$/i.test(file.name)) return 'audio'
@@ -89,6 +95,29 @@ export function AcademyTopicPage() {
 
   const [linkedReadingItems, setLinkedReadingItems] = useState<ReadingItem[]>([])
 
+  const [cards, setCards] = useState<AcademyCard[]>([])
+  const [cardMessage, setCardMessage] = useState<string | null>(null)
+
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [showBackToTop, setShowBackToTop] = useState(false)
+
+  useEffect(() => {
+    function onScroll() {
+      setShowBackToTop(window.scrollY > 400)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  function toggleSection(key: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   useEffect(() => {
     if (!id || !session) return
     Promise.all([listAcademyTopics(), listAcademyProgress(session.user.id)])
@@ -123,7 +152,36 @@ export function AcademyTopicPage() {
     listReadingItems()
       .then((rows) => setLinkedReadingItems(rows.filter((r) => r.topicId === id)))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load related reading'))
+    listAcademyCardsForTopic(id)
+      .then(setCards)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load cards'))
   }, [id])
+
+  async function handleMakeCard(sectionKey: string, payload: MakeCardPayload) {
+    if (!id) return
+    try {
+      const card = await addAcademyCard({ topicId: id, kind: 'cloze', sectionKey, bookPage: null, ...payload })
+      setCards((prev) => [...prev, card])
+      setCardMessage('Card added')
+      setTimeout(() => setCardMessage((m) => (m === 'Card added' ? null : m)), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create card')
+    }
+  }
+
+  async function handleMakeCardsFromTable(sectionKey: string, payloads: MakeCardPayload[]) {
+    if (!id) return
+    try {
+      const created = await addAcademyCards(
+        payloads.map((p) => ({ topicId: id, kind: 'cell' as const, sectionKey, bookPage: null, ...p }))
+      )
+      setCards((prev) => [...prev, ...created])
+      setCardMessage(`${created.length} card${created.length === 1 ? '' : 's'} added`)
+      setTimeout(() => setCardMessage(null), 2500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create cards')
+    }
+  }
 
   async function handleAttachmentFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0 || !id || !session) return
@@ -263,6 +321,11 @@ export function AcademyTopicPage() {
   const subTopics = sortSubTopics(allTopics.filter((t) => t.parentTopicId === id))
   const parentOptions = allTopics.filter((t) => t.id !== id && t.parentTopicId !== id)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const dueCardCount = cards.filter((c) => !c.nextReview || c.nextReview <= today).length
+  const masteredCardCount = cards.filter((c) => c.intervalIndex >= MASTERED_INTERVAL_INDEX).length
+  const masteryPct = cards.length > 0 ? Math.round((masteredCardCount / cards.length) * 100) : null
+
   return (
     <div>
       <div className="page-header">
@@ -318,10 +381,19 @@ export function AcademyTopicPage() {
         </div>
       </div>
 
-      <div className="form-actions" style={{ marginBottom: 20 }}>
-        <button onClick={() => void handleReview('difficult')}>Difficult</button>
-        <button onClick={() => void handleReview('moderate')}>Moderate</button>
-        <button onClick={() => void handleReview('easy')}>Easy</button>
+      <div className="calc-strip" style={{ marginBottom: 20 }}>
+        <div>
+          <span className="calc-label">Cards</span>
+          <span className="calc-value">{cards.length}</span>
+        </div>
+        <div>
+          <span className="calc-label">Due</span>
+          <span className="calc-value">{dueCardCount}</span>
+        </div>
+        <div>
+          <span className="calc-label">Mastery</span>
+          <span className="calc-value">{masteryPct != null ? `${masteryPct}%` : '—'}</span>
+        </div>
       </div>
 
       {(() => {
@@ -348,7 +420,7 @@ export function AcademyTopicPage() {
           <ul className="study-link-list">
             {topic.keyPoints.map((k, i) => (
               <li key={i} dir="rtl">
-                {protectNumberRanges(k)}
+                {isolateLatinRuns(k)}
               </li>
             ))}
           </ul>
@@ -612,19 +684,41 @@ export function AcademyTopicPage() {
         </div>
       ) : (
         <div>
+          {cardMessage && <p className="patient-meta">{cardMessage}</p>}
+          {SECTIONS.some(({ key }) => topic[key]) && (
+            <nav className="academy-toc" aria-label="Table of contents">
+              {SECTIONS.filter(({ key }) => topic[key]).map(({ key, label }) => (
+                <a key={key} href={`#sec-${key}`}>
+                  {label}
+                </a>
+              ))}
+            </nav>
+          )}
           {SECTIONS.map(({ key, label }) =>
             topic[key] ? (
-              <section key={key} style={{ marginBottom: 16 }}>
-                <h3>{label}</h3>
-                <MarkdownSection text={topic[key] as string} />
-                {key === 'caseStem' && topic.caseQuestions.length > 0 && (
-                  <ol>
-                    {topic.caseQuestions.map((q, i) => (
-                      <li key={i} dir="rtl">
-                        {protectNumberRanges(q)}
-                      </li>
-                    ))}
-                  </ol>
+              <section key={key} id={`sec-${key}`} style={{ marginBottom: 16 }}>
+                <button type="button" className="academy-section-toggle" onClick={() => toggleSection(key)}>
+                  <h3>{label}</h3>
+                  <span className={collapsedSections.has(key) ? 'academy-chevron collapsed' : 'academy-chevron'}>▾</span>
+                </button>
+                {!collapsedSections.has(key) && (
+                  <>
+                    <MarkdownSection
+                      text={topic[key] as string}
+                      sectionKey={key}
+                      onMakeCard={(payload) => void handleMakeCard(key, payload)}
+                      onMakeCardsFromTable={(payloads) => void handleMakeCardsFromTable(key, payloads)}
+                    />
+                    {key === 'caseStem' && topic.caseQuestions.length > 0 && (
+                      <ol>
+                        {topic.caseQuestions.map((q, i) => (
+                          <li key={i} dir="rtl">
+                            {isolateLatinRuns(q)}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </>
                 )}
               </section>
             ) : null
@@ -632,7 +726,29 @@ export function AcademyTopicPage() {
           {SECTIONS.every(({ key }) => !topic[key]) && (
             <p className="empty-state">No content yet — click Edit to write this topic up.</p>
           )}
+          <div className="dash-card">
+            <div className="dash-card-header">
+              <h2 className="dash-card-title">Rate your recall</h2>
+            </div>
+            <p className="patient-meta">
+              Topic-level Leitner schedule (next review above) — reviewing individual cards above also builds mastery.
+            </p>
+            <div className="form-actions">
+              <button onClick={() => void handleReview('difficult')}>Difficult</button>
+              <button onClick={() => void handleReview('moderate')}>Moderate</button>
+              <button onClick={() => void handleReview('easy')}>Easy</button>
+            </div>
+          </div>
         </div>
+      )}
+      {showBackToTop && (
+        <button
+          type="button"
+          className="academy-back-to-top"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          ↑ Back to top
+        </button>
       )}
     </div>
   )

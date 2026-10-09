@@ -1,4 +1,4 @@
-import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, Flashcard } from '../types/domain'
+import type { AcademyCard, AcademyTopic, BoardQuestion, BoardQuestionAttempt, Flashcard } from '../types/domain'
 
 export type ReadinessStatus = 'no-data' | 'weak' | 'moderate' | 'strong'
 
@@ -9,9 +9,16 @@ export interface TopicReadiness {
   questionAccuracyPct: number | null
   flashcardCount: number
   flashcardConfidencePct: number | null
+  cardCount: number
+  cardConfidencePct: number | null
   masteryPct: number | null
   status: ReadinessStatus
 }
+
+// Weights used when blending whichever of the three signals (board-question
+// accuracy, flashcard review confidence, card review confidence) a topic
+// actually has data for; renormalized to sum to 1 over the present signals.
+const SIGNAL_WEIGHTS = { question: 0.5, flashcard: 0.2, card: 0.3 }
 
 function normalizeTopic(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -34,7 +41,8 @@ export function computeTopicReadiness(
   questions: BoardQuestion[],
   attempts: BoardQuestionAttempt[],
   flashcards: Flashcard[],
-  academyTopics: AcademyTopic[]
+  academyTopics: AcademyTopic[],
+  cards: AcademyCard[] = []
 ): TopicReadiness[] {
   const groups = new Map<
     string,
@@ -88,10 +96,28 @@ export function computeTopicReadiness(
     flashcardStats.set(key, stat)
   }
 
+  // Cards are linked to a topic by id (not a free-text name), so map through
+  // the Academy topic's own name to land in the same normalized group as its
+  // board questions/flashcards.
+  const topicIdToKey = new Map<string, string>()
+  for (const t of academyTopics) topicIdToKey.set(t.id, normalizeTopic(t.name))
+
+  const cardStats = new Map<string, { count: number; scores: number[] }>()
+  for (const card of cards) {
+    const key = topicIdToKey.get(card.topicId)
+    if (!key) continue
+    const latest = card.reviewHistory.length > 0 ? card.reviewHistory[card.reviewHistory.length - 1] : null
+    const stat = cardStats.get(key) ?? { count: 0, scores: [] }
+    stat.count += 1
+    if (latest) stat.scores.push(ratingScore(latest.rating))
+    cardStats.set(key, stat)
+  }
+
   const results: TopicReadiness[] = []
   for (const [key, g] of groups) {
     const attemptStat = attemptStats.get(key)
     const flashcardStat = flashcardStats.get(key)
+    const cardStat = cardStats.get(key)
 
     const questionAccuracyPct =
       attemptStat && attemptStat.attempts > 0 ? Math.round((attemptStat.correct / attemptStat.attempts) * 100) : null
@@ -99,15 +125,18 @@ export function computeTopicReadiness(
       flashcardStat && flashcardStat.scores.length > 0
         ? Math.round(flashcardStat.scores.reduce((sum, s) => sum + s, 0) / flashcardStat.scores.length)
         : null
+    const cardConfidencePct =
+      cardStat && cardStat.scores.length > 0
+        ? Math.round(cardStat.scores.reduce((sum, s) => sum + s, 0) / cardStat.scores.length)
+        : null
 
-    let masteryPct: number | null = null
-    if (questionAccuracyPct != null && flashcardConfidencePct != null) {
-      masteryPct = Math.round(questionAccuracyPct * 0.7 + flashcardConfidencePct * 0.3)
-    } else if (questionAccuracyPct != null) {
-      masteryPct = questionAccuracyPct
-    } else if (flashcardConfidencePct != null) {
-      masteryPct = flashcardConfidencePct
-    }
+    const present = [
+      { pct: questionAccuracyPct, weight: SIGNAL_WEIGHTS.question },
+      { pct: flashcardConfidencePct, weight: SIGNAL_WEIGHTS.flashcard },
+      { pct: cardConfidencePct, weight: SIGNAL_WEIGHTS.card },
+    ].filter((s): s is { pct: number; weight: number } => s.pct != null)
+    const weightSum = present.reduce((sum, s) => sum + s.weight, 0)
+    const masteryPct = weightSum > 0 ? Math.round(present.reduce((sum, s) => sum + s.pct * s.weight, 0) / weightSum) : null
 
     results.push({
       topic: g.label,
@@ -116,6 +145,8 @@ export function computeTopicReadiness(
       questionAccuracyPct,
       flashcardCount: flashcardStat?.count ?? 0,
       flashcardConfidencePct,
+      cardCount: cardStat?.count ?? 0,
+      cardConfidencePct,
       masteryPct,
       status: statusFor(masteryPct),
     })

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listAcademyTopics } from '../lib/api/academy'
 import { sortSubTopics } from '../lib/sortSubTopics'
-import { protectNumberRanges } from '../lib/bidiText'
+import { isolateLatinRuns } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import type { AcademyTopic } from '../types/domain'
 
@@ -185,7 +185,7 @@ export function HighYieldPage() {
                           <ul className="study-link-list">
                             {t.keyPoints.map((k, i) => (
                               <li key={i} dir="rtl">
-                                {protectNumberRanges(k)}
+                                {isolateLatinRuns(k)}
                               </li>
                             ))}
                           </ul>

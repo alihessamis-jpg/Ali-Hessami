@@ -438,6 +438,15 @@ export function PlusIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function BookIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5.5A2.5 2.5 0 016.5 3H12v18H6.5A2.5 2.5 0 014 18.5v-13z" />
+      <path d="M20 5.5A2.5 2.5 0 0017.5 3H12v18h5.5a2.5 2.5 0 002.5-2.5v-13z" />
+    </Icon>
+  )
+}
+
 export function KidneyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" {...props}>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
+import { listAllAcademyCards, updateAcademyCardSrs } from '../lib/api/academyCards'
 import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
 import { listReadingItems, setReadingItemCheckpoint, updateReadingItemSrs } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
@@ -8,8 +9,9 @@ import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import { AcademyIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
+import { BookProgressWidget } from '../components/books/BookProgressWidget'
 import { EmptyState } from '../components/illustrations/EmptyState'
-import type { AcademyTopic, Flashcard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
+import type { AcademyCard, AcademyTopic, Flashcard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
 
 type Rating = 'easy' | 'moderate' | 'difficult'
 
@@ -112,15 +114,26 @@ export function TodayPage() {
   const [leitnerIndex, setLeitnerIndex] = useState(0)
   const [leitnerShowBack, setLeitnerShowBack] = useState(false)
 
+  const [academyCards, setAcademyCards] = useState<AcademyCard[]>([])
+  const [cardIndex, setCardIndex] = useState(0)
+  const [cardShowBack, setCardShowBack] = useState(false)
+
   useEffect(() => {
     if (!session) return
     setLoading(true)
-    Promise.all([listAcademyTopics(), listAcademyProgress(session.user.id), listFlashcards(), listReadingItems()])
-      .then(([topicRows, progressRows, flashcardRows, readingRows]) => {
+    Promise.all([
+      listAcademyTopics(),
+      listAcademyProgress(session.user.id),
+      listFlashcards(),
+      listReadingItems(),
+      listAllAcademyCards(),
+    ])
+      .then(([topicRows, progressRows, flashcardRows, readingRows, cardRows]) => {
         setTopics(topicRows)
         setTopicNextReview(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
         setFlashcards(flashcardRows)
         setReadingItems(readingRows)
+        setAcademyCards(cardRows)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load today’s review'))
       .finally(() => setLoading(false))
@@ -135,11 +148,17 @@ export function TodayPage() {
   const dueFlashcards = useMemo(() => flashcards.filter((c) => !c.nextReview || c.nextReview <= today), [flashcards, today])
   const dueLeitnerItems = useMemo(() => listDueLeitnerItems(readingItems, today), [readingItems, today])
   const dueCheckpoints = useMemo(() => listDueCheckpoints(readingItems, today), [readingItems, today])
+  const dueAcademyCards = useMemo(
+    () => academyCards.filter((c) => !c.nextReview || c.nextReview <= today),
+    [academyCards, today]
+  )
 
   const currentFlashcard = dueFlashcards[flashcardIndex % Math.max(dueFlashcards.length, 1)]
   const currentLeitner = dueLeitnerItems[leitnerIndex % Math.max(dueLeitnerItems.length, 1)]
+  const currentCard = dueAcademyCards[cardIndex % Math.max(dueAcademyCards.length, 1)]
 
-  const totalDue = dueTopics.length + dueFlashcards.length + dueLeitnerItems.length + dueCheckpoints.length
+  const totalDue =
+    dueTopics.length + dueFlashcards.length + dueLeitnerItems.length + dueCheckpoints.length + dueAcademyCards.length
 
   async function handleRateFlashcard(rating: Rating) {
     if (!currentFlashcard) return
@@ -170,6 +189,19 @@ export function TodayPage() {
       setReadingItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
       setLeitnerShowBack(false)
       setLeitnerIndex((i) => i + 1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review')
+    }
+  }
+
+  async function handleRateCard(rating: Rating) {
+    if (!currentCard) return
+    const next = scheduleReview(currentCard, rating)
+    try {
+      const updated = await updateAcademyCardSrs(currentCard.id, next)
+      setAcademyCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+      setCardShowBack(false)
+      setCardIndex((i) => i + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save review')
     }
@@ -225,6 +257,8 @@ export function TodayPage() {
 
       {error && <p className="form-error">{error}</p>}
 
+      <BookProgressWidget />
+
       {totalDue === 0 ? (
         <div className="np-card np-fade">
           <EmptyState>Nothing due today — you're all caught up.</EmptyState>
@@ -242,6 +276,21 @@ export function TodayPage() {
               onShowBack={() => setFlashcardShowBack(true)}
               onGrade={(rating) => void handleRateFlashcard(rating)}
               animationDelay="0.1s"
+            />
+          )}
+
+          {dueAcademyCards.length > 0 && currentCard && (
+            <DueReviewCard
+              icon={<AcademyIcon />}
+              title="Topic cards due"
+              pillText={`${(cardIndex % dueAcademyCards.length) + 1} / ${dueAcademyCards.length}`}
+              meta={currentCard.kind === 'cell' ? 'Table card' : 'Cloze card'}
+              question={currentCard.prompt}
+              answer={currentCard.answer}
+              showBack={cardShowBack}
+              onShowBack={() => setCardShowBack(true)}
+              onGrade={(rating) => void handleRateCard(rating)}
+              animationDelay="0.15s"
             />
           )}
 
