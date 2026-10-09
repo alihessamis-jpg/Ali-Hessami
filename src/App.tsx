@@ -16,8 +16,9 @@ import { CalculatorsPage } from './pages/CalculatorsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
 import { AcademyPage } from './pages/AcademyPage'
 import { AcademyTopicPage } from './pages/AcademyTopicPage'
-import { BooksPage } from './pages/BooksPage'
-import { BookDetailPage } from './pages/BookDetailPage'
+import { LibraryPage } from './pages/LibraryPage'
+import { ReaderPage } from './pages/ReaderPage'
+import { ReviewPage } from './pages/ReviewPage'
 import { HighYieldPage } from './pages/HighYieldPage'
 import { StudyHubPage } from './pages/StudyHubPage'
 import { BoardReadinessPage } from './pages/BoardReadinessPage'
@@ -49,10 +50,11 @@ export function App() {
           <Route path="/reference" element={protect(<ReferencePage />)} />
           <Route path="/calculators" element={protect(<CalculatorsPage />)} />
           <Route path="/checklists" element={protect(<ChecklistsPage />)} />
-          <Route path="/academy" element={protect(<AcademyPage />)} />
+          <Route path="/academy" element={protect(<LibraryPage />)} />
+          <Route path="/academy/topics" element={protect(<AcademyPage />)} />
+          <Route path="/academy/reader/:id" element={protect(<ReaderPage />)} />
+          <Route path="/academy/review" element={protect(<ReviewPage />)} />
           <Route path="/academy/:id" element={protect(<AcademyTopicPage />)} />
-          <Route path="/books" element={protect(<BooksPage />)} />
-          <Route path="/books/:id" element={protect(<BookDetailPage />)} />
           <Route path="/high-yield" element={protect(<HighYieldPage />)} />
           <Route path="/study" element={protect(<StudyHubPage />)} />
           <Route path="/board-readiness" element={protect(<BoardReadinessPage />)} />

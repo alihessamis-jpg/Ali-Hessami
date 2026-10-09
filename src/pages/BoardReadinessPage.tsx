@@ -5,6 +5,7 @@ import { listAllAcademyCards } from '../lib/api/academyCards'
 import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { listFlashcards } from '../lib/api/flashcards'
+import { ensureLibraryBookSeeded, listAllLibraryCards } from '../lib/api/library'
 import { computeTopicReadiness, type TopicReadiness } from '../lib/examReadiness'
 import { useCountUp } from '../hooks/useCountUp'
 import { isolateLatinRuns } from '../lib/bidiText'
@@ -34,9 +35,17 @@ export function BoardReadinessPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([listBoardQuestions(), listBoardQuestionAttempts(), listFlashcards(), listAcademyTopics(), listAllAcademyCards()])
-      .then(([questions, attempts, flashcards, topics, cards]) => {
-        setReadiness(computeTopicReadiness(questions, attempts, flashcards, topics, cards))
+    Promise.all([
+      listBoardQuestions(),
+      listBoardQuestionAttempts(),
+      listFlashcards(),
+      listAcademyTopics(),
+      listAllAcademyCards(),
+      listAllLibraryCards(),
+      ensureLibraryBookSeeded(),
+    ])
+      .then(([questions, attempts, flashcards, topics, cards, libraryCards, seeded]) => {
+        setReadiness(computeTopicReadiness(questions, attempts, flashcards, topics, cards, libraryCards, seeded.chapters))
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load readiness data'))
       .finally(() => setLoading(false))

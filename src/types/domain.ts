@@ -310,41 +310,127 @@ export interface AcademyCard extends SrsState {
 
 export type AcademyCardDraft = Pick<AcademyCard, 'topicId' | 'kind' | 'sectionKey' | 'bookPage' | 'prompt' | 'answer'>
 
-export interface Book {
+// --- Academy v2: Library (book) / Reader / Review -------------------------
+
+export interface LibraryBook {
   id: string
   title: string
-  author?: string | null
+  edition?: string | null
+  publisher?: string | null
+  year?: number | null
+  editors: string[]
   totalPages?: number | null
   createdAt: string
 }
 
-export type BookDraft = Pick<Book, 'title' | 'author' | 'totalPages'>
+export type LibraryBookDraft = Omit<LibraryBook, 'id' | 'createdAt'>
 
-export interface BookChapter {
+export type LibraryChapterStatus = 'unread' | 'reading' | 'read' | 'carded' | 'mastered'
+
+export interface LibraryChapter {
   id: string
   bookId: string
+  partRoman: string
+  partTitle: string
+  chapterNumber: number
   title: string
-  chapterIndex: number
-  pagesFrom?: number | null
-  pagesTo?: number | null
+  startPage?: number | null
+  endPage?: number | null
+  pages?: number | null
+  status: LibraryChapterStatus
+  readingPct: number
+  lastSection?: string | null
+  note?: string | null
 }
 
-export type BookChapterDraft = Pick<BookChapter, 'bookId' | 'title' | 'chapterIndex' | 'pagesFrom' | 'pagesTo'>
+export type LibraryChapterSeed = Pick<
+  LibraryChapter,
+  'bookId' | 'partRoman' | 'partTitle' | 'chapterNumber' | 'title' | 'startPage' | 'endPage' | 'pages'
+>
 
-export type BookSectionStatus = 'unread' | 'read' | 'carded' | 'mastered'
+// FSRS (spaced-repetition) scheduling state — the canonical shape lives here,
+// same convention as SrsState above; lib/fsrs.ts imports and operates on it.
+export type FsrsRating = 'again' | 'hard' | 'good' | 'easy'
+export type FsrsStateValue = 0 | 1 | 2 | 3 // New | Learning | Review | Relearning
 
-export interface BookSection {
+export interface FsrsReviewLogEntry {
+  date: string
+  rating: FsrsRating
+}
+
+export interface FsrsCardState {
+  due: string
+  stability: number | null
+  difficulty: number | null
+  elapsedDays: number
+  scheduledDays: number
+  reps: number
+  lapses: number
+  state: FsrsStateValue
+  lastReview: string | null
+  reviewHistory: FsrsReviewLogEntry[]
+}
+
+export type LibraryCardKind = 'cloze' | 'table_cell' | 'mcq' | 'patient_case' | 'basic'
+
+export interface McqChoice {
+  label: string
+  text: string
+  correct: boolean
+}
+
+export interface McqOptions {
+  choices: McqChoice[]
+  explanation?: string | null
+}
+
+export interface PatientCaseVignetteStat {
+  label: string
+  value: string
+  flag?: 'hi' | 'lo'
+}
+
+export interface PatientCaseVignette {
+  stats: PatientCaseVignetteStat[]
+}
+
+export interface LibraryCard extends FsrsCardState {
   id: string
   chapterId: string
-  title: string
-  sectionIndex: number
-  pagesFrom?: number | null
-  pagesTo?: number | null
-  status: BookSectionStatus
-  readAt?: string | null
+  kind: LibraryCardKind
+  front: string
+  back: string
+  options?: McqOptions | PatientCaseVignette | null
+  sectionNumber?: string | null
+  page?: number | null
+  sourceText?: string | null
+  patientId?: string | null
+  createdAt: string
 }
 
-export type BookSectionDraft = Pick<BookSection, 'chapterId' | 'title' | 'sectionIndex' | 'pagesFrom' | 'pagesTo'>
+export type LibraryCardDraft = Pick<
+  LibraryCard,
+  'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
+>
+
+export type LibraryHighlightKind = 'highlight' | 'note'
+
+export interface LibraryHighlight {
+  id: string
+  chapterId: string
+  sectionNumber?: string | null
+  kind: LibraryHighlightKind
+  text: string
+  noteText?: string | null
+  createdAt: string
+}
+
+export type LibraryHighlightDraft = Pick<LibraryHighlight, 'chapterId' | 'sectionNumber' | 'kind' | 'text' | 'noteText'>
+
+export interface ReadingLogEntry {
+  logDate: string
+  pagesRead: number
+}
 
 export interface StudyNote {
   id: string

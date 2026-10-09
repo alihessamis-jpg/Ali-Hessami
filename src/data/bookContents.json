@@ -1,0 +1,783 @@
+{
+ "title": "Pediatric Nephrology",
+ "edition": "8th",
+ "publisher": "Springer",
+ "year": 2022,
+ "editors": [
+  "Francesco Emma",
+  "Stuart L. Goldstein",
+  "Arvind Bagga",
+  "Carlton M. Bates",
+  "Rukshana Shroff"
+ ],
+ "parts": [
+  {
+   "roman": "I",
+   "title": "Developmental Physiology and Diseases",
+   "chapters": [
+    {
+     "part": "I",
+     "n": 1,
+     "title": "Pre-natal Development of the Kidneys and Urinary Tract",
+     "start": 3,
+     "end": 36,
+     "pages": 34
+    },
+    {
+     "part": "I",
+     "n": 2,
+     "title": "Postnatal Renal Maturation",
+     "start": 37,
+     "end": 78,
+     "pages": 42
+    },
+    {
+     "part": "I",
+     "n": 3,
+     "title": "Congenital Anomalies of the Kidneys",
+     "start": 79,
+     "end": 114,
+     "pages": 36
+    },
+    {
+     "part": "I",
+     "n": 4,
+     "title": "Stem Cells and Kidney Regeneration",
+     "start": 115,
+     "end": 144,
+     "pages": 30
+    }
+   ]
+  },
+  {
+   "roman": "II",
+   "title": "Renal Physiology and Diagnostic Approaches",
+   "chapters": [
+    {
+     "part": "II",
+     "n": 5,
+     "title": "Assessment of Kidney Function in Children, Adolescents, and Young Adults",
+     "start": 145,
+     "end": 172,
+     "pages": 28
+    },
+    {
+     "part": "II",
+     "n": 6,
+     "title": "Imaging Kidneys and the Urinary Tract",
+     "start": 173,
+     "end": 212,
+     "pages": 40
+    },
+    {
+     "part": "II",
+     "n": 7,
+     "title": "Technical Aspects of Renal Pathology",
+     "start": 213,
+     "end": 234,
+     "pages": 22
+    },
+    {
+     "part": "II",
+     "n": 8,
+     "title": "Approach to the Child with Hematuria and/or Proteinuria",
+     "start": 235,
+     "end": 254,
+     "pages": 20
+    }
+   ]
+  },
+  {
+   "roman": "III",
+   "title": "Glomerular Diseases",
+   "chapters": [
+    {
+     "part": "III",
+     "n": 9,
+     "title": "Nephrotic Syndrome: Classification and Evaluation",
+     "start": 255,
+     "end": 260,
+     "pages": 6
+    },
+    {
+     "part": "III",
+     "n": 10,
+     "title": "Genetic Basis of Nephrotic Syndrome",
+     "start": 261,
+     "end": 284,
+     "pages": 24
+    },
+    {
+     "part": "III",
+     "n": 11,
+     "title": "Congenital Nephrotic Syndrome",
+     "start": 285,
+     "end": 300,
+     "pages": 16
+    },
+    {
+     "part": "III",
+     "n": 12,
+     "title": "Clinical Aspects of Genetic Forms of Nephrotic Syndrome",
+     "start": 301,
+     "end": 326,
+     "pages": 26
+    },
+    {
+     "part": "III",
+     "n": 13,
+     "title": "Inherited Diseases of the Glomerular Basement Membrane",
+     "start": 327,
+     "end": 350,
+     "pages": 24
+    },
+    {
+     "part": "III",
+     "n": 14,
+     "title": "Steroid-Sensitive Nephrotic Syndrome",
+     "start": 351,
+     "end": 386,
+     "pages": 36
+    },
+    {
+     "part": "III",
+     "n": 15,
+     "title": "Nongenetic Forms of Steroid-Resistant Nephrotic Syndrome",
+     "start": 387,
+     "end": 410,
+     "pages": 24
+    },
+    {
+     "part": "III",
+     "n": 16,
+     "title": "Membranous Nephropathy",
+     "start": 411,
+     "end": 436,
+     "pages": 26
+    }
+   ]
+  },
+  {
+   "roman": "IV",
+   "title": "Kidney Involvement in Systemic Diseases",
+   "chapters": [
+    {
+     "part": "IV",
+     "n": 17,
+     "title": "Immunoglobulin A Nephropathy in Children",
+     "start": 437,
+     "end": 464,
+     "pages": 28
+    },
+    {
+     "part": "IV",
+     "n": 18,
+     "title": "Henoch Schönlein Purpura Nephropathy",
+     "start": 465,
+     "end": 488,
+     "pages": 24
+    },
+    {
+     "part": "IV",
+     "n": 19,
+     "title": "Renal Vasculitis",
+     "start": 489,
+     "end": 506,
+     "pages": 18
+    },
+    {
+     "part": "IV",
+     "n": 20,
+     "title": "Lupus Nephritis",
+     "start": 507,
+     "end": 540,
+     "pages": 34
+    },
+    {
+     "part": "IV",
+     "n": 21,
+     "title": "Autoantibodies and Kidney Diseases",
+     "start": 541,
+     "end": 562,
+     "pages": 22
+    },
+    {
+     "part": "IV",
+     "n": 22,
+     "title": "Membranoproliferative Glomerulonephritis and C3 Glomerulopathy in Children",
+     "start": 563,
+     "end": 594,
+     "pages": 32
+    },
+    {
+     "part": "IV",
+     "n": 23,
+     "title": "Thrombotic Thrombocytopenic Purpura, Atypical Hemolytic Uremic Syndrome, and Spectrum of Thrombotic Microangiopathy",
+     "start": 595,
+     "end": 636,
+     "pages": 42
+    },
+    {
+     "part": "IV",
+     "n": 24,
+     "title": "Infection-Related Hemolytic Uremic Syndrome (HUS)",
+     "start": 637,
+     "end": 658,
+     "pages": 22
+    },
+    {
+     "part": "IV",
+     "n": 25,
+     "title": "Acute Post-Streptococcal Glomerulonephritis",
+     "start": 659,
+     "end": 672,
+     "pages": 14
+    },
+    {
+     "part": "IV",
+     "n": 26,
+     "title": "Infections That Affect the Kidney (Nonviral)",
+     "start": 673,
+     "end": 706,
+     "pages": 34
+    },
+    {
+     "part": "IV",
+     "n": 27,
+     "title": "Viral Infections and the Kidney",
+     "start": 707,
+     "end": 734,
+     "pages": 28
+    },
+    {
+     "part": "IV",
+     "n": 28,
+     "title": "Sickle Cell Nephropathy in Children",
+     "start": 735,
+     "end": 750,
+     "pages": 16
+    },
+    {
+     "part": "IV",
+     "n": 29,
+     "title": "The Kidney in Type I Diabetes",
+     "start": 751,
+     "end": 760,
+     "pages": 10
+    },
+    {
+     "part": "IV",
+     "n": 30,
+     "title": "The Kidney in Metabolic Syndrome",
+     "start": 761,
+     "end": 778,
+     "pages": 18
+    },
+    {
+     "part": "IV",
+     "n": 31,
+     "title": "Renal Manifestations of Metabolic Disorders in Children",
+     "start": 779,
+     "end": 798,
+     "pages": 20
+    },
+    {
+     "part": "IV",
+     "n": 32,
+     "title": "The Kidney in Methylmalonic Acidaemia",
+     "start": 799,
+     "end": 806,
+     "pages": 8
+    },
+    {
+     "part": "IV",
+     "n": 33,
+     "title": "The Kidney in Mitochondrial Diseases",
+     "start": 807,
+     "end": 820,
+     "pages": 14
+    },
+    {
+     "part": "IV",
+     "n": 34,
+     "title": "Fabry Disease",
+     "start": 821,
+     "end": 830,
+     "pages": 10
+    },
+    {
+     "part": "IV",
+     "n": 35,
+     "title": "Hyperoxaluria",
+     "start": 831,
+     "end": 848,
+     "pages": 18
+    }
+   ]
+  },
+  {
+   "roman": "V",
+   "title": "Renal Tubular Disorders",
+   "chapters": [
+    {
+     "part": "V",
+     "n": 36,
+     "title": "Pediatric Fanconi Syndrome",
+     "start": 849,
+     "end": 876,
+     "pages": 28
+    },
+    {
+     "part": "V",
+     "n": 37,
+     "title": "Cystinosis",
+     "start": 877,
+     "end": 902,
+     "pages": 26
+    },
+    {
+     "part": "V",
+     "n": 38,
+     "title": "Renal Tubular Acidosis",
+     "start": 903,
+     "end": 928,
+     "pages": 26
+    },
+    {
+     "part": "V",
+     "n": 39,
+     "title": "Aminoaciduria and Glycosuria in Children",
+     "start": 929,
+     "end": 956,
+     "pages": 28
+    },
+    {
+     "part": "V",
+     "n": 40,
+     "title": "Renal Hypophosphatemia",
+     "start": 957,
+     "end": 986,
+     "pages": 30
+    },
+    {
+     "part": "V",
+     "n": 41,
+     "title": "Inherited Disorders of Sodium and Potassium Handling",
+     "start": 987,
+     "end": 1032,
+     "pages": 46
+    },
+    {
+     "part": "V",
+     "n": 42,
+     "title": "Inherited Disorders of Renal Magnesium Handling",
+     "start": 1033,
+     "end": 1046,
+     "pages": 14
+    },
+    {
+     "part": "V",
+     "n": 43,
+     "title": "Inherited Disorders of Renal Calcium Handling",
+     "start": 1047,
+     "end": 1062,
+     "pages": 16
+    },
+    {
+     "part": "V",
+     "n": 44,
+     "title": "Inherited Disorders of Water Handling",
+     "start": 1063,
+     "end": 1086,
+     "pages": 24
+    },
+    {
+     "part": "V",
+     "n": 45,
+     "title": "Pediatric Tubulointerstitial Nephritis",
+     "start": 1087,
+     "end": 1106,
+     "pages": 20
+    }
+   ]
+  },
+  {
+   "roman": "VI",
+   "title": "Homeostasis",
+   "chapters": [
+    {
+     "part": "VI",
+     "n": 46,
+     "title": "Sodium and Water Disorders: Evaluation and Management",
+     "start": 1107,
+     "end": 1122,
+     "pages": 16
+    },
+    {
+     "part": "VI",
+     "n": 47,
+     "title": "Potassium Disorders: Evaluation and Management",
+     "start": 1123,
+     "end": 1144,
+     "pages": 22
+    },
+    {
+     "part": "VI",
+     "n": 48,
+     "title": "Clinical Use of Diuretics",
+     "start": 1145,
+     "end": 1170,
+     "pages": 26
+    }
+   ]
+  },
+  {
+   "roman": "VII",
+   "title": "Cystic Kidney Diseases and Related Disorders",
+   "chapters": [
+    {
+     "part": "VII",
+     "n": 49,
+     "title": "Autosomal Dominant Polycystic Kidney Disease",
+     "start": 1171,
+     "end": 1196,
+     "pages": 26
+    },
+    {
+     "part": "VII",
+     "n": 50,
+     "title": "Autosomal Recessive Polycystic Kidney Disease",
+     "start": 1197,
+     "end": 1212,
+     "pages": 16
+    },
+    {
+     "part": "VII",
+     "n": 51,
+     "title": "Renal Involvement in Tuberous Sclerosis Complex",
+     "start": 1213,
+     "end": 1224,
+     "pages": 12
+    },
+    {
+     "part": "VII",
+     "n": 52,
+     "title": "Nephronophthisis and Related Ciliopathies",
+     "start": 1225,
+     "end": 1252,
+     "pages": 28
+    },
+    {
+     "part": "VII",
+     "n": 53,
+     "title": "Autosomal Dominant Tubulointerstitial Kidney Disease",
+     "start": 1253,
+     "end": 1294,
+     "pages": 42
+    }
+   ]
+  },
+  {
+   "roman": "VIII",
+   "title": "Urinary Tract Disorders",
+   "chapters": [
+    {
+     "part": "VIII",
+     "n": 54,
+     "title": "Urinary Stone Disease and Nephrocalcinosis",
+     "start": 1295,
+     "end": 1322,
+     "pages": 28
+    },
+    {
+     "part": "VIII",
+     "n": 55,
+     "title": "Urinary Tract Infections in Children",
+     "start": 1323,
+     "end": 1342,
+     "pages": 20
+    },
+    {
+     "part": "VIII",
+     "n": 56,
+     "title": "Vesicoureteral Reflux in Children",
+     "start": 1343,
+     "end": 1368,
+     "pages": 26
+    },
+    {
+     "part": "VIII",
+     "n": 57,
+     "title": "Pediatric Obstructive Uropathy",
+     "start": 1369,
+     "end": 1398,
+     "pages": 30
+    },
+    {
+     "part": "VIII",
+     "n": 58,
+     "title": "Bladder Disorders",
+     "start": 1399,
+     "end": 1410,
+     "pages": 12
+    },
+    {
+     "part": "VIII",
+     "n": 59,
+     "title": "Enuresis",
+     "start": 1411,
+     "end": 1422,
+     "pages": 12
+    },
+    {
+     "part": "VIII",
+     "n": 60,
+     "title": "Pediatric Renal Tumors",
+     "start": 1423,
+     "end": 1444,
+     "pages": 22
+    },
+    {
+     "part": "VIII",
+     "n": 61,
+     "title": "Onconephrology",
+     "start": 1445,
+     "end": 1476,
+     "pages": 32
+    }
+   ]
+  },
+  {
+   "roman": "IX",
+   "title": "Hypertension",
+   "chapters": [
+    {
+     "part": "IX",
+     "n": 62,
+     "title": "Pathophysiology and Epidemiology of Hypertension in Children",
+     "start": 1477,
+     "end": 1510,
+     "pages": 34
+    },
+    {
+     "part": "IX",
+     "n": 63,
+     "title": "Evaluation and Management of Hypertension in Children",
+     "start": 1511,
+     "end": 1536,
+     "pages": 26
+    },
+    {
+     "part": "IX",
+     "n": 64,
+     "title": "Renovascular Hypertension in Children: Evaluation and Management",
+     "start": 1537,
+     "end": 1554,
+     "pages": 18
+    }
+   ]
+  },
+  {
+   "roman": "X",
+   "title": "Acute Kidney Injury",
+   "chapters": [
+    {
+     "part": "X",
+     "n": 65,
+     "title": "Pathogenesis of Acute Kidney Injury",
+     "start": 1555,
+     "end": 1592,
+     "pages": 38
+    },
+    {
+     "part": "X",
+     "n": 66,
+     "title": "Evaluation and Management of Acute Kidney Injury in Neonates",
+     "start": 1593,
+     "end": 1616,
+     "pages": 24
+    },
+    {
+     "part": "X",
+     "n": 67,
+     "title": "Evaluation and Management of Acute Kidney Injury in Children",
+     "start": 1617,
+     "end": 1652,
+     "pages": 36
+    },
+    {
+     "part": "X",
+     "n": 68,
+     "title": "Nephrotoxins",
+     "start": 1653,
+     "end": 1678,
+     "pages": 26
+    }
+   ]
+  },
+  {
+   "roman": "XI",
+   "title": "Chronic Kidney Failure",
+   "chapters": [
+    {
+     "part": "XI",
+     "n": 69,
+     "title": "Progression of Chronic Kidney Disease and Nephroprotection in Children",
+     "start": 1679,
+     "end": 1700,
+     "pages": 22
+    },
+    {
+     "part": "XI",
+     "n": 70,
+     "title": "Epidemiology and Management of Chronic Kidney Disease in Children",
+     "start": 1701,
+     "end": 1716,
+     "pages": 16
+    },
+    {
+     "part": "XI",
+     "n": 71,
+     "title": "Nutrition, Growth, and Development",
+     "start": 1717,
+     "end": 1750,
+     "pages": 34
+    },
+    {
+     "part": "XI",
+     "n": 72,
+     "title": "Chronic Kidney Disease – Mineral and Bone Disorder (CKD-MBD)",
+     "start": 1751,
+     "end": 1778,
+     "pages": 28
+    },
+    {
+     "part": "XI",
+     "n": 73,
+     "title": "Anemia in Chronic Kidney Disease",
+     "start": 1779,
+     "end": 1794,
+     "pages": 16
+    },
+    {
+     "part": "XI",
+     "n": 74,
+     "title": "Assessment of Volume Status in Chronic Kidney Disease",
+     "start": 1795,
+     "end": 1804,
+     "pages": 10
+    },
+    {
+     "part": "XI",
+     "n": 75,
+     "title": "Peritoneal Dialysis",
+     "start": 1805,
+     "end": 1834,
+     "pages": 30
+    },
+    {
+     "part": "XI",
+     "n": 76,
+     "title": "Chronic Hemodialysis in Children",
+     "start": 1835,
+     "end": 1868,
+     "pages": 34
+    },
+    {
+     "part": "XI",
+     "n": 77,
+     "title": "Infant Dialysis",
+     "start": 1869,
+     "end": 1882,
+     "pages": 14
+    },
+    {
+     "part": "XI",
+     "n": 78,
+     "title": "Adequacy of Dialysis",
+     "start": 1883,
+     "end": 1900,
+     "pages": 18
+    },
+    {
+     "part": "XI",
+     "n": 79,
+     "title": "Renal Transplantation: Evaluation of Children and Donors",
+     "start": 1901,
+     "end": 1914,
+     "pages": 14
+    },
+    {
+     "part": "XI",
+     "n": 80,
+     "title": "Renal Transplantation: Surgical and Perioperative Management",
+     "start": 1915,
+     "end": 1926,
+     "pages": 12
+    },
+    {
+     "part": "XI",
+     "n": 81,
+     "title": "Renal Transplantation: Immunosuppression and Managing Allograft Rejection",
+     "start": 1927,
+     "end": 1958,
+     "pages": 32
+    },
+    {
+     "part": "XI",
+     "n": 82,
+     "title": "Recurrent Disease After Pediatric Kidney Transplantation",
+     "start": 1959,
+     "end": 1972,
+     "pages": 14
+    },
+    {
+     "part": "XI",
+     "n": 83,
+     "title": "Renal Transplantation: Infectious Complications",
+     "start": 1973,
+     "end": 1988,
+     "pages": 16
+    },
+    {
+     "part": "XI",
+     "n": 84,
+     "title": "Renal Transplantation: Non-infectious Complications and Long-Term Outcome",
+     "start": 1989,
+     "end": 2016,
+     "pages": 28
+    },
+    {
+     "part": "XI",
+     "n": 85,
+     "title": "Ethical Issues in Pediatric Nephrology",
+     "start": 2017,
+     "end": 2030,
+     "pages": 14
+    },
+    {
+     "part": "XI",
+     "n": 86,
+     "title": "Drug Dosing in Abnormal Kidney Function in Children",
+     "start": 2031,
+     "end": 2048,
+     "pages": 18
+    }
+   ]
+  },
+  {
+   "roman": "XII",
+   "title": "Addendum",
+   "chapters": [
+    {
+     "part": "XII",
+     "n": 87,
+     "title": "Normal Reference Values",
+     "start": 2049,
+     "end": 2078,
+     "pages": 30
+    }
+   ]
+  }
+ ]
+}

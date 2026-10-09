@@ -2,7 +2,6 @@ import type { ComponentType, SVGProps } from 'react'
 import {
   AcademyIcon,
   AnalyticsIcon,
-  BookIcon,
   CalculatorIcon,
   CaseLogIcon,
   ChecklistIcon,
@@ -39,7 +38,6 @@ export const NAV_LINKS: NavLink[] = [
   { to: '/calculators', label: 'Calculators', icon: CalculatorIcon },
   { to: '/checklists', label: 'Checklists', icon: ChecklistIcon },
   { to: '/academy', label: 'Academy', icon: AcademyIcon },
-  { to: '/books', label: 'Books', icon: BookIcon },
   { to: '/high-yield', label: 'High-Yield', icon: NotesIcon },
   { to: '/study', label: 'Study Hub', icon: StudyHubIcon },
   { to: '/board-readiness', label: 'Board Readiness', icon: AnalyticsIcon },

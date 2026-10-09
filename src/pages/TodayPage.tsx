@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listAllAcademyCards, updateAcademyCardSrs } from '../lib/api/academyCards'
 import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
+import { listAllLibraryCards, listReadingLog } from '../lib/api/library'
 import { listReadingItems, setReadingItemCheckpoint, updateReadingItemSrs } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
+import { getUserSettings } from '../lib/api/settings'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
-import { AcademyIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
-import { BookProgressWidget } from '../components/books/BookProgressWidget'
+import { AcademyIcon, BookIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
-import type { AcademyCard, AcademyTopic, Flashcard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
+import type { AcademyCard, AcademyTopic, Flashcard, LibraryCard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
 
 type Rating = 'easy' | 'moderate' | 'difficult'
 
@@ -118,6 +119,10 @@ export function TodayPage() {
   const [cardIndex, setCardIndex] = useState(0)
   const [cardShowBack, setCardShowBack] = useState(false)
 
+  const [libraryCards, setLibraryCards] = useState<LibraryCard[]>([])
+  const [todayPages, setTodayPages] = useState(0)
+  const [pagesGoal, setPagesGoal] = useState(20)
+
   useEffect(() => {
     if (!session) return
     setLoading(true)
@@ -127,13 +132,20 @@ export function TodayPage() {
       listFlashcards(),
       listReadingItems(),
       listAllAcademyCards(),
+      listAllLibraryCards(),
+      listReadingLog(),
+      getUserSettings(),
     ])
-      .then(([topicRows, progressRows, flashcardRows, readingRows, cardRows]) => {
+      .then(([topicRows, progressRows, flashcardRows, readingRows, cardRows, libraryCardRows, log, settings]) => {
         setTopics(topicRows)
         setTopicNextReview(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
         setFlashcards(flashcardRows)
         setReadingItems(readingRows)
         setAcademyCards(cardRows)
+        setLibraryCards(libraryCardRows)
+        const todayStr = new Date().toISOString().slice(0, 10)
+        setTodayPages(log.find((l) => l.logDate === todayStr)?.pagesRead ?? 0)
+        setPagesGoal(settings.readingDailyGoal)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load today’s review'))
       .finally(() => setLoading(false))
@@ -152,13 +164,19 @@ export function TodayPage() {
     () => academyCards.filter((c) => !c.nextReview || c.nextReview <= today),
     [academyCards, today]
   )
+  const dueLibraryCards = useMemo(() => libraryCards.filter((c) => new Date(c.due).getTime() <= Date.now()), [libraryCards])
 
   const currentFlashcard = dueFlashcards[flashcardIndex % Math.max(dueFlashcards.length, 1)]
   const currentLeitner = dueLeitnerItems[leitnerIndex % Math.max(dueLeitnerItems.length, 1)]
   const currentCard = dueAcademyCards[cardIndex % Math.max(dueAcademyCards.length, 1)]
 
   const totalDue =
-    dueTopics.length + dueFlashcards.length + dueLeitnerItems.length + dueCheckpoints.length + dueAcademyCards.length
+    dueTopics.length +
+    dueFlashcards.length +
+    dueLeitnerItems.length +
+    dueCheckpoints.length +
+    dueAcademyCards.length +
+    dueLibraryCards.length
 
   async function handleRateFlashcard(rating: Rating) {
     if (!currentFlashcard) return
@@ -256,8 +274,6 @@ export function TodayPage() {
       </section>
 
       {error && <p className="form-error">{error}</p>}
-
-      <BookProgressWidget />
 
       {totalDue === 0 ? (
         <div className="np-card np-fade">
@@ -360,8 +376,38 @@ export function TodayPage() {
                   <span className="np-small">{t.category}</span>
                 </Link>
               ))}
-              <Link to="/academy" className="td-outline">
+              <Link to="/academy/topics" className="td-outline">
                 {dueTopics.length > 3 ? `Start review · ${dueTopics.length - 3} more` : 'Start review'}
+              </Link>
+            </div>
+          )}
+
+          {(dueLibraryCards.length > 0 || todayPages > 0) && (
+            <div className="np-card np-fade" style={{ animationDelay: '0.36s' }}>
+              <div className="np-head">
+                <div className="np-head-l">
+                  <span className="np-ic">
+                    <BookIcon />
+                  </span>
+                  <h2>Academy</h2>
+                </div>
+                <span className="np-pill" style={{ color: '#5131B5', background: '#ECE6FD' }}>
+                  {dueLibraryCards.length}
+                </span>
+              </div>
+              <div className="td-row">
+                <span className="td-dot" />
+                <b>{dueLibraryCards.length} book cards due</b>
+                <span className="np-small">FSRS review</span>
+              </div>
+              <div className="td-row">
+                <span className="td-dot" style={{ background: '#0B6670' }} />
+                <b>
+                  {todayPages} / {pagesGoal} pages today
+                </b>
+              </div>
+              <Link to="/academy/review" className="td-outline">
+                {dueLibraryCards.length > 0 ? 'Review due cards' : 'Keep reading'}
               </Link>
             </div>
           )}

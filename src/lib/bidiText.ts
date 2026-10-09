@@ -10,8 +10,13 @@ const LRI = '⁦'
 const PDI = '⁩'
 const ARROWS = '←-↙⇄⇅'
 const RUN_CHARS = `A-Za-z0-9۰-۹()./%+\\-:,${ARROWS}`
-const RUN_RE = new RegExp(`[${RUN_CHARS}]+`, 'g')
-const HAS_CONTENT_RE = new RegExp(`[A-Za-z0-9۰-۹${ARROWS}]`)
+// Exported so other renderers (e.g. the Academy v2 Reader, which wraps runs
+// in real <bdi> elements instead of invisible isolate marks) can match the
+// exact same "what counts as a Latin/number run" definition.
+export const LATIN_RUN_RE = new RegExp(`[${RUN_CHARS}]+`, 'g')
+export const LATIN_RUN_HAS_CONTENT_RE = new RegExp(`[A-Za-z0-9۰-۹${ARROWS}]`)
+const RUN_RE = LATIN_RUN_RE
+const HAS_CONTENT_RE = LATIN_RUN_HAS_CONTENT_RE
 
 export function isolateLatinRuns(text: string): string {
   return text.replace(RUN_RE, (match) => (HAS_CONTENT_RE.test(match) ? `${LRI}${match}${PDI}` : match))

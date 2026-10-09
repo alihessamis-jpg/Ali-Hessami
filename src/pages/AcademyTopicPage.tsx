@@ -258,7 +258,7 @@ export function AcademyTopicPage() {
     if (!window.confirm(`Delete "${topic.name}"? This cannot be undone.`)) return
     try {
       await deleteAcademyTopic(id)
-      navigate('/academy')
+      navigate('/academy/topics')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete topic')
     }
@@ -330,8 +330,8 @@ export function AcademyTopicPage() {
     <div>
       <div className="page-header">
         <div>
-          <Link to="/academy" className="back-link">
-            ← Academy
+          <Link to="/academy/topics" className="back-link">
+            ← My topics
           </Link>
           {parentTopic && (
             <div>

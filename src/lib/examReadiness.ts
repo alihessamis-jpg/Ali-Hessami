@@ -1,4 +1,4 @@
-import type { AcademyCard, AcademyTopic, BoardQuestion, BoardQuestionAttempt, Flashcard } from '../types/domain'
+import type { AcademyCard, AcademyTopic, BoardQuestion, BoardQuestionAttempt, Flashcard, FsrsRating, LibraryCard, LibraryChapter } from '../types/domain'
 
 export type ReadinessStatus = 'no-data' | 'weak' | 'moderate' | 'strong'
 
@@ -30,6 +30,16 @@ function ratingScore(rating: 'easy' | 'moderate' | 'difficult'): number {
   return 15
 }
 
+// Same idea for Academy v2's FSRS cards (Again/Hard/Good/Easy), rescaled
+// onto the same 0-100 confidence range so the two card systems can feed one
+// blended "card confidence" signal below.
+function fsrsRatingScore(rating: FsrsRating): number {
+  if (rating === 'easy') return 100
+  if (rating === 'good') return 75
+  if (rating === 'hard') return 40
+  return 15
+}
+
 function statusFor(masteryPct: number | null): ReadinessStatus {
   if (masteryPct == null) return 'no-data'
   if (masteryPct < 60) return 'weak'
@@ -42,7 +52,9 @@ export function computeTopicReadiness(
   attempts: BoardQuestionAttempt[],
   flashcards: Flashcard[],
   academyTopics: AcademyTopic[],
-  cards: AcademyCard[] = []
+  cards: AcademyCard[] = [],
+  libraryCards: LibraryCard[] = [],
+  libraryChapters: LibraryChapter[] = []
 ): TopicReadiness[] {
   const groups = new Map<
     string,
@@ -110,6 +122,24 @@ export function computeTopicReadiness(
     const stat = cardStats.get(key) ?? { count: 0, scores: [] }
     stat.count += 1
     if (latest) stat.scores.push(ratingScore(latest.rating))
+    cardStats.set(key, stat)
+  }
+
+  // Academy v2's book cards are linked to a chapter, not a topic — fold
+  // them into the same "card confidence" pool, grouped by the chapter's own
+  // title (creating a new group for chapters with no matching topic/question
+  // name, the same way flashcard decks do above).
+  const chapterIdToKey = new Map<string, string>()
+  for (const c of libraryChapters) chapterIdToKey.set(c.id, normalizeTopic(c.title))
+  for (const card of libraryCards) {
+    const chapter = libraryChapters.find((c) => c.id === card.chapterId)
+    if (!chapter) continue
+    const key = chapterIdToKey.get(card.chapterId) as string
+    if (!groups.has(key)) groupFor(key, chapter.title)
+    const latest = card.reviewHistory.length > 0 ? card.reviewHistory[card.reviewHistory.length - 1] : null
+    const stat = cardStats.get(key) ?? { count: 0, scores: [] }
+    stat.count += 1
+    if (latest) stat.scores.push(fsrsRatingScore(latest.rating))
     cardStats.set(key, stat)
   }
 

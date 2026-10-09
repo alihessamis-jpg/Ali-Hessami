@@ -46,7 +46,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <Sidebar />
         <main className="app-main">{children}</main>
       </div>
-      <MobileTabBar currentPath={location.pathname} />
+      {location.pathname !== '/academy/review' && <MobileTabBar currentPath={location.pathname} />}
     </div>
   )
 }

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookProgressWidget } from '../components/books/BookProgressWidget'
 import { CalendarWidget } from '../components/dashboard/CalendarWidget'
 import { DashboardHero } from '../components/dashboard/DashboardHero'
 import { PatientGlanceRow } from '../components/dashboard/PatientGlanceRow'
@@ -22,6 +21,7 @@ import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listAllAcademyCards } from '../lib/api/academyCards'
 import { listFlashcards } from '../lib/api/flashcards'
+import { ensureLibraryBookSeeded, listAllLibraryCards } from '../lib/api/library'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { computeTopicReadiness } from '../lib/examReadiness'
@@ -184,6 +184,8 @@ export function DashboardPage() {
       getUserSettings(),
       listAkiAlerts(),
       listAllAcademyCards(),
+      listAllLibraryCards(),
+      ensureLibraryBookSeeded(),
     ])
       .then(
         async ([
@@ -202,13 +204,23 @@ export function DashboardPage() {
           settings,
           akiRows,
           cardRows,
+          libraryCardRows,
+          seededLibrary,
         ]) => {
           setLabs(labRows)
           setReminders(reminderRows)
           setTopics(topicRows)
           setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
           setFlashcards(flashcardRows)
-          const readiness = computeTopicReadiness(boardQuestionRows, boardQuestionAttemptRows, flashcardRows, topicRows, cardRows)
+          const readiness = computeTopicReadiness(
+            boardQuestionRows,
+            boardQuestionAttemptRows,
+            flashcardRows,
+            topicRows,
+            cardRows,
+            libraryCardRows,
+            seededLibrary.chapters
+          )
           setWeakTopicCount(readiness.filter((r) => r.status === 'weak').length)
           setKnowledgeGaps(gapRows)
           setResearchProjects(projectRows)
@@ -397,8 +409,6 @@ export function DashboardPage() {
             </Link>
           </section>
         )}
-
-        <BookProgressWidget />
 
         <QuickTools />
 
