@@ -8,7 +8,9 @@ import { listFollowUpItems } from '../../lib/api/followUps'
 import { listVaccinations } from '../../lib/api/vaccinations'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import { getImagingSignedUrl, getPatientDocumentSignedUrl } from '../../lib/storage'
-import { computePatientAlerts } from '../../lib/patientAlerts'
+import { computePatientAlerts, type AlertSeverity } from '../../lib/patientAlerts'
+import { isUnderlyingDiseaseDuplicate } from '../../lib/clinicalFlags'
+import { getLabReferenceRange } from '../../lib/labReferenceRanges'
 import { toShamsi } from '../../lib/shamsi'
 import { KidneyFunctionTrend } from './KidneyFunctionTrend'
 import { LinkedTopicsWidget } from './LinkedTopicsWidget'
@@ -37,6 +39,61 @@ function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
 }
 
+// Tests that have dedicated clinical handling elsewhere (KDIGO staging vs.
+// baseline for Creatinine, the anemia threshold for Hemoglobin) rather than
+// a generic age-banded reference range — fall back to their usual unit here
+// so the Recent labs table always shows one.
+const LAB_UNIT_FALLBACK: Record<string, string> = {
+  Creatinine: 'mg/dL',
+  Hemoglobin: 'g/dL',
+}
+
+interface LabFlag {
+  direction: 'low' | 'high'
+  unit: string
+}
+
+function flagLabValue(
+  test: string,
+  value: number,
+  ageYears: number | null,
+  settings: typeof DEFAULT_USER_SETTINGS,
+  baselineCr: number | null | undefined
+): LabFlag | null {
+  if (test === 'Hemoglobin') {
+    return value < settings.anemiaHbThreshold ? { direction: 'low', unit: 'g/dL' } : null
+  }
+  if (test === 'Creatinine') {
+    return baselineCr != null && value > baselineCr ? { direction: 'high', unit: 'mg/dL' } : null
+  }
+  const range = getLabReferenceRange(test, ageYears)
+  if (!range) return null
+  if (range.low != null && value < range.low) return { direction: 'low', unit: range.unit }
+  if (range.high != null && value > range.high) return { direction: 'high', unit: range.unit }
+  return null
+}
+
+const ALERT_TINT: Record<AlertSeverity, string> = {
+  critical: 'pc-alert--critical',
+  warning: 'pc-alert--warning',
+  info: 'pc-alert--info',
+}
+
+// Heuristic for whether an alert's text likely wraps past 2 lines at card
+// width, since measuring real layout overflow isn't practical here — long
+// enough to clamp, short enough that the toggle doesn't show needlessly.
+const ALERT_CLAMP_THRESHOLD = 90
+
+function AlertIcon(props: { className?: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={props.className}>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
+
 export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +107,16 @@ export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Prop
   const [settings, setSettings] = useState(DEFAULT_USER_SETTINGS)
   const [imagingUrls, setImagingUrls] = useState<Record<string, string>>({})
   const [documentUrls, setDocumentUrls] = useState<Record<string, string>>({})
+  const [expandedAlertIds, setExpandedAlertIds] = useState<Set<string>>(new Set())
+
+  function toggleAlertExpanded(id: string) {
+    setExpandedAlertIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -166,6 +233,7 @@ export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Prop
     },
   ]
   const emptySections = sections.filter((s) => s.empty)
+  const ageYears = patient.age ?? null
 
   return (
     <div className="np-grid2">
@@ -180,21 +248,29 @@ export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Prop
             <span style={{ fontSize: 14, fontWeight: 600 }}>Nothing needs attention right now.</span>
           </div>
         ) : (
-          <ul className="study-link-list">
-            {alerts.map((a) => (
-              <li key={a.id} className={a.severity === 'warning' ? 'value-abnormal' : undefined}>
-                <span>
-                  {a.severity === 'warning' ? '⚠ ' : ''}
-                  {a.text}
-                </span>
-                {onNavigate && (
-                  <button type="button" className="link-button" onClick={() => onNavigate(a.tab)}>
-                    Open
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="np-stack" style={{ gap: 8 }}>
+            {alerts.map((a) => {
+              const expanded = expandedAlertIds.has(a.id)
+              return (
+                <div key={a.id} className={`pc-alert ${ALERT_TINT[a.severity]}`}>
+                  <AlertIcon />
+                  <div className="pc-alert-body">
+                    <span className={expanded ? 'pc-alert-text expanded' : 'pc-alert-text'}>{a.text}</span>
+                    {a.text.length > ALERT_CLAMP_THRESHOLD && (
+                      <button type="button" className="pc-alert-more" onClick={() => toggleAlertExpanded(a.id)}>
+                        {expanded ? 'Less' : 'More'}
+                      </button>
+                    )}
+                  </div>
+                  {onNavigate && (
+                    <button type="button" className="link-button" onClick={() => onNavigate(a.tab)}>
+                      Open
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </section>
 
@@ -207,7 +283,18 @@ export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Prop
           </div>
           <div>
             <span>UNDERLYING DISEASE</span>
-            <b>{patient.underlyingDisease || '—'}</b>
+            {patient.underlyingDisease && !isUnderlyingDiseaseDuplicate(patient.diagnosis, patient.underlyingDisease) ? (
+              <b>{patient.underlyingDisease}</b>
+            ) : (
+              <>
+                <b style={{ color: '#A3AEBF' }}>—</b>
+                {onNavigate && (
+                  <button type="button" className="pc-linkb" onClick={() => onNavigate('assessment')}>
+                    {patient.underlyingDisease ? 'Edit' : 'Set underlying disease'}
+                  </button>
+                )}
+              </>
+            )}
           </div>
           <div>
             <span>STATUS</span>
@@ -277,15 +364,33 @@ export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Prop
                 </tr>
               </thead>
               <tbody>
-                {latestLabPerTest.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.test}</td>
-                    <td>
-                      {e.valueText ?? e.value ?? '—'} {e.unit ?? ''}
-                    </td>
-                    <td>{toShamsi(e.date)}</td>
-                  </tr>
-                ))}
+                {latestLabPerTest.map((e) => {
+                  if (e.valueText) {
+                    return (
+                      <tr key={e.id}>
+                        <td>{e.test}</td>
+                        <td>{e.valueText}</td>
+                        <td>{toShamsi(e.date)}</td>
+                      </tr>
+                    )
+                  }
+                  const unit = e.unit || getLabReferenceRange(e.test, ageYears)?.unit || LAB_UNIT_FALLBACK[e.test] || ''
+                  const flag = e.value != null ? flagLabValue(e.test, e.value, ageYears, settings, patient.baselineCr) : null
+                  return (
+                    <tr key={e.id}>
+                      <td>{e.test}</td>
+                      <td>
+                        {e.value ?? '—'} {unit}
+                        {flag && (
+                          <span className={`pc-lab-flag ${flag.direction}`}>
+                            {flag.direction === 'low' ? '↓' : '↑'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{toShamsi(e.date)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

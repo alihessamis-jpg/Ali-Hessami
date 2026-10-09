@@ -13,9 +13,16 @@ import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, Us
 
 export type AlertTab = 'labs' | 'followUp' | 'reminders' | 'vaccinations'
 
+// Three tiers: critical (needs attention now), warning (needs follow-up
+// soon but isn't acutely dangerous), info (FYI). Rendered as red/amber/
+// neutral tints on the Overview tab and sorted critical-first.
+export type AlertSeverity = 'critical' | 'warning' | 'info'
+
+const SEVERITY_RANK: Record<AlertSeverity, number> = { critical: 0, warning: 1, info: 2 }
+
 export interface PatientAlert {
   id: string
-  severity: 'warning' | 'info'
+  severity: AlertSeverity
   text: string
   tab: AlertTab
 }
@@ -45,7 +52,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
     if (latest.value! < settings.anemiaHbThreshold) {
       alerts.push({
         id: 'anemia',
-        severity: 'warning',
+        severity: 'critical',
         text: `Severe anemia — Hb ${latest.value} ${latest.unit || 'g/dL'} (${toShamsi(latest.date)})`,
         tab: 'labs',
       })
@@ -56,7 +63,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   if (patient.baselineCr && crEntries.length > 0) {
     const latestCr = crEntries.reduce((a, b) => (b.date > a.date ? b : a))
     const stage = kdigoStage(patient.baselineCr, latestCr.value!, !!patient.dialysisStatus)
-    if (stage) alerts.push({ id: 'aki', severity: 'warning', text: `AKI Stage ${stage} (KDIGO)`, tab: 'labs' })
+    if (stage) alerts.push({ id: 'aki', severity: stage >= 2 ? 'critical' : 'warning', text: `AKI Stage ${stage} (KDIGO)`, tab: 'labs' })
   }
 
   if (hasVurPuvOrObstruction(patient)) {
@@ -65,7 +72,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
       if (crTrend.trend === 'rising') {
         alerts.push({
           id: 'obstructive-cr-rising',
-          severity: 'warning',
+          severity: 'critical',
           text: `VUR/PUV/urinary obstruction — Cr rising (${crTrend.previousValue} → ${crTrend.latestValue} mg/dL, ${toShamsi(crTrend.latestDate)}) — place/fix a Foley catheter to relieve the obstruction, then follow the Cr trend`,
           tab: 'labs',
         })
@@ -79,7 +86,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
       } else {
         alerts.push({
           id: 'obstructive-cr-flat',
-          severity: 'warning',
+          severity: 'critical',
           text: `VUR/PUV/urinary obstruction — Cr unchanged at ${crTrend.latestValue} mg/dL rather than improving — concerning for permanent renal damage`,
           tab: 'labs',
         })
@@ -91,14 +98,14 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   if (proteinuria && proteinuria.cls !== 'normal') {
     alerts.push({
       id: 'proteinuria',
-      severity: proteinuria.cls === 'nephrotic-range' ? 'warning' : 'info',
+      severity: proteinuria.cls === 'nephrotic-range' ? 'critical' : 'info',
       text: proteinuria.label,
       tab: 'labs',
     })
   }
 
   if (assessNephriticWorkup(labEntries)) {
-    alerts.push({ id: 'nephritic', severity: 'warning', text: 'Nephritic syndrome workup in progress — hematuria detected', tab: 'labs' })
+    alerts.push({ id: 'nephritic', severity: 'critical', text: 'Nephritic syndrome workup in progress — hematuria detected', tab: 'labs' })
   }
 
   const renalFailure = !!patient.baselineCr || !!patient.baselineEGFR
@@ -144,7 +151,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
 
     const acidBase = assessAcidBase(labEntries, settings.acidosisPhThreshold, settings.acidosisHco3Threshold)
     if (acidBase.needsBicarbTherapy) {
-      alerts.push({ id: 'acidosis', severity: 'warning', text: 'Severe metabolic acidosis — start bicarbonate therapy', tab: 'labs' })
+      alerts.push({ id: 'acidosis', severity: 'critical', text: 'Severe metabolic acidosis — start bicarbonate therapy', tab: 'labs' })
     } else if (!acidBase.ph && !acidBase.hco3) {
       alerts.push({ id: 'vbg', severity: 'info', text: 'Renal failure — no VBG on file, check pH/HCO3', tab: 'labs' })
     }
@@ -158,7 +165,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   for (const item of overdueFollowUps) {
     alerts.push({
       id: `followup-${item.id}`,
-      severity: 'warning',
+      severity: 'critical',
       text: `Follow up ${item.category} — ${item.description} (sent ${daysSince(item.orderedDate)}d ago)`,
       tab: 'followUp',
     })
@@ -188,7 +195,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
     const overdue = r.eventDate < today
     alerts.push({
       id: `reminder-${r.id}`,
-      severity: overdue ? 'warning' : 'info',
+      severity: overdue ? 'critical' : 'info',
       text: `${r.title} — ${overdue ? 'overdue since' : 'due'} ${toShamsi(r.eventDate)}`,
       tab: 'reminders',
     })
@@ -203,11 +210,11 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
   if (patient.transplantStatus && liveVaccinesGiven.length > 0) {
     alerts.push({
       id: 'live-vaccine-transplant',
-      severity: 'warning',
+      severity: 'critical',
       text: `Live vaccine(s) on record (${liveVaccinesGiven.map((v) => v.vaccineName).join(', ')}) — verify safety given transplant status (${patient.transplantStatus})`,
       tab: 'vaccinations',
     })
   }
 
-  return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'warning' ? -1 : 1))
+  return alerts.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
 }

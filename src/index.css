@@ -5765,6 +5765,19 @@ select.pt-ward:focus {
   cursor: pointer;
 }
 
+.pc-vtile-add svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .pc-page {
+    padding-bottom: 210px;
+  }
+}
+
 .pc-layout {
   display: flex;
   flex-direction: column;
@@ -5778,6 +5791,12 @@ select.pt-ward:focus {
   padding: 8px 0;
   margin: -8px 0;
   background: linear-gradient(var(--bg, #eef4fd) 80%, rgba(238, 244, 253, 0));
+}
+
+.pc-tabs .np-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .pc-vtabs {
@@ -5896,6 +5915,13 @@ select.pt-ward:focus {
   animation: td-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) 0.6s both;
   z-index: 15;
   cursor: pointer;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.pc-fab.pc-fab--hidden {
+  transform: translateY(140%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .pc-sheet-bg {
@@ -5927,6 +5953,109 @@ select.pt-ward:focus {
 
 .pc-wide {
   grid-column: 1 / -1;
+}
+
+/* ---- Patient chart: severity-tinted alert rows ---- */
+
+.pc-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.pc-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pc-alert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pc-alert-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pc-alert-text.expanded {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.pc-alert-more {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  color: inherit;
+  font-family: inherit;
+}
+
+.pc-alert .link-button {
+  flex-shrink: 0;
+}
+
+.pc-alert--critical {
+  background: #fdf0ef;
+  color: #b42318;
+}
+
+.pc-alert--warning {
+  background: #fdf0dc;
+  color: #93590b;
+}
+
+.pc-alert--info {
+  background: #f1f4f9;
+  color: #52627a;
+}
+
+/* ---- Patient chart: Recent labs abnormal flag ---- */
+
+.pc-lab-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.pc-lab-flag.low {
+  color: #1546a8;
+}
+
+.pc-lab-flag.high {
+  color: #b42318;
+}
+
+/* ---- Patient chart: linked-topic chip ---- */
+
+.pc-topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pc-topic-chip a {
+  text-decoration: none;
+}
+
+.pc-topic-chip a:hover {
+  text-decoration: underline;
 }
 
 @keyframes pc-fade-in {

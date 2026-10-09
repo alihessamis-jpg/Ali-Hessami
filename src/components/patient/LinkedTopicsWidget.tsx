@@ -59,7 +59,7 @@ export function LinkedTopicsWidget({ patientId }: Props) {
       {linked.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {linked.map((t) => (
-            <span key={t.id} className="checkpoint-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span key={t.id} className="checkpoint-chip pc-topic-chip">
               <Link to={`/academy/${t.id}`}>{t.name}</Link>
               <button
                 type="button"

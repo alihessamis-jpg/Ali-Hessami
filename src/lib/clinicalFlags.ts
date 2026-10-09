@@ -9,6 +9,17 @@ export function hasObstructiveUropathy(patient: { diagnosis?: string | null; und
   return OBSTRUCTIVE_UROPATHY_PATTERN.test(text)
 }
 
+// True when the underlying-disease text is already said by the diagnosis
+// text (exact match, or contained as a substring — e.g. diagnosis "CKD
+// secondary to PUV-VUR" already says underlying disease "PUV-VUR"). Used to
+// avoid showing the same condition twice across the chart.
+export function isUnderlyingDiseaseDuplicate(diagnosis?: string | null, underlyingDisease?: string | null): boolean {
+  const d = diagnosis?.trim().toLowerCase()
+  const u = underlyingDisease?.trim().toLowerCase()
+  if (!d || !u) return false
+  return d === u || d.includes(u)
+}
+
 // Broader match including VUR -- used for the rising-creatinine/Foley flag
 // below, which applies to reflux as well as true obstruction, unlike the
 // post-obstructive-diuresis watch above (reflux surgery doesn't cause that).

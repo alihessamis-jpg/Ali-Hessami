@@ -6,6 +6,7 @@ import { getLusStudyEnrollment } from '../lib/api/lusStudy'
 import { listGrowthEntries } from '../lib/api/growth'
 import { listLabEntries } from '../lib/api/labs'
 import { schwartzEGFR } from '../lib/formulas'
+import { isUnderlyingDiseaseDuplicate } from '../lib/clinicalFlags'
 import { toShamsi } from '../lib/shamsi'
 import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
@@ -109,6 +110,21 @@ export function PatientDetailPage() {
   const [wantsLusStudy, setWantsLusStudy] = useState(false)
   const [idShown, setIdShown] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [fabHidden, setFabHidden] = useState(false)
+
+  useEffect(() => {
+    let lastY = window.scrollY
+    function onScroll() {
+      const y = window.scrollY
+      const delta = y - lastY
+      if (Math.abs(delta) > 4) {
+        setFabHidden(delta > 0 && y > 80)
+        lastY = y
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   useEffect(() => {
     if (!id) return
@@ -143,7 +159,10 @@ export function PatientDetailPage() {
 
   const careStatusLabel = patient.careStatus ? patient.careStatus.charAt(0).toUpperCase() + patient.careStatus.slice(1) : null
   const wardChip = [careStatusLabel, patient.bed].filter(Boolean).join(' ')
-  const chips = [formatAge(patient.age), patient.sex, wardChip || null, patient.diagnosis, patient.underlyingDisease].filter(
+  const underlyingDiseaseChip = isUnderlyingDiseaseDuplicate(patient.diagnosis, patient.underlyingDisease)
+    ? null
+    : patient.underlyingDisease
+  const chips = [formatAge(patient.age), patient.sex, wardChip || null, patient.diagnosis, underlyingDiseaseChip].filter(
     (v): v is string => Boolean(v)
   )
 
@@ -153,7 +172,7 @@ export function PatientDetailPage() {
   const latestEGFR = latestCr && patient.height ? schwartzEGFR(patient.height, latestCr.value as number) : null
 
   return (
-    <div className="np-page">
+    <div className="np-page pc-page">
       <Link to="/patients" className="np-backlink" style={{ display: 'flex' }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
           <path d="m15 6-6 6 6 6" />
@@ -391,7 +410,7 @@ export function PatientDetailPage() {
         </div>
       </div>
 
-      <button type="button" className="pc-fab" onClick={() => setAddOpen(true)}>
+      <button type="button" className={fabHidden ? 'pc-fab pc-fab--hidden' : 'pc-fab'} onClick={() => setAddOpen(true)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
