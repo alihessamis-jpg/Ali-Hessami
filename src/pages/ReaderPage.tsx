@@ -4,7 +4,10 @@ import {
   addLibraryCard,
   addLibraryCards,
   addLibraryHighlight,
+  approveLibraryCard,
+  approveLibraryCards,
   getLibraryChapter,
+  importChapterNote,
   listLibraryCardsForChapter,
   listLibraryHighlights,
   listTopicIdsForChapter,
@@ -67,6 +70,11 @@ export function ReaderPage() {
   const [qcIndex, setQcIndex] = useState(0)
   const [qcAnswer, setQcAnswer] = useState<number | null>(null)
 
+  const [importing, setImporting] = useState(false)
+  const [reviewQueue, setReviewQueue] = useState<string[] | null>(null)
+  const [reviewIndex, setReviewIndex] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const articleRef = useRef<HTMLDivElement>(null)
   const persistedPctRef = useRef(0)
   const livePctRef = useRef(0)
@@ -84,7 +92,7 @@ export function ReaderPage() {
     setHighlights(highlightRows)
     persistedPctRef.current = chapterRow?.readingPct ?? 0
     livePctRef.current = chapterRow?.readingPct ?? 0
-    setQuickCheck(buildQuickCheck(cardRows))
+    setQuickCheck(buildQuickCheck(cardRows.filter((c) => c.status === 'approved')))
     setQcIndex(0)
     setQcAnswer(null)
     if (topicIds.length > 0) {
@@ -212,6 +220,59 @@ export function ReaderPage() {
     }
   }
 
+  async function handleImportFile(file: File) {
+    setImporting(true)
+    setError(null)
+    try {
+      const raw = await file.text()
+      const result = await importChapterNote(raw)
+      setMessage(
+        `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
+      )
+      setTimeout(() => setMessage(null), 4000)
+      await reload()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import chapter note')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handleApproveAllSuggested(cardIds: string[]) {
+    try {
+      await approveLibraryCards(cardIds)
+      setCards((prev) => prev.map((c) => (cardIds.includes(c.id) ? { ...c, status: 'approved' } : c)))
+      setMessage(`${cardIds.length} cards approved`)
+      setTimeout(() => setMessage(null), 2400)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve cards')
+    }
+  }
+
+  function handleReviewSuggestedOneByOne(cardIds: string[]) {
+    setReviewQueue(cardIds)
+    setReviewIndex(0)
+  }
+
+  async function handleReviewDecision(approve: boolean) {
+    if (!reviewQueue) return
+    const cardId = reviewQueue[reviewIndex]
+    if (approve) {
+      try {
+        const updated = await approveLibraryCard(cardId)
+        setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to approve card')
+      }
+    }
+    if (reviewIndex + 1 < reviewQueue.length) {
+      setReviewIndex((i) => i + 1)
+    } else {
+      setReviewQueue(null)
+      setReviewIndex(0)
+    }
+  }
+
   function handleQcAnswer(optionIndex: number) {
     setQcAnswer(optionIndex)
     const q = quickCheck[qcIndex]
@@ -231,12 +292,15 @@ export function ReaderPage() {
     if (!chapter) return
     try {
       const results = await Promise.all(
-        cards.map(async (c) => {
-          const next = scheduleFsrs(c, rating)
-          return updateLibraryCardFsrs(c.id, next.next)
-        })
+        cards
+          .filter((c) => c.status === 'approved')
+          .map(async (c) => {
+            const next = scheduleFsrs(c, rating)
+            return updateLibraryCardFsrs(c.id, next.next)
+          })
       )
-      setCards(results)
+      const byId = new Map(results.map((c) => [c.id, c]))
+      setCards((prev) => prev.map((c) => byId.get(c.id) ?? c))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update cards')
     }
@@ -245,8 +309,9 @@ export function ReaderPage() {
   async function handleMarkRead() {
     if (!chapter) return
     try {
-      const allMastered = cards.length > 0 && cards.every((c) => isCardMastered(c))
-      const nextStatus = allMastered ? 'mastered' : cards.length > 0 ? 'carded' : 'read'
+      const scored = cards.filter((c) => c.status === 'approved')
+      const allMastered = scored.length > 0 && scored.every((c) => isCardMastered(c))
+      const nextStatus = allMastered ? 'mastered' : scored.length > 0 ? 'carded' : 'read'
       const updated = await updateLibraryChapter(chapter.id, { status: nextStatus, readingPct: 100 })
       setChapter(updated)
     } catch (err) {
@@ -256,9 +321,11 @@ export function ReaderPage() {
 
   const sections = useMemo(() => parseSections(chapter?.note), [chapter?.note])
   const minutesLeft = useMemo(() => estimateMinutesLeft(chapter?.note, chapter?.readingPct ?? 0), [chapter?.note, chapter?.readingPct])
-  const dueCount = cards.filter((c) => new Date(c.due) <= new Date()).length
-  const masteredCount = cards.filter((c) => isCardMastered(c)).length
-  const masteryPct = cards.length > 0 ? Math.round((masteredCount / cards.length) * 100) : null
+  const approvedCards = cards.filter((c) => c.status === 'approved')
+  const suggestedCount = cards.length - approvedCards.length
+  const dueCount = approvedCards.filter((c) => new Date(c.due) <= new Date()).length
+  const masteredCount = approvedCards.filter((c) => isCardMastered(c)).length
+  const masteryPct = approvedCards.length > 0 ? Math.round((masteredCount / approvedCards.length) * 100) : null
 
   if (!id) return null
   if (loading) return <p>Loading…</p>
@@ -269,11 +336,34 @@ export function ReaderPage() {
     <div className="np-page">
       <div className="rd">
         <header className="rhead np-fade">
-          <div className="crumb">
-            <Link to="/academy">Library</Link>
-            <span>›</span>
+          <div className="crumb" style={{ justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Link to="/academy">Library</Link>
+              <span>›</span>
+              <span>
+                Part {chapter.partRoman} · {chapter.partTitle}
+              </span>
+            </span>
             <span>
-              Part {chapter.partRoman} · {chapter.partTitle}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) void handleImportFile(file)
+                }}
+              />
+              <button
+                type="button"
+                className="np-btn ghost sm"
+                disabled={importing}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {importing ? 'Importing…' : 'Import note (.md)'}
+              </button>
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -304,15 +394,25 @@ export function ReaderPage() {
             <span className="chip2">
               <CalendarIcon width={14} height={14} />≈ {minutesLeft} min left
             </span>
-            {cards.length > 0 && (
+            {approvedCards.length > 0 && (
               <span className="chip2" style={{ color: '#5131B5', borderColor: '#E2D9FB' }}>
                 <QuizIcon width={14} height={14} />
-                {cards.length} cards · {dueCount} due
+                {approvedCards.length} cards · {dueCount} due
+              </span>
+            )}
+            {suggestedCount > 0 && (
+              <span className="chip2" style={{ color: '#5131B5', borderColor: '#E2D9FB' }}>
+                {suggestedCount} suggested · {approvedCards.length} approved
               </span>
             )}
             {masteryPct != null && (
               <span className="chip2" style={{ color: '#17663A', borderColor: '#CDEBD9' }}>
                 Mastery {masteryPct}%
+              </span>
+            )}
+            {chapter.noteFormat && (
+              <span className="chip2" style={{ color: '#0B6670', borderColor: '#CDEBE7' }}>
+                Imported note · {chapter.language ?? 'fa'}
               </span>
             )}
           </div>
@@ -359,11 +459,53 @@ export function ReaderPage() {
           <article className="art-card np-fade" ref={articleRef}>
             {message && <p className="patient-meta">{message}</p>}
             {chapter.note ? (
-              <ChapterProse note={chapter.note} cards={cards} highlights={highlights} onMakeCard={handleMakeCard} onHighlight={handleHighlight} onMakeCardsFromTable={handleMakeCardsFromTable} />
+              <ChapterProse
+                note={chapter.note}
+                cards={cards}
+                highlights={highlights}
+                onMakeCard={handleMakeCard}
+                onHighlight={handleHighlight}
+                onMakeCardsFromTable={handleMakeCardsFromTable}
+                onApproveAllSuggested={(ids) => void handleApproveAllSuggested(ids)}
+                onReviewSuggestedOneByOne={handleReviewSuggestedOneByOne}
+              />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>
             )}
           </article>
+
+          {reviewQueue && (
+            <section className="np-card np-fade" style={{ gap: 12 }}>
+              <div className="np-head">
+                <h2>Review suggested cards</h2>
+                <span className="np-small">
+                  {reviewIndex + 1} / {reviewQueue.length}
+                </span>
+              </div>
+              {(() => {
+                const card = cards.find((c) => c.id === reviewQueue[reviewIndex])
+                if (!card) return <p className="empty-state">Card not found.</p>
+                return (
+                  <>
+                    <p dir="rtl" style={{ lineHeight: 1.9 }}>
+                      {card.front}
+                    </p>
+                    <p dir="rtl" className="np-small" style={{ lineHeight: 1.7 }}>
+                      {card.back}
+                    </p>
+                  </>
+                )
+              })()}
+              <div className="endrow">
+                <button type="button" className="np-btn ghost" onClick={() => void handleReviewDecision(false)}>
+                  Skip
+                </button>
+                <button type="button" className="np-btn" onClick={() => void handleReviewDecision(true)}>
+                  Approve
+                </button>
+              </div>
+            </section>
+          )}
 
           {quickCheck.length > 0 && qcIndex < quickCheck.length && (
             <section className="qc np-fade" id="qc">
@@ -432,11 +574,11 @@ export function ReaderPage() {
         </div>
 
         <aside className="side-r">
-          {cards.length > 0 && (
+          {approvedCards.length > 0 && (
             <section className="np-card np-fade" style={{ gap: 10 }}>
               <h2>Cards from this chapter</h2>
               <div className="fcount">
-                <b>{cards.length}</b>
+                <b>{approvedCards.length}</b>
                 <span className="np-small">
                   cards · {dueCount} due today
                   <br />

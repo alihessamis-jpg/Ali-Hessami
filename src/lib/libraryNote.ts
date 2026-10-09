@@ -45,15 +45,18 @@ export function estimateMinutesLeft(note: string | null | undefined, readingPct:
   return Math.max(1, Math.round(remainingWords / WORDS_PER_MINUTE))
 }
 
-// Strips the `[!pearl]`/`[!flag]` marker tokens from the raw markdown text
-// (so they don't render as literal text) while recording, in document
-// order, which blockquote block each one belonged to. The `blockquote`
-// renderer component consumes this array positionally — ReactMarkdown
-// renders blockquotes in the same top-to-bottom order they appear in the
-// source, so a simple incrementing index lines them up correctly.
-export function extractCalloutVariants(note: string): { text: string; variants: Array<'pearl' | 'flag' | null> } {
+export type CalloutVariant = 'pearl' | 'flag' | 'outside' | 'discrepancy'
+
+// Strips the `[!pearl]`/`[!flag]`/`[!outside]`/`[!discrepancy]` marker
+// tokens from the raw markdown text (so they don't render as literal text)
+// while recording, in document order, which blockquote block each one
+// belonged to. The `blockquote` renderer component consumes this array
+// positionally — ReactMarkdown renders blockquotes in the same
+// top-to-bottom order they appear in the source, so a simple incrementing
+// index lines them up correctly.
+export function extractCalloutVariants(note: string): { text: string; variants: Array<CalloutVariant | null> } {
   const lines = note.split('\n')
-  const variants: Array<'pearl' | 'flag' | null> = []
+  const variants: Array<CalloutVariant | null> = []
   let i = 0
   while (i < lines.length) {
     if (/^>/.test(lines[i])) {
@@ -63,12 +66,19 @@ export function extractCalloutVariants(note: string): { text: string; variants: 
         i++
       }
       const joined = block.join(' ')
-      const m = joined.match(/\[!(pearl|flag)\]/i)
-      variants.push(m ? (m[1].toLowerCase() as 'pearl' | 'flag') : null)
+      const m = joined.match(/\[!(pearl|flag|outside|discrepancy)\]/i)
+      variants.push(m ? (m[1].toLowerCase() as CalloutVariant) : null)
     } else {
       i++
     }
   }
-  const text = note.replace(/\[!(pearl|flag)\]\s*/gi, '')
+  // [ \t]* (not \s*) deliberately stops at the newline: the marker is often
+  // alone on its own "> [!discrepancy]" line with the callout's text on the
+  // following "> " line (NEPHRON_CHAPTER_FORMAT.md's two-line style) --
+  // \s* would eat that newline too, splicing the next line's "> " straight
+  // onto this one ("> " + "> text" = "> > text"), which markdown then
+  // parses as a blockquote nested inside a blockquote -- a second,
+  // mislabeled callout nested inside the real one.
+  const text = note.replace(/\[!(pearl|flag|outside|discrepancy)\][ \t]*/gi, '')
   return { text, variants }
 }

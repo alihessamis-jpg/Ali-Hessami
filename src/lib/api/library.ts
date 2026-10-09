@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import bookContents from '../../data/bookContents.json'
+import { parseChapterNoteForImport } from '../chapterImport'
 import type {
   FsrsCardState,
   LibraryBook,
@@ -39,6 +40,11 @@ interface ChapterRow {
   reading_pct: number
   last_section: string | null
   note: string | null
+  subtitle: string | null
+  language: string | null
+  direction: string | null
+  note_format: string | null
+  imported_at: string | null
 }
 
 interface CardRow {
@@ -62,6 +68,9 @@ interface CardRow {
   fsrs_state: LibraryCard['state']
   fsrs_last_review: string | null
   review_history: LibraryCard['reviewHistory']
+  status: LibraryCard['status']
+  import_key: string | null
+  tags: string[] | null
   created_at: string
 }
 
@@ -103,6 +112,11 @@ function chapterToDomain(row: ChapterRow): LibraryChapter {
     readingPct: row.reading_pct,
     lastSection: row.last_section,
     note: row.note,
+    subtitle: row.subtitle,
+    language: row.language,
+    direction: row.direction,
+    noteFormat: row.note_format,
+    importedAt: row.imported_at,
   }
 }
 
@@ -128,6 +142,9 @@ function cardToDomain(row: CardRow): LibraryCard {
     state: row.fsrs_state,
     lastReview: row.fsrs_last_review,
     reviewHistory: row.review_history ?? [],
+    status: row.status ?? 'approved',
+    importKey: row.import_key,
+    tags: row.tags ?? [],
     createdAt: row.created_at,
   }
 }
@@ -223,6 +240,11 @@ export interface LibraryChapterPatch {
   readingPct?: number
   lastSection?: string | null
   note?: string | null
+  subtitle?: string | null
+  language?: string | null
+  direction?: string | null
+  noteFormat?: string | null
+  importedAt?: string | null
 }
 
 export async function updateLibraryChapter(id: string, patch: LibraryChapterPatch): Promise<LibraryChapter> {
@@ -231,6 +253,11 @@ export async function updateLibraryChapter(id: string, patch: LibraryChapterPatc
   if (patch.readingPct !== undefined) row.reading_pct = patch.readingPct
   if (patch.lastSection !== undefined) row.last_section = patch.lastSection
   if (patch.note !== undefined) row.note = patch.note
+  if (patch.subtitle !== undefined) row.subtitle = patch.subtitle
+  if (patch.language !== undefined) row.language = patch.language
+  if (patch.direction !== undefined) row.direction = patch.direction
+  if (patch.noteFormat !== undefined) row.note_format = patch.noteFormat
+  if (patch.importedAt !== undefined) row.imported_at = patch.importedAt
   const { data, error } = await supabase.from('library_chapters').update(row).eq('id', id).select().single()
   if (error) throw error
   return chapterToDomain(data as ChapterRow)
@@ -325,6 +352,88 @@ export async function updateLibraryCardFsrs(id: string, state: FsrsCardState): P
 export async function deleteLibraryCard(id: string): Promise<void> {
   const { error } = await supabase.from('library_cards').delete().eq('id', id)
   if (error) throw error
+}
+
+// Flips a suggested card to approved -- scheduling starts from its existing
+// (default, untouched-by-import) FSRS state, i.e. it becomes due now, same
+// as any other freshly made card's first review.
+export async function approveLibraryCard(id: string): Promise<LibraryCard> {
+  const { data, error } = await supabase.from('library_cards').update({ status: 'approved' }).eq('id', id).select().single()
+  if (error) throw error
+  return cardToDomain(data as CardRow)
+}
+
+export async function approveLibraryCards(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await supabase.from('library_cards').update({ status: 'approved' }).in('id', ids)
+  if (error) throw error
+}
+
+// --- Chapter-note import (NEPHRON_CHAPTER_FORMAT.md v1) -------------------
+
+export interface ImportChapterNoteResult {
+  chapter: LibraryChapter
+  suggestedCardCount: number
+}
+
+// Parses a .md chapter note, updates the chapter its front matter's
+// `chapter:` number names, and upserts its "نکات امتحانی" bullets as
+// SUGGESTED (unscheduled) cards keyed by (chapter, section id, position) --
+// re-importing the same file updates a card's front/back text in place
+// without resetting its FSRS state/review history or creating a duplicate,
+// because `status`/the fsrs_* columns are deliberately left out of the
+// upsert payload (Postgres's ON CONFLICT DO UPDATE only touches the
+// columns actually provided).
+export async function importChapterNote(raw: string): Promise<ImportChapterNoteResult> {
+  const userId = await currentUserId()
+  const parsed = parseChapterNoteForImport(raw)
+
+  const { data: existingRow, error: findError } = await supabase
+    .from('library_chapters')
+    .select('*')
+    .eq('chapter_number', parsed.meta.chapter)
+    .maybeSingle()
+  if (findError) throw findError
+  if (!existingRow) throw new Error(`No chapter ${parsed.meta.chapter} found -- seed the Library first`)
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from('library_chapters')
+    .update({
+      note: parsed.body,
+      subtitle: parsed.meta.subtitle,
+      language: parsed.meta.language,
+      direction: parsed.meta.direction,
+      note_format: parsed.meta.format ?? 'nephron-chapter-note/1',
+      imported_at: new Date().toISOString(),
+    })
+    .eq('id', (existingRow as ChapterRow).id)
+    .select()
+    .single()
+  if (updateError) throw updateError
+
+  if (parsed.suggestedCards.length > 0) {
+    const { error: upsertError } = await supabase
+      .from('library_cards')
+      .upsert(
+        parsed.suggestedCards.map((c) => ({
+          owner_id: userId,
+          chapter_id: (existingRow as ChapterRow).id,
+          kind: 'cloze' as const,
+          front: c.front,
+          back: c.back,
+          section_number: c.sectionNumber,
+          import_key: c.importKey,
+          tags: c.tags,
+        })),
+        { onConflict: 'chapter_id,import_key' }
+      )
+    if (upsertError) throw upsertError
+  }
+
+  return {
+    chapter: chapterToDomain(updatedRow as ChapterRow),
+    suggestedCardCount: parsed.suggestedCards.length,
+  }
 }
 
 // --- Highlights / notes --------------------------------------------------

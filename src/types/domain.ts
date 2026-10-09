@@ -341,6 +341,11 @@ export interface LibraryChapter {
   readingPct: number
   lastSection?: string | null
   note?: string | null
+  subtitle?: string | null
+  language?: string | null
+  direction?: string | null
+  noteFormat?: string | null
+  importedAt?: string | null
 }
 
 export type LibraryChapterSeed = Pick<
@@ -394,6 +399,8 @@ export interface PatientCaseVignette {
   stats: PatientCaseVignetteStat[]
 }
 
+export type LibraryCardStatus = 'suggested' | 'approved'
+
 export interface LibraryCard extends FsrsCardState {
   id: string
   chapterId: string
@@ -405,13 +412,17 @@ export interface LibraryCard extends FsrsCardState {
   page?: number | null
   sourceText?: string | null
   patientId?: string | null
+  status: LibraryCardStatus
+  importKey?: string | null
+  tags: string[]
   createdAt: string
 }
 
 export type LibraryCardDraft = Pick<
   LibraryCard,
   'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
->
+> &
+  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags'>>
 
 export type LibraryHighlightKind = 'highlight' | 'note'
 
