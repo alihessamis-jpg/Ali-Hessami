@@ -1,35 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { listGrowthEntries } from '../../lib/api/growth'
-import { listLabEntries } from '../../lib/api/labs'
 import { listMedications } from '../../lib/api/medications'
 import { listProgressNotes } from '../../lib/api/notes'
 import { listImagingEntries } from '../../lib/api/imaging'
 import { listPatientDocuments } from '../../lib/api/patientDocuments'
-import { listNephroticEvents } from '../../lib/api/nephroticEvents'
 import { listRemindersForPatient } from '../../lib/api/reminders'
 import { listFollowUpItems } from '../../lib/api/followUps'
 import { listVaccinations } from '../../lib/api/vaccinations'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../../lib/api/settings'
 import { getImagingSignedUrl, getPatientDocumentSignedUrl } from '../../lib/storage'
-import {
-  ageInMonths,
-  ageInYears,
-  assessBloodPressure,
-  heightForAgePercentile,
-  normalizeSex,
-  percentileLabel,
-  weightForAgePercentile,
-} from '../../lib/growth'
-import { classifyNephroticSyndrome, NEPHROTIC_CLASSIFICATION_LABEL } from '../../lib/nephroticSyndrome'
-import { computePatientAlerts, type AlertTab } from '../../lib/patientAlerts'
+import { computePatientAlerts } from '../../lib/patientAlerts'
 import { toShamsi } from '../../lib/shamsi'
+import { KidneyFunctionTrend } from './KidneyFunctionTrend'
+import { LinkedTopicsWidget } from './LinkedTopicsWidget'
+import { LabsIcon, NotesIcon, MedicationsIcon, ImagingIcon, DocumentIcon, RemindersIcon } from '../icons'
+import type { Tab } from '../../pages/PatientDetailPage'
 import type {
   FollowUpItem,
-  GrowthEntry,
   ImagingEntry,
   LabEntry,
   Medication,
-  NephroticEvent,
   PatientDocument,
   PatientReminder,
   ProgressNote,
@@ -40,23 +29,21 @@ import type {
 interface Props {
   patientId: string
   patient: Patient
-  onNavigate?: (tab: AlertTab) => void
+  labEntries: LabEntry[]
+  onNavigate?: (tab: Tab) => void
 }
 
 function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
 }
 
-export function OverviewTab({ patientId, patient, onNavigate }: Props) {
+export function OverviewTab({ patientId, patient, labEntries, onNavigate }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [growthEntries, setGrowthEntries] = useState<GrowthEntry[]>([])
-  const [labEntries, setLabEntries] = useState<LabEntry[]>([])
   const [medications, setMedications] = useState<Medication[]>([])
   const [notes, setNotes] = useState<ProgressNote[]>([])
   const [imagingEntries, setImagingEntries] = useState<ImagingEntry[]>([])
   const [documents, setDocuments] = useState<PatientDocument[]>([])
-  const [nephroticEvents, setNephroticEvents] = useState<NephroticEvent[]>([])
   const [reminders, setReminders] = useState<PatientReminder[]>([])
   const [followUpItems, setFollowUpItems] = useState<FollowUpItem[]>([])
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
@@ -68,25 +55,19 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
     setLoading(true)
     setError(null)
     Promise.all([
-      listGrowthEntries(patientId),
-      listLabEntries(patientId),
       listMedications(patientId),
       listProgressNotes(patientId),
       listImagingEntries(patientId),
       listPatientDocuments(patientId),
-      listNephroticEvents(patientId),
       listRemindersForPatient(patientId),
       listFollowUpItems(patientId),
       listVaccinations(patientId),
     ])
-      .then(([growth, labs, meds, notesRows, imaging, docs, nephrotic, reminderRows, followUps, vaccinationRows]) => {
-        setGrowthEntries(growth)
-        setLabEntries(labs)
+      .then(([meds, notesRows, imaging, docs, reminderRows, followUps, vaccinationRows]) => {
         setMedications(meds)
         setNotes(notesRows)
         setImagingEntries(imaging)
         setDocuments(docs)
-        setNephroticEvents(nephrotic)
         setReminders(reminderRows)
         setFollowUpItems(followUps)
         setVaccinations(vaccinationRows)
@@ -112,24 +93,6 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
       .catch(() => undefined)
   }, [])
 
-  const sex = normalizeSex(patient.sex)
-  const dob = patient.dob
-
-  const latestGrowth = growthEntries.length > 0 ? growthEntries[growthEntries.length - 1] : null
-  const growthComputed = useMemo(() => {
-    if (!latestGrowth || !dob || !sex) return null
-    const months = ageInMonths(dob, latestGrowth.date)
-    const years = ageInYears(dob, latestGrowth.date)
-    if (months == null || years == null) return null
-    const heightPct = latestGrowth.heightCm != null ? heightForAgePercentile(latestGrowth.heightCm, months, sex) : null
-    const weightPct = latestGrowth.weightKg != null ? weightForAgePercentile(latestGrowth.weightKg, months, sex) : null
-    const bp =
-      latestGrowth.bpSystolic != null && latestGrowth.bpDiastolic != null
-        ? assessBloodPressure(latestGrowth.bpSystolic, latestGrowth.bpDiastolic, years, sex, heightPct)
-        : null
-    return { heightPct, weightPct, bp }
-  }, [latestGrowth, dob, sex])
-
   const latestLabPerTest = useMemo(() => {
     const map = new Map<string, LabEntry>()
     for (const e of labEntries) {
@@ -147,7 +110,6 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
     .filter((r) => !r.done)
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
     .slice(0, 5)
-  const nephroticClass = nephroticEvents.length > 0 ? classifyNephroticSyndrome(nephroticEvents) : null
 
   const alerts = useMemo(
     () =>
@@ -167,14 +129,56 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
 
+  const sections = [
+    { key: 'labs', empty: latestLabPerTest.length === 0, icon: LabsIcon, label: 'Labs', emptyText: 'No labs yet', tab: 'labs' as Tab },
+    { key: 'notes', empty: recentNotes.length === 0, icon: NotesIcon, label: 'Progress note', emptyText: 'No notes yet', tab: 'notes' as Tab },
+    {
+      key: 'medications',
+      empty: activeMeds.length === 0,
+      icon: MedicationsIcon,
+      label: 'Medication',
+      emptyText: 'None active',
+      tab: 'medications' as Tab,
+    },
+    {
+      key: 'imaging',
+      empty: imagingEntries.length === 0,
+      icon: ImagingIcon,
+      label: 'Imaging',
+      emptyText: 'None recorded',
+      tab: 'imaging' as Tab,
+    },
+    {
+      key: 'documents',
+      empty: documents.length === 0,
+      icon: DocumentIcon,
+      label: 'Document / photo',
+      emptyText: 'None uploaded',
+      tab: 'document' as Tab,
+    },
+    {
+      key: 'reminders',
+      empty: reminders.length === 0,
+      icon: RemindersIcon,
+      label: 'Reminder',
+      emptyText: 'None pending',
+      tab: 'reminders' as Tab,
+    },
+  ]
+  const emptySections = sections.filter((s) => s.empty)
+
   return (
-    <div>
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Alerts & follow-ups</h2>
-        </div>
+    <div className="np-grid2">
+      <section className="np-card np-fade" style={{ animationDelay: '.14s' }}>
+        <h2>Alerts &amp; follow-ups</h2>
         {alerts.length === 0 ? (
-          <p className="empty-state">Nothing needs attention right now.</p>
+          <div className="pc-topicr" style={{ borderStyle: 'solid', background: '#E9F7EF', borderColor: '#B6E2C7', color: '#17663A', cursor: 'default' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="5" y="4" width="14" height="18" rx="2" />
+              <path d="M9 2h6v4H9zM9 14l2 2 4-4" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>Nothing needs attention right now.</span>
+          </div>
         ) : (
           <ul className="study-link-list">
             {alerts.map((a) => (
@@ -192,125 +196,105 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
             ))}
           </ul>
         )}
-      </div>
+      </section>
 
-      <div className="calc-strip">
-        <div>
-          <span className="calc-label">Diagnosis</span>
-          <span className="calc-value">{patient.diagnosis || '—'}</span>
-        </div>
-        <div>
-          <span className="calc-label">Underlying disease</span>
-          <span className="calc-value">{patient.underlyingDisease || '—'}</span>
-        </div>
-        <div>
-          <span className="calc-label">Status</span>
-          <span className="calc-value">
-            {[patient.dialysisStatus, patient.transplantStatus].filter(Boolean).join(' · ') || '—'}
-          </span>
-        </div>
-        <div>
-          <span className="calc-label">Baseline Cr / eGFR</span>
-          <span className="calc-value">
-            {[patient.baselineCr, patient.baselineEGFR].filter((v) => v != null).join(' / ') || '—'}
-          </span>
-        </div>
-      </div>
-
-      {latestGrowth && (
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h2 className="dash-card-title">Latest growth & vitals</h2>
-            <span className="patient-meta">{toShamsi(latestGrowth.date)}</span>
+      <section className="np-card np-fade" style={{ animationDelay: '.18s' }}>
+        <h2>Diagnosis</h2>
+        <div className="pc-dx">
+          <div>
+            <span>DIAGNOSIS</span>
+            <b>{patient.diagnosis || '—'}</b>
           </div>
-          <ul className="study-link-list">
-            {latestGrowth.heightCm != null && (
-              <li>
-                Height: {latestGrowth.heightCm} cm
-                {growthComputed?.heightPct != null ? ` (${percentileLabel(growthComputed.heightPct)})` : ''}
-              </li>
+          <div>
+            <span>UNDERLYING DISEASE</span>
+            <b>{patient.underlyingDisease || '—'}</b>
+          </div>
+          <div>
+            <span>STATUS</span>
+            <b style={!patient.dialysisStatus && !patient.transplantStatus ? { color: '#A3AEBF' } : undefined}>
+              {[patient.dialysisStatus, patient.transplantStatus].filter(Boolean).join(' · ') || '—'}
+            </b>
+            {onNavigate && (
+              <button type="button" className="pc-linkb" onClick={() => onNavigate('assessment')}>
+                Set status
+              </button>
             )}
-            {latestGrowth.weightKg != null && (
-              <li>
-                Weight: {latestGrowth.weightKg} kg
-                {growthComputed?.weightPct != null ? ` (${percentileLabel(growthComputed.weightPct)})` : ''}
-              </li>
+          </div>
+          <div>
+            <span>BASELINE CR / EGFR</span>
+            <b style={patient.baselineCr == null && patient.baselineEGFR == null ? { color: '#A3AEBF' } : undefined}>
+              {[patient.baselineCr, patient.baselineEGFR].filter((v) => v != null).join(' / ') || '—'}
+            </b>
+            {onNavigate && (
+              <button type="button" className="pc-linkb" onClick={() => onNavigate('assessment')}>
+                Set baseline
+              </button>
             )}
-            {latestGrowth.headCircCm != null && <li>Head circumference: {latestGrowth.headCircCm} cm</li>}
-            {latestGrowth.bpSystolic != null && latestGrowth.bpDiastolic != null && (
-              <li className={growthComputed?.bp && growthComputed.bp.category !== 'normal' ? 'value-abnormal' : ''}>
-                BP: {latestGrowth.bpSystolic}/{latestGrowth.bpDiastolic}
-                {growthComputed?.bp ? ` (${growthComputed.bp.label})` : ''}
-              </li>
-            )}
-          </ul>
+          </div>
         </div>
+      </section>
+
+      <KidneyFunctionTrend labEntries={labEntries} patient={patient} />
+
+      {emptySections.length > 0 && (
+        <section className="np-card np-fade pc-wide" style={{ animationDelay: '.26s' }}>
+          <div className="np-head">
+            <h2>Add to this chart</h2>
+            <span className="np-small">Nothing recorded yet in these sections</span>
+          </div>
+          <div className="pc-qa">
+            {emptySections.map((s) => {
+              const SIcon = s.icon
+              return (
+                <button key={s.key} type="button" className="pc-qai" onClick={() => onNavigate?.(s.tab)}>
+                  <span className="np-ic">
+                    <SIcon />
+                  </span>
+                  <span>
+                    {s.label}
+                    <span className="np-small">{s.emptyText}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
       )}
 
-      {nephroticClass && (
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h2 className="dash-card-title">Nephrotic syndrome</h2>
+      {latestLabPerTest.length > 0 && (
+        <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+          <div className="np-head">
+            <h2>Recent labs</h2>
+            <span className="np-small">Latest value per test</span>
           </div>
-          <p className="patient-meta">{NEPHROTIC_CLASSIFICATION_LABEL[nephroticClass]}</p>
-        </div>
-      )}
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Active medications</h2>
-        </div>
-        {activeMeds.length === 0 ? (
-          <p className="empty-state">No active medications.</p>
-        ) : (
-          <ul className="study-link-list">
-            {activeMeds.map((m) => (
-              <li key={m.id}>
-                {m.name} {[m.dose, m.freq].filter(Boolean).join(' · ')}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Recent labs</h2>
-          <span className="patient-meta">Latest value per test</span>
-        </div>
-        {latestLabPerTest.length === 0 ? (
-          <p className="empty-state">No labs recorded yet.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Test</th>
-                <th>Value</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latestLabPerTest.map((e) => (
-                <tr key={e.id}>
-                  <td>{e.test}</td>
-                  <td>
-                    {e.valueText ?? e.value ?? '—'} {e.unit ?? ''}
-                  </td>
-                  <td>{toShamsi(e.date)}</td>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Value</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {latestLabPerTest.map((e) => (
+                  <tr key={e.id}>
+                    <td>{e.test}</td>
+                    <td>
+                      {e.valueText ?? e.value ?? '—'} {e.unit ?? ''}
+                    </td>
+                    <td>{toShamsi(e.date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Recent progress notes</h2>
-        </div>
-        {recentNotes.length === 0 ? (
-          <p className="empty-state">No progress notes yet.</p>
-        ) : (
+      {recentNotes.length > 0 && (
+        <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+          <h2>Recent progress notes</h2>
           <ul className="note-timeline">
             {recentNotes.map((n) => (
               <li key={n.id}>
@@ -327,25 +311,32 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </section>
+      )}
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Imaging</h2>
-        </div>
-        {imagingEntries.length === 0 ? (
-          <p className="empty-state">No imaging recorded yet.</p>
-        ) : (
+      {activeMeds.length > 0 && (
+        <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+          <h2>Active medications</h2>
+          <ul className="study-link-list">
+            {activeMeds.map((m) => (
+              <li key={m.id}>
+                {m.name} {[m.dose, m.freq].filter(Boolean).join(' · ')}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {imagingEntries.length > 0 && (
+        <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+          <h2>Imaging</h2>
           <ul className="study-link-list">
             {imagingEntries.map((img) => (
               <li key={img.id}>
                 <div>
                   <strong>{img.category || 'Imaging'}</strong>
                   <span className="patient-meta"> {img.date ? toShamsi(img.date) : ''}</span>
-                  {img.date && patient.doa && img.date < patient.doa && (
-                    <span className="patient-meta"> (prior to this admission)</span>
-                  )}
+                  {img.date && patient.doa && img.date < patient.doa && <span className="patient-meta"> (prior to this admission)</span>}
                   {img.impression && <p className="patient-meta">{img.impression}</p>}
                 </div>
                 {imagingUrls[img.id] && (
@@ -356,16 +347,12 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </section>
+      )}
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Documents & photos</h2>
-        </div>
-        {documents.length === 0 ? (
-          <p className="empty-state">No documents uploaded yet.</p>
-        ) : (
+      {documents.length > 0 && (
+        <section className="np-card np-fade" style={{ animationDelay: '.3s' }}>
+          <h2>Documents &amp; photos</h2>
           <ul className="document-grid">
             {documents.map((doc) => (
               <li key={doc.id} className="document-card">
@@ -388,15 +375,24 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </section>
+      )}
 
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <h2 className="dash-card-title">Upcoming reminders</h2>
-        </div>
+      <LinkedTopicsWidget patientId={patientId} />
+
+      <section className="np-card np-fade" style={{ animationDelay: '.34s' }}>
+        <h2>Upcoming reminders</h2>
         {upcomingReminders.length === 0 ? (
-          <p className="empty-state">No pending reminders.</p>
+          <>
+            <span className="np-small">No pending reminders.</span>
+            <button type="button" className="pc-topicr" onClick={() => onNavigate?.('reminders')}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M3 10h18M8 3v4M16 3v4" />
+              </svg>
+              Add reminder
+            </button>
+          </>
         ) : (
           <ul className="study-link-list">
             {upcomingReminders.map((r) => (
@@ -406,9 +402,7 @@ export function OverviewTab({ patientId, patient, onNavigate }: Props) {
             ))}
           </ul>
         )}
-      </div>
-
-      <p className="empty-state">This is a read-only summary. Use the tabs above to add or edit information.</p>
+      </section>
     </div>
   )
 }

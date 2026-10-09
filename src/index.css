@@ -5634,6 +5634,398 @@ select.pt-ward:focus {
   }
 }
 
+/* ==========================================================================
+   Patient chart (design/patient.html) — navy hero, vitals tiles, grouped
+   tab nav, kidney-function trend, collapsing "Add to this chart" card.
+   Prefix pc- (Patients LIST page already uses pt-).
+   ========================================================================== */
+
+.pc-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pc-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #9cc2ff;
+}
+
+.pc-name {
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pc-idbtn {
+  align-self: flex-start;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: #a9c6ff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 0;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.pc-chips {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pc-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d6e4ff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.pc-ecg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 34px;
+}
+
+.pc-ecg-line {
+  animation: pt-ecg 3.4s linear infinite;
+}
+
+.pc-actions {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pc-vitals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pc-vtile {
+  background: #fff;
+  border: 1px solid #dce7f7;
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+
+.pc-vtile b {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-vtile b small {
+  font-size: 12px;
+  font-weight: 600;
+  color: #52627a;
+}
+
+.pc-vtile.empty b {
+  color: #a3aebf;
+}
+
+.pc-vtile-add {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 0;
+  background: #e3edfd;
+  color: #1e5bd8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pc-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pc-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 8px 0;
+  margin: -8px 0;
+  background: linear-gradient(var(--bg, #eef4fd) 80%, rgba(238, 244, 253, 0));
+}
+
+.pc-vtabs {
+  display: none;
+}
+
+.pc-dx {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pc-dx span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #52627a;
+}
+
+.pc-dx b {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: #12357a;
+  margin-top: 2px;
+}
+
+.pc-linkb {
+  border: 0;
+  background: transparent;
+  color: #1e5bd8;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  margin-top: 2px;
+  font-family: inherit;
+}
+
+.pc-tip {
+  background: #0e1f3d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.pc-qa {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pc-qai {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f5f8fe;
+  border: 1px solid #e7eef8;
+  text-decoration: none;
+  color: #0e1f3d;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  font-family: inherit;
+}
+
+.pc-qai .np-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.pc-qai span.np-small {
+  display: block;
+  font-weight: 500;
+}
+
+.pc-topicr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed #c9daf5;
+  color: #1e5bd8;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+}
+
+.pc-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 102px;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 18px;
+  background: #1e5bd8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  border: 0;
+  box-shadow: 0 12px 28px rgba(30, 91, 216, 0.4);
+  animation: td-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) 0.6s both;
+  z-index: 15;
+  cursor: pointer;
+}
+
+.pc-sheet-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 22, 48, 0.4);
+  z-index: 30;
+  animation: pc-fade-in 0.2s ease both;
+}
+
+.pc-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 31;
+  background: #fff;
+  border-radius: 28px 28px 0 0;
+  padding: 10px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: pc-slide-up 0.35s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.pc-addhero {
+  display: none;
+}
+
+.pc-wide {
+  grid-column: 1 / -1;
+}
+
+@keyframes pc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pc-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .pc-vitals {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .pc-fab {
+    display: none;
+  }
+  .pc-addhero {
+    display: flex;
+  }
+  .pc-sheet {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: 480px;
+    border-radius: 24px;
+    padding: 20px;
+    transform: translate(-50%, -50%);
+    animation: td-pop 0.25s ease both;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pc-layout {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .pc-tabs {
+    display: none;
+  }
+  .pc-vtabs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: sticky;
+    top: 28px;
+    background: #fff;
+    border: 1px solid #dce7f7;
+    border-radius: 20px;
+    padding: 10px;
+  }
+  .pc-vgroup-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #7a889c;
+    text-transform: uppercase;
+    padding: 10px 10px 4px;
+  }
+  .pc-vtab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 12px;
+    color: #3b4a60;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+  .pc-vtab:hover {
+    background: #f1f5fc;
+  }
+  .pc-vtab.on {
+    background: rgba(30, 91, 216, 0.12);
+    color: #1e5bd8;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rsc-spin,
   .rsc-bubble,
@@ -5646,7 +6038,8 @@ select.pt-ward:focus {
   .set-spin2,
   .login-glow,
   .login-beat,
-  .login-flow {
+  .login-flow,
+  .pc-ecg-line {
     animation: none !important;
   }
 }
@@ -5662,6 +6055,7 @@ html.force-reduced-motion .set-spin,
 html.force-reduced-motion .set-spin2,
 html.force-reduced-motion .login-glow,
 html.force-reduced-motion .login-beat,
-html.force-reduced-motion .login-flow {
+html.force-reduced-motion .login-flow,
+html.force-reduced-motion .pc-ecg-line {
   animation: none !important;
 }
