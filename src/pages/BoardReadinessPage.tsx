@@ -6,6 +6,7 @@ import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { listFlashcards } from '../lib/api/flashcards'
 import { ensureLibraryBookSeeded, listAllLibraryCards } from '../lib/api/library'
+import { describeError, tagPromise } from '../lib/debugError'
 import { computeTopicReadiness, type TopicReadiness } from '../lib/examReadiness'
 import { useCountUp } from '../hooks/useCountUp'
 import { isolateLatinRuns } from '../lib/bidiText'
@@ -36,18 +37,18 @@ export function BoardReadinessPage() {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      listBoardQuestions(),
-      listBoardQuestionAttempts(),
-      listFlashcards(),
-      listAcademyTopics(),
-      listAllAcademyCards(),
-      listAllLibraryCards(),
-      ensureLibraryBookSeeded(),
+      tagPromise('board_questions (listBoardQuestions)', listBoardQuestions()),
+      tagPromise('board_question_attempts (listBoardQuestionAttempts)', listBoardQuestionAttempts()),
+      tagPromise('flashcards (listFlashcards)', listFlashcards()),
+      tagPromise('academy_topics (listAcademyTopics)', listAcademyTopics()),
+      tagPromise('academy_cards (listAllAcademyCards)', listAllAcademyCards()),
+      tagPromise('library_cards (listAllLibraryCards)', listAllLibraryCards()),
+      tagPromise('library_books/library_chapters (ensureLibraryBookSeeded)', ensureLibraryBookSeeded()),
     ])
       .then(([questions, attempts, flashcards, topics, cards, libraryCards, seeded]) => {
         setReadiness(computeTopicReadiness(questions, attempts, flashcards, topics, cards, libraryCards, seeded.chapters))
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load readiness data'))
+      .catch((err) => setError(`Failed to load readiness data — ${describeError(err)}`))
       .finally(() => setLoading(false))
   }, [])
 

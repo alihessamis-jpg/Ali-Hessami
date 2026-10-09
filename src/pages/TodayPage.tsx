@@ -7,6 +7,7 @@ import { listAllLibraryCards, listReadingLog } from '../lib/api/library'
 import { listReadingItems, setReadingItemCheckpoint, updateReadingItemSrs } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { getUserSettings } from '../lib/api/settings'
+import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
@@ -127,14 +128,14 @@ export function TodayPage() {
     if (!session) return
     setLoading(true)
     Promise.all([
-      listAcademyTopics(),
-      listAcademyProgress(session.user.id),
-      listFlashcards(),
-      listReadingItems(),
-      listAllAcademyCards(),
-      listAllLibraryCards(),
-      listReadingLog(),
-      getUserSettings(),
+      tagPromise('academy_topics (listAcademyTopics)', listAcademyTopics()),
+      tagPromise('academy_progress (listAcademyProgress)', listAcademyProgress(session.user.id)),
+      tagPromise('flashcards (listFlashcards)', listFlashcards()),
+      tagPromise('reading_items (listReadingItems)', listReadingItems()),
+      tagPromise('academy_cards (listAllAcademyCards)', listAllAcademyCards()),
+      tagPromise('library_cards (listAllLibraryCards)', listAllLibraryCards()),
+      tagPromise('library_reading_log (listReadingLog)', listReadingLog()),
+      tagPromise('user_settings (getUserSettings)', getUserSettings()),
     ])
       .then(([topicRows, progressRows, flashcardRows, readingRows, cardRows, libraryCardRows, log, settings]) => {
         setTopics(topicRows)
@@ -147,7 +148,7 @@ export function TodayPage() {
         setTodayPages(log.find((l) => l.logDate === todayStr)?.pagesRead ?? 0)
         setPagesGoal(settings.readingDailyGoal)
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load today’s review'))
+      .catch((err) => setError(`Failed to load today's review — ${describeError(err)}`))
       .finally(() => setLoading(false))
   }, [session])
 

@@ -31,6 +31,7 @@ import { listCaseLogEntries, type CaseLogEntryWithPatient } from '../lib/api/cas
 import { listReadingItems } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { getUserSettings } from '../lib/api/settings'
+import { describeError, tagPromise } from '../lib/debugError'
 import { useAuth } from '../context/AuthContext'
 import {
   AcademyIcon,
@@ -186,21 +187,21 @@ export function DashboardPage() {
       })
 
     Promise.all([
-      listRecentAbnormalLabs(),
-      listActiveReminders(),
-      listAcademyTopics(),
-      listAcademyProgress(session.user.id),
-      listFlashcards(),
-      listBoardQuestions(),
-      listBoardQuestionAttempts(),
-      listKnowledgeGaps(),
-      listResearchProjects(),
-      listCaseLogEntries(),
-      listObstructiveUropathyWatches(),
-      listReadingItems(),
-      getUserSettings(),
-      listAkiAlerts(),
-      listAllAcademyCards(),
+      tagPromise('lab_entries (listRecentAbnormalLabs)', listRecentAbnormalLabs()),
+      tagPromise('patient_reminders (listActiveReminders)', listActiveReminders()),
+      tagPromise('academy_topics (listAcademyTopics)', listAcademyTopics()),
+      tagPromise('academy_progress (listAcademyProgress)', listAcademyProgress(session.user.id)),
+      tagPromise('flashcards (listFlashcards)', listFlashcards()),
+      tagPromise('board_questions (listBoardQuestions)', listBoardQuestions()),
+      tagPromise('board_question_attempts (listBoardQuestionAttempts)', listBoardQuestionAttempts()),
+      tagPromise('knowledge_gaps (listKnowledgeGaps)', listKnowledgeGaps()),
+      tagPromise('research_projects (listResearchProjects)', listResearchProjects()),
+      tagPromise('case_log_entries (listCaseLogEntries)', listCaseLogEntries()),
+      tagPromise('patients/patient_reminders (listObstructiveUropathyWatches)', listObstructiveUropathyWatches()),
+      tagPromise('reading_items (listReadingItems)', listReadingItems()),
+      tagPromise('user_settings (getUserSettings)', getUserSettings()),
+      tagPromise('lab_entries/patients (listAkiAlerts)', listAkiAlerts()),
+      tagPromise('academy_cards (listAllAcademyCards)', listAllAcademyCards()),
       academyV2Promise,
     ])
       .then(
@@ -257,11 +258,11 @@ export function DashboardPage() {
               ...akiRows.map((a) => a.patientId),
             ])
           )
-          const patientRows = await listPatientsByIds(attentionIds)
+          const patientRows = await tagPromise('patients (listPatientsByIds)', listPatientsByIds(attentionIds))
           setPatients(patientRows)
         }
       )
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
+      .catch((err) => setError(`Failed to load dashboard — ${describeError(err)}`))
       .finally(() => setLoading(false))
   }, [session])
 
