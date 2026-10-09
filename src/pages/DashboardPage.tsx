@@ -44,7 +44,7 @@ import {
   WarningIcon,
   ZapIcon,
 } from '../components/icons'
-import type { AcademyTopic, Flashcard, KnowledgeGap, ReadingItem, ResearchProject } from '../types/domain'
+import type { AcademyTopic, Flashcard, KnowledgeGap, LibraryCard, LibraryChapter, ReadingItem, ResearchProject } from '../types/domain'
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
@@ -162,12 +162,29 @@ export function DashboardPage() {
   const [akiAlerts, setAkiAlerts] = useState<AkiAlert[]>([])
   const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
+  const [academyUnavailable, setAcademyUnavailable] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) return
     setLoading(true)
+
+    // Academy v2 (Library) tables are a separate, newer migration — fetched
+    // and caught independently so a database that hasn't had
+    // academy_v2_migration.sql applied yet degrades to "no card data" for
+    // mastery scoring instead of blanking the whole dashboard.
+    const academyV2Promise = Promise.all([listAllLibraryCards(), ensureLibraryBookSeeded()])
+      .then(([libraryCardRows, seededLibrary]) => ({
+        ok: true as const,
+        libraryCardRows,
+        libraryChapters: seededLibrary.chapters,
+      }))
+      .catch((err) => {
+        console.error('Academy v2 (Library) data failed to load', err)
+        return { ok: false as const, libraryCardRows: [] as LibraryCard[], libraryChapters: [] as LibraryChapter[] }
+      })
+
     Promise.all([
       listRecentAbnormalLabs(),
       listActiveReminders(),
@@ -184,8 +201,7 @@ export function DashboardPage() {
       getUserSettings(),
       listAkiAlerts(),
       listAllAcademyCards(),
-      listAllLibraryCards(),
-      ensureLibraryBookSeeded(),
+      academyV2Promise,
     ])
       .then(
         async ([
@@ -204,22 +220,22 @@ export function DashboardPage() {
           settings,
           akiRows,
           cardRows,
-          libraryCardRows,
-          seededLibrary,
+          academyV2,
         ]) => {
           setLabs(labRows)
           setReminders(reminderRows)
           setTopics(topicRows)
           setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
           setFlashcards(flashcardRows)
+          setAcademyUnavailable(!academyV2.ok)
           const readiness = computeTopicReadiness(
             boardQuestionRows,
             boardQuestionAttemptRows,
             flashcardRows,
             topicRows,
             cardRows,
-            libraryCardRows,
-            seededLibrary.chapters
+            academyV2.libraryCardRows,
+            academyV2.libraryChapters
           )
           setWeakTopicCount(readiness.filter((r) => r.status === 'weak').length)
           setKnowledgeGaps(gapRows)
@@ -368,6 +384,13 @@ export function DashboardPage() {
   return (
     <div className="np-page">
       <DashboardHero followUpCount={sortedPatients.length} />
+
+      {academyUnavailable && (
+        <p className="np-small" style={{ color: '#9B3A31', background: '#FDECEB', padding: '8px 12px', borderRadius: 10 }}>
+          Academy data unavailable — the Academy v2 database migration hasn't been applied yet. Book-card stats are
+          excluded from mastery scoring until it is.
+        </p>
+      )}
 
       <div className="dh-grid">
         <section className="np-card np-fade" style={{ animationDelay: '.08s' }}>

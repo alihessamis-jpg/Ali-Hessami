@@ -303,7 +303,7 @@ export function ChapterProse({ note, cards, highlights, onMakeCard, onHighlight,
                 {onMakeCardsFromTable && cellCount > 0 && (
                   <div className="tbl-top">
                     <b>Table</b>
-                    <button type="button" className="btn ghost sm tcards" onClick={handleMake}>
+                    <button type="button" className="np-btn ghost sm tcards" onClick={handleMake}>
                       Make {cellCount} cards
                     </button>
                   </div>

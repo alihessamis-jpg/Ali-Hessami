@@ -66,7 +66,7 @@ export function PatientCaseCardForm({ chapterId, patients, onCreated }: Props) {
   return (
     <section className="np-card np-fade" style={{ gap: 8 }}>
       <h2>Make a patient case card</h2>
-      <span className="small">Pulls this patient's latest Cr/eGFR/Hb into the vignette automatically.</span>
+      <span className="np-small">Pulls this patient's latest Cr/eGFR/Hb into the vignette automatically.</span>
       {error && <p className="form-error">{error}</p>}
       <form onSubmit={(e) => void handleSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <select value={patientId} onChange={(e) => setPatientId(e.target.value)}>

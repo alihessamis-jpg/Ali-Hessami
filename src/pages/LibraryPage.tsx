@@ -10,7 +10,7 @@ import { listAcademyTopics } from '../lib/api/academy'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon } from '../components/icons'
-import type { AcademyTopic, LibraryBook, LibraryCard, LibraryChapter } from '../types/domain'
+import type { AcademyTopic, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics'
 
@@ -50,19 +50,13 @@ export function LibraryPage() {
   const [openParts, setOpenParts] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [bookUnavailable, setBookUnavailable] = useState(false)
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listAcademyTopics(), getUserSettings(), listReadingLog()])
-      .then(async ([seeded, cardRows, topicRows, settings, log]) => {
-        setBook(seeded.book)
-        setChapters(seeded.chapters)
-        setCards(cardRows)
-        setTopics(topicRows)
-        setDailyGoal(settings.readingDailyGoal)
-        const today = new Date().toISOString().slice(0, 10)
-        setTodayPages(log.find((l) => l.logDate === today)?.pagesRead ?? 0)
-        setStreak(computeReadingStreak(log))
+
+    const topicsPromise = listAcademyTopics()
+      .then(async (topicRows) => {
         const counts: Record<string, { total: number; due: number }> = {}
         const now = new Date()
         await Promise.all(
@@ -74,12 +68,46 @@ export function LibraryPage() {
             }
           })
         )
-        setTopicCardCounts(counts)
-        const readingChapter = seeded.chapters.find((c) => c.status === 'reading')
-        if (readingChapter) {
-          const part = seeded.chapters.find((c) => c.id === readingChapter.id)?.partRoman
-          if (part) setOpenParts(new Set([part]))
+        return { topicRows, counts }
+      })
+      .catch((err) => {
+        console.error('Academy topics failed to load', err)
+        return { topicRows: [] as AcademyTopic[], counts: {} as Record<string, { total: number; due: number }> }
+      })
+
+    const bookPromise = Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listReadingLog()])
+      .then(([seeded, cardRows, log]) => ({ ok: true as const, seeded, cardRows, log }))
+      .catch((err) => {
+        console.error('Academy v2 (Library) data failed to load', err)
+        return {
+          ok: false as const,
+          seeded: null as { book: LibraryBook; chapters: LibraryChapter[] } | null,
+          cardRows: [] as LibraryCard[],
+          log: [] as ReadingLogEntry[],
         }
+      })
+
+    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null)])
+      .then(([{ topicRows, counts }, bookResult, settings]) => {
+        setTopics(topicRows)
+        setTopicCardCounts(counts)
+        setBookUnavailable(!bookResult.ok)
+        if (bookResult.ok && bookResult.seeded) {
+          setBook(bookResult.seeded.book)
+          setChapters(bookResult.seeded.chapters)
+          setCards(bookResult.cardRows)
+          const today = new Date().toISOString().slice(0, 10)
+          setTodayPages(bookResult.log.find((l) => l.logDate === today)?.pagesRead ?? 0)
+          setStreak(computeReadingStreak(bookResult.log))
+          const readingChapter = bookResult.seeded.chapters.find((c) => c.status === 'reading')
+          if (readingChapter) {
+            const part = bookResult.seeded.chapters.find((c) => c.id === readingChapter.id)?.partRoman
+            if (part) setOpenParts(new Set([part]))
+          }
+        } else {
+          setTab('topics')
+        }
+        if (settings) setDailyGoal(settings.readingDailyGoal)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load the Library'))
       .finally(() => setLoading(false))
@@ -140,66 +168,74 @@ export function LibraryPage() {
 
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
-  if (!book) return null
 
   const goalPct = Math.min(100, Math.round((todayPages / Math.max(1, dailyGoal)) * 100))
   const q = search.trim().toLowerCase()
 
   return (
     <div className="np-page">
-      <section className="np-hero np-fade" style={{ gap: 18 }}>
-        <div className="np-glow amber" />
-        <div className="libhero">
-          <div className="cover" aria-hidden="true">
-            <i>{book.edition} ed.</i>
-            <b>{book.title}</b>
+      {bookUnavailable && (
+        <p className="np-small" style={{ color: '#9B3A31', background: '#FDECEB', padding: '8px 12px', borderRadius: 10 }}>
+          Academy data unavailable — the Academy v2 database migration hasn't been applied yet. The book library is hidden
+          until it is; your topics below are unaffected.
+        </p>
+      )}
+
+      {book && (
+        <section className="np-hero np-fade" style={{ gap: 18 }}>
+          <div className="np-glow amber" />
+          <div className="libhero">
+            <div className="cover" aria-hidden="true">
+              <i>{book.edition} ed.</i>
+              <b>{book.title}</b>
+            </div>
+            <div className="np-txt">
+              <span className="eyebrow">ACADEMY · LIBRARY</span>
+              <h1 style={{ fontSize: 24, lineHeight: 1.2 }}>{book.title}</h1>
+              <p className="np-sub">
+                {book.edition} ed. · {partsOrder.length} parts · {chapters.length} chapters · {totalPages.toLocaleString()} pages ·{' '}
+                {bookPct}% read
+              </p>
+            </div>
           </div>
-          <div className="np-txt">
-            <span className="eyebrow">ACADEMY · LIBRARY</span>
-            <h1 style={{ fontSize: 24, lineHeight: 1.2 }}>{book.title}</h1>
-            <p className="np-sub">
-              {book.edition} ed. · {partsOrder.length} parts · {chapters.length} chapters · {totalPages.toLocaleString()} pages ·{' '}
-              {bookPct}% read
-            </p>
+          <div className="lstats" style={{ '--n': 3 } as CSSProperties}>
+            <div>
+              <b>
+                {chaptersRead}
+                <span style={{ fontSize: 14, color: '#A9C6FF' }}> / {chapters.length}</span>
+              </b>
+              <span>chapters read</span>
+            </div>
+            <div>
+              <b>{totalCards}</b>
+              <span>cards made</span>
+            </div>
+            <div>
+              <b style={{ color: '#FFC46B' }}>{dueTotal}</b>
+              <span>due today</span>
+            </div>
           </div>
-        </div>
-        <div className="lstats" style={{ '--n': 3 } as CSSProperties}>
-          <div>
-            <b>
-              {chaptersRead}
-              <span style={{ fontSize: 14, color: '#A9C6FF' }}> / {chapters.length}</span>
-            </b>
-            <span>chapters read</span>
+          <div className="goal">
+            <div className="np-head">
+              <b style={{ fontSize: 13 }}>Today's goal</b>
+              <span style={{ fontSize: 12, color: '#C9DAF8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {todayPages} /{' '}
+                <input
+                  type="number"
+                  min={1}
+                  value={dailyGoal}
+                  onChange={(e) => void saveDailyGoal(Math.max(1, Number(e.target.value) || 1))}
+                  style={{ width: 36, background: 'rgba(255,255,255,.12)', border: 'none', borderRadius: 6, color: '#fff', padding: '2px 4px' }}
+                />{' '}
+                pages · {streak}-day streak
+              </span>
+            </div>
+            <div className="gbar">
+              <i style={{ width: `${goalPct}%` }} />
+            </div>
           </div>
-          <div>
-            <b>{totalCards}</b>
-            <span>cards made</span>
-          </div>
-          <div>
-            <b style={{ color: '#FFC46B' }}>{dueTotal}</b>
-            <span>due today</span>
-          </div>
-        </div>
-        <div className="goal">
-          <div className="np-head">
-            <b style={{ fontSize: 13 }}>Today's goal</b>
-            <span style={{ fontSize: 12, color: '#C9DAF8', display: 'flex', alignItems: 'center', gap: 6 }}>
-              {todayPages} /{' '}
-              <input
-                type="number"
-                min={1}
-                value={dailyGoal}
-                onChange={(e) => void saveDailyGoal(Math.max(1, Number(e.target.value) || 1))}
-                style={{ width: 36, background: 'rgba(255,255,255,.12)', border: 'none', borderRadius: 6, color: '#fff', padding: '2px 4px' }}
-              />{' '}
-              pages · {streak}-day streak
-            </span>
-          </div>
-          <div className="gbar">
-            <i style={{ width: `${goalPct}%` }} />
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {continueReading && (
         <Link to={`/academy/reader/${continueReading.id}`} className="cont np-fade" style={{ animationDelay: '.08s' }}>
@@ -208,11 +244,11 @@ export function LibraryPage() {
             {continueReading.chapterNumber}
           </span>
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span className="small" style={{ fontWeight: 700, letterSpacing: '.06em', color: 'var(--accent)' }}>
+            <span className="np-small" style={{ fontWeight: 700, letterSpacing: '.06em', color: 'var(--accent)' }}>
               CONTINUE READING
             </span>
             <b style={{ fontSize: 15, lineHeight: 1.3 }}>{continueReading.title}</b>
-            <span className="small">
+            <span className="np-small">
               p. {continueReading.startPage} · {continueReading.readingPct}% of chapter
             </span>
           </span>
@@ -227,13 +263,13 @@ export function LibraryPage() {
           <div className="toolbar np-fade" style={{ animationDelay: '.12s' }}>
             <div className="search">
               <SearchIcon width={18} height={18} />
-              <label className="sr" htmlFor="lib-q">
+              <label className="np-sr" htmlFor="lib-q">
                 Search chapters
               </label>
               <input id="lib-q" placeholder="Search chapters (e.g. RTA, nephrotic, transplant)" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="seg" style={{ flexShrink: 0 }}>
-              <button type="button" className={tab === 'book' ? 'on' : ''} onClick={() => setTab('book')}>
+              <button type="button" className={tab === 'book' ? 'on' : ''} onClick={() => setTab('book')} disabled={bookUnavailable}>
                 Book
               </button>
               <button type="button" className={tab === 'topics' ? 'on' : ''} onClick={() => setTab('topics')}>
@@ -242,7 +278,13 @@ export function LibraryPage() {
             </div>
           </div>
 
-          {tab === 'book' ? (
+          {tab === 'book' && bookUnavailable ? (
+            <div className="parts np-fade" style={{ animationDelay: '.16s' }}>
+              <p className="empty-state">
+                Academy data unavailable — the book library can't load right now. Switch to "My topics" or try again later.
+              </p>
+            </div>
+          ) : tab === 'book' ? (
             <div className="parts np-fade" style={{ animationDelay: '.16s' }}>
               {partsOrder.map(([roman, title]) => {
                 const partChapters = (chaptersByPart.get(roman) ?? []).filter(
@@ -272,7 +314,7 @@ export function LibraryPage() {
                       <span>
                         <b>{title}</b>
                         <span className="pmeta">
-                          <span className="small">
+                          <span className="np-small">
                             {allInPart.length} chapters · {partPct}%{partDue > 0 ? ` · ` : ''}
                             {partDue > 0 && <span className="due">{partDue} due</span>}
                           </span>
@@ -281,7 +323,7 @@ export function LibraryPage() {
                           </span>
                         </span>
                       </span>
-                      <span className="small" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      <span className="np-small" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         p. {allInPart[0]?.startPage ?? ''}
                       </span>
                       <svg className="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -350,7 +392,7 @@ export function LibraryPage() {
               {topics.length === 0 && <p className="empty-state">No topics yet — build one from the old Academy flow.</p>}
             </div>
           )}
-          <span className="small">Chapter status and due counts update as you read and review.</span>
+          <span className="np-small">Chapter status and due counts update as you read and review.</span>
         </div>
 
         <aside className="side-col">
@@ -364,7 +406,7 @@ export function LibraryPage() {
                   </span>
                   <span style={{ flex: 1 }}>
                     <b>Review {dueTotal} cards</b>
-                    <span className="small">All due cards across the book</span>
+                    <span className="np-small">All due cards across the book</span>
                   </span>
                 </Link>
               )}
@@ -375,7 +417,7 @@ export function LibraryPage() {
                   </span>
                   <span style={{ flex: 1 }}>
                     <b>Quick check</b>
-                    <span className="small">{continueReading.title}</span>
+                    <span className="np-small">{continueReading.title}</span>
                   </span>
                 </Link>
               )}
@@ -386,11 +428,11 @@ export function LibraryPage() {
                   </span>
                   <span style={{ flex: 1 }}>
                     <b>Keep reading</b>
-                    <span className="small">{continueReading.title}</span>
+                    <span className="np-small">{continueReading.title}</span>
                   </span>
                 </Link>
               )}
-              {dueTotal === 0 && !continueReading && <span className="small">Open a chapter to get started.</span>}
+              {dueTotal === 0 && !continueReading && <span className="np-small">Open a chapter to get started.</span>}
             </div>
           </section>
           <section className="np-card np-fade" style={{ animationDelay: '.26s', gap: 10 }}>
@@ -402,7 +444,7 @@ export function LibraryPage() {
                 </span>
               ))}
             </div>
-            <span className="small" style={{ lineHeight: 1.5 }}>
+            <span className="np-small" style={{ lineHeight: 1.5 }}>
               Read → you finished the text. Carded → its key facts are cards. Mastered → every card is past a 21-day interval.
             </span>
           </section>

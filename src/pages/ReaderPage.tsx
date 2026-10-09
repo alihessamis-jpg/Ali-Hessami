@@ -328,7 +328,7 @@ export function ReaderPage() {
               {sections.map((s) => (
                 <a key={s.number} href={`#${s.anchor}`}>
                   <span className="n">{s.number}</span>
-                  <span className="fa" dir="rtl">
+                  <span className="np-fa" dir="rtl">
                     {s.title}
                   </span>
                   <span className="st" />
@@ -399,7 +399,7 @@ export function ReaderPage() {
                 ))}
               </div>
               {qcAnswer != null && (
-                <button className="btn white" onClick={handleQcNext}>
+                <button className="np-btn white" onClick={handleQcNext}>
                   {qcIndex + 1 < quickCheck.length ? 'Next question' : 'Done'}
                 </button>
               )}
@@ -408,7 +408,7 @@ export function ReaderPage() {
 
           <section className="np-card np-fade">
             <h2>Finish this chapter</h2>
-            <span className="small">Rate how well you understood it — card intervals for this chapter adjust accordingly.</span>
+            <span className="np-small">Rate how well you understood it — card intervals for this chapter adjust accordingly.</span>
             <div className="diff">
               <button type="button" onClick={() => void handleFinishChapter('hard')}>
                 Difficult
@@ -437,7 +437,7 @@ export function ReaderPage() {
               <h2>Cards from this chapter</h2>
               <div className="fcount">
                 <b>{cards.length}</b>
-                <span className="small">
+                <span className="np-small">
                   cards · {dueCount} due today
                   <br />
                   Highlight text to add one
@@ -457,7 +457,7 @@ export function ReaderPage() {
               {linkedPatients.map((p) => (
                 <Link className="chip2" to={`/patients/${p.id}`} key={p.id} style={{ textDecoration: 'none' }}>
                   <PatientsIcon width={14} height={14} />
-                  <span className="fa">{p.name}</span>
+                  <span className="np-fa">{p.name}</span>
                 </Link>
               ))}
             </section>
