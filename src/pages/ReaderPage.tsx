@@ -6,6 +6,7 @@ import {
   addLibraryHighlight,
   approveLibraryCard,
   approveLibraryCards,
+  ensureLibraryBookSeeded,
   getLibraryChapter,
   importChapterNote,
   listLibraryCardsForChapter,
@@ -65,6 +66,7 @@ export function ReaderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [chapterNumberToId, setChapterNumberToId] = useState<Record<number, string>>({})
 
   const [quickCheck, setQuickCheck] = useState<QuickCheckQuestion[]>([])
   const [qcIndex, setQcIndex] = useState(0)
@@ -81,15 +83,19 @@ export function ReaderPage() {
 
   async function reload() {
     if (!id) return
-    const [chapterRow, cardRows, highlightRows, topicIds] = await Promise.all([
+    const [chapterRow, cardRows, highlightRows, topicIds, seeded] = await Promise.all([
       getLibraryChapter(id),
       listLibraryCardsForChapter(id),
       listLibraryHighlights(id),
       listTopicIdsForChapter(id),
+      ensureLibraryBookSeeded().catch(() => null),
     ])
     setChapter(chapterRow)
     setCards(cardRows)
     setHighlights(highlightRows)
+    if (seeded) {
+      setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
+    }
     persistedPctRef.current = chapterRow?.readingPct ?? 0
     livePctRef.current = chapterRow?.readingPct ?? 0
     setQuickCheck(buildQuickCheck(cardRows.filter((c) => c.status === 'approved')))
@@ -468,6 +474,7 @@ export function ReaderPage() {
                 onMakeCardsFromTable={handleMakeCardsFromTable}
                 onApproveAllSuggested={(ids) => void handleApproveAllSuggested(ids)}
                 onReviewSuggestedOneByOne={handleReviewSuggestedOneByOne}
+                chapterNumberToId={chapterNumberToId}
               />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>

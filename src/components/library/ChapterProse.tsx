@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
@@ -6,6 +7,7 @@ import { tokenizeBidi } from '../../lib/bidiText'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
 import { splitNoteBlocks } from '../../lib/chapterNoteBlocks'
 import { toPersianDigits } from '../../lib/shamsi'
+import { renderNephronChart, type NephronChartSpec } from './nephronChart'
 import type { LibraryCard, LibraryHighlight } from '../../types/domain'
 
 export interface MakeCardPayload {
@@ -31,6 +33,8 @@ interface Props {
   onApproveAllSuggested?: (cardIds: string[]) => void
   /** Open a one-by-one approve/skip flow for the given suggested cards. */
   onReviewSuggestedOneByOne?: (cardIds: string[]) => void
+  /** Chapter-number -> id, so `[[chNN]]` links (v1.1) can navigate there. */
+  chapterNumberToId?: Record<number, string>
 }
 
 function renderBdi(text: string, keyBase: string): ReactNode[] {
@@ -51,10 +55,14 @@ function renderBdi(text: string, keyBase: string): ReactNode[] {
 interface SpecialMatch {
   start: number
   end: number
-  kind: 'pageref' | 'carded' | 'mark' | 'reference'
+  kind: 'pageref' | 'carded' | 'mark' | 'reference' | 'chlink'
   page?: number
   id?: string
   text: string
+  /** chlink only: the raw id inside [[...]], e.g. "ch75" or "ch74-s8". */
+  linkId?: string
+  /** chlink only: true for `[[#id]]` (same-chapter section), false for `[[chNN]]`. */
+  isSection?: boolean
 }
 
 // `{p.N}` (older hand-authored notes) and `[p. N]` (NEPHRON_CHAPTER_FORMAT
@@ -63,6 +71,8 @@ const PAGE_REF_RES = [/\{p\.(\d+)\}/g, /\[p\.\s?(\d+)\]/g]
 // `[۱۵]`, `[۳، ۴]`, `[۲۳ تا ۲۵]` -- a bracketed Persian-digit reference
 // number (or range/list of them), rendered small and muted.
 const REFERENCE_RE = /\[([۰-۹][۰-۹،,\sتا]*)\]/g
+// v1.1: `[[ch75]]` (another chapter) or `[[#ch74-s8]]` (a section of this one).
+const CHAPTER_LINK_RE = /\[\[(#?)([\w-]+)\]\]/g
 
 function findMatches(text: string, cards: LibraryCard[], highlights: LibraryHighlight[]): SpecialMatch[] {
   const matches: SpecialMatch[] = []
@@ -73,6 +83,16 @@ function findMatches(text: string, cards: LibraryCard[], highlights: LibraryHigh
   }
   for (const m of text.matchAll(REFERENCE_RE)) {
     matches.push({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, kind: 'reference', text: m[0] })
+  }
+  for (const m of text.matchAll(CHAPTER_LINK_RE)) {
+    matches.push({
+      start: m.index ?? 0,
+      end: (m.index ?? 0) + m[0].length,
+      kind: 'chlink',
+      text: m[0],
+      linkId: m[2],
+      isSection: m[1] === '#',
+    })
   }
   for (const c of cards) {
     if (!c.sourceText) continue
@@ -96,7 +116,13 @@ function findMatches(text: string, cards: LibraryCard[], highlights: LibraryHigh
   return result
 }
 
-function renderTextWithSpecials(text: string, cards: LibraryCard[], highlights: LibraryHighlight[], keyBase: string): ReactNode[] {
+function renderTextWithSpecials(
+  text: string,
+  cards: LibraryCard[],
+  highlights: LibraryHighlight[],
+  keyBase: string,
+  chapterNumberToId?: Record<number, string>
+): ReactNode[] {
   const matches = findMatches(text, cards, highlights)
   if (matches.length === 0) return renderBdi(text, keyBase)
   const nodes: ReactNode[] = []
@@ -115,6 +141,30 @@ function renderTextWithSpecials(text: string, cards: LibraryCard[], highlights: 
           {m.text}
         </sup>
       )
+    } else if (m.kind === 'chlink') {
+      if (m.isSection) {
+        const sectionNum = (m.linkId ?? '').replace(/^.*-s/, '')
+        nodes.push(
+          <a className="xlink" key={`${keyBase}-l${i}`} href={`#${m.linkId}`}>
+            بخش {sectionNum} ›
+          </a>
+        )
+      } else {
+        const chNumMatch = (m.linkId ?? '').match(/^ch(\d+)$/)
+        const chNum = chNumMatch ? Number(chNumMatch[1]) : null
+        const targetId = chNum != null ? chapterNumberToId?.[chNum] : undefined
+        nodes.push(
+          targetId ? (
+            <Link className="xlink" key={`${keyBase}-l${i}`} to={`/academy/reader/${targetId}`}>
+              Ch {chNum} ›
+            </Link>
+          ) : (
+            <span className="xlink" key={`${keyBase}-l${i}`}>
+              Ch {chNum ?? m.linkId} ›
+            </span>
+          )
+        )
+      }
     } else if (m.kind === 'carded') {
       nodes.push(
         <span className="carded" key={`${keyBase}-c${i}`} title="Card">
@@ -134,14 +184,30 @@ function renderTextWithSpecials(text: string, cards: LibraryCard[], highlights: 
   return nodes
 }
 
-function transformChildren(children: ReactNode, cards: LibraryCard[], highlights: LibraryHighlight[], keyBase: string): ReactNode {
+function transformChildren(
+  children: ReactNode,
+  cards: LibraryCard[],
+  highlights: LibraryHighlight[],
+  keyBase: string,
+  chapterNumberToId?: Record<number, string>
+): ReactNode {
   let i = 0
   function walk(node: ReactNode): ReactNode {
-    if (typeof node === 'string') return renderTextWithSpecials(node, cards, highlights, `${keyBase}-${i++}`)
+    if (typeof node === 'string') return renderTextWithSpecials(node, cards, highlights, `${keyBase}-${i++}`, chapterNumberToId)
     return node
   }
   if (Array.isArray(children)) return children.map(walk)
   return walk(children)
+}
+
+// A paragraph written fully in English (e.g. an original figure caption,
+// v1.1): true when it has no Persian/Arabic characters but does have a
+// Latin letter, so it renders LTR instead of inheriting the RTL paragraph
+// direction.
+const PERSIAN_CHAR_RE = /[؀-ۿ]/
+const LATIN_LETTER_RE = /[A-Za-z]/
+function isFullyEnglish(text: string): boolean {
+  return !PERSIAN_CHAR_RE.test(text) && LATIN_LETTER_RE.test(text)
 }
 
 function hastText(node: RootContent | HastElement): string {
@@ -176,12 +242,14 @@ const CALLOUT_LABEL: Record<CalloutVariant, string> = {
   flag: 'RED FLAG',
   outside: 'خارج از متن کتاب',
   discrepancy: 'اختلاف / خطای متن کتاب',
+  explain: 'توضیح ساده',
 }
 const CALLOUT_ICON: Record<CalloutVariant, string> = {
   pearl: '💡',
   flag: '⚠',
   outside: '📘',
   discrepancy: '⚠',
+  explain: '📝',
 }
 
 // Parses a `##`/`###` heading's text into its displayable parts. Two
@@ -214,7 +282,10 @@ export function ChapterProse({
   onMakeCardsFromTable,
   onApproveAllSuggested,
   onReviewSuggestedOneByOne,
+  chapterNumberToId,
 }: Props) {
+  const chartIndexRef = useRef(0)
+  chartIndexRef.current = 0
   const { text: cleanedNote, variants } = extractCalloutVariants(note)
   const calloutIndexRef = useRef(0)
   calloutIndexRef.current = 0
@@ -312,8 +383,53 @@ export function ChapterProse({
         <h3 id={idMatch?.[1]}>{renderBdi(display, `h3-${idMatch?.[1] ?? raw}`)}</h3>
       )
     },
-    p: (props: { children?: ReactNode }) => <p>{transformChildren(props.children, cards, highlights, `p-${sectionRef.current}`)}</p>,
-    li: (props: { children?: ReactNode }) => <li>{transformChildren(props.children, cards, highlights, `li-${sectionRef.current}`)}</li>,
+    // v1.1: a "#### label" inside a نکات امتحانی panel is a group label, not
+    // a card (see chapterImport.ts's parseExamBullets, which reads the same
+    // bullets to build the topic/high_yield fields this just displays).
+    h4: ({ node }: { node?: HastElement }) => {
+      const raw = node ? hastText(node) : ''
+      const starred = /⭐\s*$/.test(raw)
+      const display = raw.replace(/\s*⭐\s*$/, '').trim()
+      return (
+        <h4 className="grp">
+          {renderBdi(display, `h4-${raw}`)}
+          {starred && (
+            <span className="hy">
+              ⭐ <bdi dir="ltr">High-yield</bdi>
+            </span>
+          )}
+        </h4>
+      )
+    },
+    p: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
+      const raw = node ? hastText(node) : ''
+      if (isFullyEnglish(raw)) {
+        return (
+          <p dir="ltr" className="enp">
+            {transformChildren(children, cards, highlights, `p-${sectionRef.current}`, chapterNumberToId)}
+          </p>
+        )
+      }
+      return <p>{transformChildren(children, cards, highlights, `p-${sectionRef.current}`, chapterNumberToId)}</p>
+    },
+    li: (props: { children?: ReactNode }) => (
+      <li>{transformChildren(props.children, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId)}</li>
+    ),
+    pre: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
+      const codeNode = node?.children.find((c): c is HastElement => c.type === 'element' && c.tagName === 'code')
+      const classes = (codeNode?.properties?.className as string[] | undefined) ?? []
+      if (codeNode && classes.includes('language-nephron-chart')) {
+        try {
+          const spec = JSON.parse(hastText(codeNode)) as NephronChartSpec
+          chartIndexRef.current += 1
+          const chart = renderNephronChart(spec, chartIndexRef.current)
+          if (chart) return chart
+        } catch {
+          // fall through to plain code block below
+        }
+      }
+      return <pre>{children}</pre>
+    },
     blockquote: (props: { children?: ReactNode }) => {
       const variant = variants[calloutIndexRef.current] ?? null
       calloutIndexRef.current += 1

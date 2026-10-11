@@ -25,6 +25,10 @@ export interface ImportedSuggestedCard {
   front: string
   back: string
   tags: string[]
+  /** v1.1: the "#### label" group this bullet sat under, if any. */
+  topic: string | null
+  /** v1.1: from a trailing ⭐ on the bullet or its group label. */
+  highYield: boolean
 }
 
 export interface ParsedChapterNote {
@@ -82,18 +86,56 @@ interface ExamBullet {
   front: string
   back: string
   tag: 'book' | 'not-book'
+  topic: string | null
+  highYield: boolean
 }
 
-// Walks one exam block's raw markdown. A top-level "- " line is a card
-// tagged 'book'; a "- " line inside a `[!outside]` blockquote is a card
-// tagged 'not-book'. A bold-only line with no leading "- " (a sub-group
-// label, e.g. "**اریتروپویتین (EPO)**") is not a bullet and is skipped.
+// Trailing ⭐ (v1.1): strips it from the text that becomes the card, and
+// reports whether it was there so the caller can set high_yield.
+const STAR_RE = /\s*⭐\s*$/
+
+function stripStar(text: string): { text: string; starred: boolean } {
+  return { text: text.replace(STAR_RE, '').trimEnd(), starred: STAR_RE.test(text) }
+}
+
+// Walks one exam block's raw markdown.
+//  - "#### label" (v1.1): not a card -- sets the topic/tag for every bullet
+//    that follows, until the next "#### label" or the end of the block. A
+//    trailing ⭐ on the label makes every bullet in that group high-yield.
+//  - a top-level "- " line is a card tagged 'book'; inside a `[!outside]`
+//    blockquote it's tagged 'not-book' instead.
+//  - a bold-only line with no leading "- " (a sub-group label, e.g.
+//    "**اریتروپویتین (EPO)**") is not a bullet and is skipped.
+//  - (v1.1) a bullet ending in ":" followed by indented "  - " bullets is
+//    not itself a card -- each nested bullet is its own card, with the
+//    parent's text kept as context in its front.
+//  - a trailing ⭐ on any bullet (parent group's star aside) makes just
+//    that card high-yield.
 function parseExamBullets(markdown: string): ExamBullet[] {
   const lines = markdown.split('\n')
   const bullets: ExamBullet[] = []
+  let topic: string | null = null
+  let groupHighYield = false
   let i = 0
+
+  function pushBullet(rawText: string, tag: 'book' | 'not-book') {
+    const { text, starred } = stripStar(rawText)
+    const { front, back } = extractCloze(text)
+    bullets.push({ front, back, tag, topic, highYield: groupHighYield || starred })
+  }
+
   while (i < lines.length) {
     const line = lines[i]
+
+    const groupMatch = line.match(/^####\s+(.*)$/)
+    if (groupMatch) {
+      const { text, starred } = stripStar(groupMatch[1].trim())
+      topic = text
+      groupHighYield = starred
+      i++
+      continue
+    }
+
     if (/^>/.test(line)) {
       const block: string[] = []
       while (i < lines.length && /^>/.test(lines[i])) {
@@ -103,12 +145,40 @@ function parseExamBullets(markdown: string): ExamBullet[] {
       const isOutside = /\[!outside\]/i.test(block.join(' '))
       for (const inner of block) {
         const m = inner.match(/^-\s+(.*)$/)
-        if (m) bullets.push({ ...extractCloze(m[1]), tag: isOutside ? 'not-book' : 'book' })
+        if (m) pushBullet(m[1], isOutside ? 'not-book' : 'book')
       }
       continue
     }
-    const m = line.match(/^-\s+(.*)$/)
-    if (m) bullets.push({ ...extractCloze(m[1]), tag: 'book' })
+
+    const topMatch = line.match(/^-\s+(.*)$/)
+    if (topMatch) {
+      const bulletText = topMatch[1]
+      const nested: string[] = []
+      let j = i + 1
+      while (j < lines.length && /^\s{2,}-\s+/.test(lines[j])) {
+        nested.push(lines[j].replace(/^\s+-\s+/, ''))
+        j++
+      }
+      const endsWithColon = /[:：]\s*$/.test(bulletText.trim())
+      if (nested.length > 0 && endsWithColon) {
+        const stem = stripStar(bulletText).text.replace(/[:：]\s*$/, '').trim()
+        for (const nestedText of nested) {
+          const { text, starred } = stripStar(nestedText)
+          const { front, back } = extractCloze(text)
+          bullets.push({ front: `${stem}: ${front}`, back, tag: 'book', topic, highYield: groupHighYield || starred })
+        }
+        i = j
+        continue
+      }
+      // No colon+nested pattern: the line is a normal bullet in its own
+      // right, and any indented lines under it (not expected here) are
+      // still given their own cards rather than silently dropped.
+      pushBullet(bulletText, 'book')
+      for (const nestedText of nested) pushBullet(nestedText, 'book')
+      i = j
+      continue
+    }
+
     i++
   }
   return bullets
@@ -134,6 +204,8 @@ export function parseChapterNoteForImport(raw: string): ParsedChapterNote {
         front: bullet.front,
         back: bullet.back,
         tags: bullet.tag === 'not-book' ? ['not-book'] : [],
+        topic: bullet.topic,
+        highYield: bullet.highYield,
       })
       indexInSection++
     }

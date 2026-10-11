@@ -415,6 +415,10 @@ export interface LibraryCard extends FsrsCardState {
   status: LibraryCardStatus
   importKey?: string | null
   tags: string[]
+  /** The "#### label" group a suggested card sat under in its exam panel (v1.1). */
+  topic?: string | null
+  /** From a trailing ⭐ on the bullet or its group label (v1.1). */
+  highYield: boolean
   createdAt: string
 }
 
@@ -422,7 +426,7 @@ export type LibraryCardDraft = Pick<
   LibraryCard,
   'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
 > &
-  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags'>>
+  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags' | 'topic' | 'highYield'>>
 
 export type LibraryHighlightKind = 'highlight' | 'note'
 

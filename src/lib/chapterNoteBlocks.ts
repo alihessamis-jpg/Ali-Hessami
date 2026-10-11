@@ -15,6 +15,11 @@ export type NoteBlock =
   | { kind: 'explain'; markdown: string }
 
 const HEADING_RE = /^(#{2,4})\s+(.*)$/
+// v1.1: a "#### label" line INSIDE a نکات امتحانی/توضیح ساده block is a
+// group label (handled downstream by the exam-block parser/renderer), not
+// a heading that ends the block -- only ##/### do that. Outside such a
+// block, #### still means "ترجمه" (dropped) same as v1.
+const BLOCK_END_RE = /^(##|###)\s+/
 
 function bareHeadingText(text: string): string {
   // Drop a trailing {#id} or {.class} attribute block before comparing.
@@ -56,7 +61,7 @@ export function splitNoteBlocks(note: string): NoteBlock[] {
         flushProse()
         i++
         const body: string[] = []
-        while (i < lines.length && !HEADING_RE.test(lines[i])) {
+        while (i < lines.length && !BLOCK_END_RE.test(lines[i])) {
           body.push(lines[i])
           i++
         }
@@ -68,7 +73,7 @@ export function splitNoteBlocks(note: string): NoteBlock[] {
         flushProse()
         i++
         const body: string[] = []
-        while (i < lines.length && !HEADING_RE.test(lines[i])) {
+        while (i < lines.length && !BLOCK_END_RE.test(lines[i])) {
           body.push(lines[i])
           i++
         }

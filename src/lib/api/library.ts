@@ -71,6 +71,8 @@ interface CardRow {
   status: LibraryCard['status']
   import_key: string | null
   tags: string[] | null
+  topic: string | null
+  high_yield: boolean
   created_at: string
 }
 
@@ -145,6 +147,8 @@ function cardToDomain(row: CardRow): LibraryCard {
     status: row.status ?? 'approved',
     importKey: row.import_key,
     tags: row.tags ?? [],
+    topic: row.topic,
+    highYield: row.high_yield ?? false,
     createdAt: row.created_at,
   }
 }
@@ -424,6 +428,8 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
           section_number: c.sectionNumber,
           import_key: c.importKey,
           tags: c.tags,
+          topic: c.topic,
+          high_yield: c.highYield,
         })),
         { onConflict: 'chapter_id,import_key' }
       )

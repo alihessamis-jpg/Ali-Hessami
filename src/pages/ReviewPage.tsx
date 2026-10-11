@@ -38,11 +38,12 @@ export function ReviewPage() {
   const [searchParams] = useSearchParams()
   const chapterScope = searchParams.get('chapter')
 
-  const [cards, setCards] = useState<LibraryCard[]>([])
+  const [allDue, setAllDue] = useState<LibraryCard[]>([])
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
   const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hyOnly, setHyOnly] = useState(false)
 
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -58,13 +59,20 @@ export function ReviewPage() {
         let due = cardRows.filter((c) => new Date(c.due) <= now)
         if (chapterScope) due = due.filter((c) => c.chapterId === chapterScope)
         due.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
-        setCards(due)
+        setAllDue(due)
         setChapters(seeded.chapters)
         setStreak(computeReadingStreak(log))
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load review queue'))
       .finally(() => setLoading(false))
   }, [chapterScope])
+
+  const cards = useMemo(() => (hyOnly ? allDue.filter((c) => c.highYield) : allDue), [allDue, hyOnly])
+  const highYieldDueCount = useMemo(() => allDue.filter((c) => c.highYield).length, [allDue])
+
+  useEffect(() => {
+    setIndex(0)
+  }, [hyOnly])
 
   const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters])
   const current = cards[index]
@@ -119,10 +127,18 @@ export function ReviewPage() {
             </Link>
           </div>
           <div className="np-card np-fade">
-            <p className="empty-state">Nothing due right now — nice work.</p>
-            <Link className="np-btn" to="/academy">
-              Back to Library
-            </Link>
+            <p className="empty-state">
+              {hyOnly ? 'No high-yield cards due right now.' : 'Nothing due right now — nice work.'}
+            </p>
+            {hyOnly && allDue.length > 0 ? (
+              <button type="button" className="np-btn ghost" onClick={() => setHyOnly(false)}>
+                Show all due cards ({allDue.length})
+              </button>
+            ) : (
+              <Link className="np-btn" to="/academy">
+                Back to Library
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -233,6 +249,23 @@ export function ReviewPage() {
           <span className="rcount">
             {index + 1} / {cards.length}
           </span>
+          {highYieldDueCount > 0 && (
+            <button
+              type="button"
+              className="np-pill"
+              style={{
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                color: hyOnly ? '#93590B' : '#5B6B82',
+                background: hyOnly ? '#FDF0D5' : 'rgba(255,255,255,.12)',
+              }}
+              onClick={() => setHyOnly((v) => !v)}
+              title="High-yield only"
+            >
+              ⭐ High-yield only
+            </button>
+          )}
         </div>
 
         <div className="stage">

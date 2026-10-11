@@ -45,7 +45,7 @@ export function estimateMinutesLeft(note: string | null | undefined, readingPct:
   return Math.max(1, Math.round(remainingWords / WORDS_PER_MINUTE))
 }
 
-export type CalloutVariant = 'pearl' | 'flag' | 'outside' | 'discrepancy'
+export type CalloutVariant = 'pearl' | 'flag' | 'outside' | 'discrepancy' | 'explain'
 
 // Strips the `[!pearl]`/`[!flag]`/`[!outside]`/`[!discrepancy]` marker
 // tokens from the raw markdown text (so they don't render as literal text)
@@ -66,7 +66,7 @@ export function extractCalloutVariants(note: string): { text: string; variants: 
         i++
       }
       const joined = block.join(' ')
-      const m = joined.match(/\[!(pearl|flag|outside|discrepancy)\]/i)
+      const m = joined.match(/\[!(pearl|flag|outside|discrepancy|explain)\]/i)
       variants.push(m ? (m[1].toLowerCase() as CalloutVariant) : null)
     } else {
       i++
@@ -79,6 +79,6 @@ export function extractCalloutVariants(note: string): { text: string; variants: 
   // onto this one ("> " + "> text" = "> > text"), which markdown then
   // parses as a blockquote nested inside a blockquote -- a second,
   // mislabeled callout nested inside the real one.
-  const text = note.replace(/\[!(pearl|flag|outside|discrepancy)\][ \t]*/gi, '')
+  const text = note.replace(/\[!(pearl|flag|outside|discrepancy|explain)\][ \t]*/gi, '')
   return { text, variants }
 }
