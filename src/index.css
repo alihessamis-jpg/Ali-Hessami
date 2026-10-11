@@ -4365,7 +4365,12 @@ select.pt-ward:focus {
   display: block;
   margin-top: 8px;
   width: 100%;
-  height: 120px;
+  height: 140px;
+}
+
+/* Structure labels on the urine-formation graphic: too small to read on phones. */
+.dh-neph .uf-labels {
+  display: none;
 }
 
 .dh-neph-beat {
@@ -4571,9 +4576,13 @@ select.pt-ward:focus {
   }
 
   .dh-neph {
-    width: 380px;
-    height: 140px;
+    width: 460px;
+    height: 172px;
     margin: 0 0 0 auto;
+  }
+
+  .dh-neph .uf-labels {
+    display: inline;
   }
 
   .dh-grid {
