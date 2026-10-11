@@ -5,6 +5,7 @@ import { buildFullBackup, restoreFromBackup, type BackupBundle, type RestoreResu
 import { downloadCsv } from '../lib/csvExport'
 import { downloadJson } from '../lib/fileDownload'
 import { getUserSettings, markBackupTaken } from '../lib/api/settings'
+import { DataFlowArt } from '../components/heroArt/PageArt'
 
 function daysSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000))
@@ -120,12 +121,7 @@ export function ExportPage() {
             <h1>Export</h1>
             <p className="np-sub">Back up everything, restore it, or take your data to Excel and SPSS.</p>
           </div>
-          <svg className="np-art" width="80" height="80" viewBox="0 0 80 80" fill="none" aria-hidden="true">
-            <path d="M14 50v12a6 6 0 0 0 6 6h40a6 6 0 0 0 6-6V50" stroke="#9CC2FF" strokeWidth={4} strokeLinecap="round" />
-            <g className="exp-drop">
-              <path d="M40 12v32M28 32l12 12 12-12" stroke="#FFC46B" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
-            </g>
-          </svg>
+          <DataFlowArt />
         </div>
       </section>
 

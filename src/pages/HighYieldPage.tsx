@@ -5,6 +5,7 @@ import { sortSubTopics } from '../lib/sortSubTopics'
 import { isolateLatinRuns } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import type { AcademyTopic } from '../types/domain'
+import { PearlsArt } from '../components/heroArt/PageArt'
 
 function hasHighYieldContent(t: AcademyTopic): boolean {
   return Boolean(t.summary?.trim() || t.keyPoints.length > 0 || t.redFlags?.trim() || t.pearls?.trim())
@@ -100,9 +101,7 @@ export function HighYieldPage() {
               review.
             </p>
           </div>
-          <svg className="np-art hy-zap" width="74" height="84" viewBox="0 0 74 84" fill="none" aria-hidden="true">
-            <path d="M42 4 8 48h26l-6 32 38-48H40z" fill="#FFC46B" stroke="#FFE2B0" strokeWidth={2} strokeLinejoin="round" />
-          </svg>
+          <PearlsArt />
         </div>
       </section>
 

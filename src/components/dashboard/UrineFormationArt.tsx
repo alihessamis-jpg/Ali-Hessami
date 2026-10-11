@@ -1,6 +1,4 @@
-import { useId, type ReactElement } from 'react'
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion'
-import { getAnimationsEnabled } from '../../lib/animationsPreference'
+import { Glass, Rider, Vessel, useIds, useMotionAllowed } from '../heroArt/kit'
 
 // Dashboard hero motion graphic: urine formation along one nephron.
 // Blood (red cells + blue plasma proteins) runs through the glomerular
@@ -55,45 +53,9 @@ const HOPS: Array<[string, string, number]> = [
   ['M438 90L414 90', '#ff6b6b', 4],
 ]
 
-function useMotionAllowed() {
-  const reduced = usePrefersReducedMotion()
-  return !reduced && getAnimationsEnabled()
-}
-
-// A dot that rides `href` from 0 to `until` of its length, fading in and out;
-// opacity="0" keeps it hidden at the SVG origin until its first lap begins.
-function Rider({ href, dur, begin, until = 1, children }: { href: string; dur: number; begin: number; until?: number; children: ReactElement }) {
-  const timing = { dur: `${dur}s`, begin: `${begin}s`, repeatCount: 'indefinite' }
-  return (
-    <g opacity="0">
-      {children}
-      <animateMotion {...timing} keyPoints={`0;${until}`} keyTimes="0;1" calcMode="linear" rotate="auto">
-        <mpath href={href} />
-      </animateMotion>
-      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.85;1" {...timing} />
-    </g>
-  )
-}
-
 export function UrineFormationArt({ className }: { className?: string }) {
   const motion = useMotionAllowed()
-  const uid = useId().replace(/:/g, '')
-  const id = (name: string) => `uf-${name}-${uid}`
-
-  // Glassy tube: bright walls (wide light stroke) with a translucent lumen on top.
-  const glass = (d: string) => (
-    <>
-      <path d={d} stroke="rgba(190,225,255,0.5)" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={d} stroke="rgba(10,35,82,0.78)" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={d} stroke="rgba(140,200,255,0.16)" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
-    </>
-  )
-  const vessel = (d: string, width = 6) => (
-    <>
-      <path d={d} stroke="#a8322b" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
-      <path d={d} stroke="#ff8a80" strokeWidth={width * 0.32} strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
-    </>
-  )
+  const id = useIds('uf')
 
   return (
     <svg className={className} viewBox="0 0 460 172" fill="none" aria-hidden="true">
@@ -113,25 +75,27 @@ export function UrineFormationArt({ className }: { className?: string }) {
       </defs>
 
       {/* Peritubular capillaries + vasa recta */}
-      {vessel(CAP_TOP, 5)}
-      {vessel(VASA, 5)}
-      {vessel(CAP_DUCT, 5)}
+      <Vessel d={CAP_TOP} width={5} />
+      <Vessel d={VASA} width={5} />
+      <Vessel d={CAP_DUCT} width={5} />
 
       {/* Tubule: PCT → loop of Henle → DCT → collecting duct */}
-      {glass(TUBULE)}
+      <Glass d={TUBULE} />
       <path d={TUBULE} stroke="rgba(255,255,255,0.35)" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="4 10" className="dh-neph-flow" />
 
       {/* Bowman's capsule around the glomerular tuft */}
       <circle cx="68" cy="85" r="50" fill={`url(#${id('capsule')})`} stroke="rgba(190,225,255,0.55)" strokeWidth="2" />
-      {vessel(AFFERENT, 6)}
-      {vessel(`M34 102${EFFERENT}`, 6)}
-      <g className="dh-neph-beat">{vessel(`M34 66${TUFT}`, 7)}</g>
+      <Vessel d={AFFERENT} />
+      <Vessel d={`M34 102${EFFERENT}`} />
+      <g className="dh-neph-beat">
+        <Vessel d={`M34 66${TUFT}`} width={7} />
+      </g>
 
       {motion && (
         <>
           {/* Red cells and plasma proteins stay in the blood */}
           {[0, 0.9, 1.8, 2.7, 3.6].map((b, i) => (
-            <Rider key={`rbc${i}`} href={`#${id('blood')}`} dur={4.5} begin={b}>
+            <Rider key={`rbc${i}`} href={`#${id('blood')}`} dur={4.5} begin={b} rotate>
               <ellipse rx="4" ry="2.4" fill="#ff5a5a" stroke="#ffb3ad" strokeWidth="0.6" />
             </Rider>
           ))}

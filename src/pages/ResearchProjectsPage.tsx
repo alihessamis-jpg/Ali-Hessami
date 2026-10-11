@@ -5,6 +5,7 @@ import { listLusStudyEnrollments } from '../lib/api/lusStudy'
 import { matchesSearch } from '../lib/textFilter'
 import { ResearchIcon } from '../components/icons'
 import type { ResearchProject } from '../types/domain'
+import { MicroscopeArt } from '../components/heroArt/PageArt'
 
 const STAGES = [
   { label: 'Proposal', detail: 'Question, design, sample size' },
@@ -78,16 +79,7 @@ export function ResearchProjectsPage() {
             <h1>Research &amp; Thesis Center</h1>
             <p className="np-sub">Track every project from idea to publication.</p>
           </div>
-          <svg className="np-art" width="90" height="90" viewBox="0 0 90 90" fill="none" aria-hidden="true">
-            <g className="rsc-spin">
-              <ellipse cx="45" cy="45" rx="38" ry="14" stroke="#4F86E8" strokeWidth={2} />
-              <ellipse cx="45" cy="45" rx="38" ry="14" stroke="#4F86E8" strokeWidth={2} transform="rotate(60 45 45)" />
-              <ellipse cx="45" cy="45" rx="38" ry="14" stroke="#4F86E8" strokeWidth={2} transform="rotate(120 45 45)" />
-              <circle cx="83" cy="45" r="4" fill="#7FD4FF" />
-              <circle cx="26" cy="12" r="4" fill="#FFC46B" />
-            </g>
-            <circle cx="45" cy="45" r="8" fill="#9CC2FF" />
-          </svg>
+          <MicroscopeArt />
         </div>
       </section>
 

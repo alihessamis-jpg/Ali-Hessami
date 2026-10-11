@@ -5,6 +5,7 @@ import { getAnimationsEnabled, setAnimationsEnabled } from '../lib/animationsPre
 import { useAuth } from '../context/AuthContext'
 import { StorageUsageIndicator } from '../components/StorageUsageIndicator'
 import type { UserSettings } from '../types/domain'
+import { ThresholdArt } from '../components/heroArt/PageArt'
 
 type FormState = Record<keyof UserSettings, string>
 
@@ -139,16 +140,7 @@ export function SettingsPage() {
             <h1>Settings</h1>
             <p className="np-sub">Lab alert thresholds drive the warnings across patient charts and the patient list.</p>
           </div>
-          <svg className="np-art" width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden="true">
-            <g className="set-spin">
-              <circle cx="32" cy="36" r="16" stroke="#9CC2FF" strokeWidth={6} strokeDasharray="7 5.5" />
-              <circle cx="32" cy="36" r="9" stroke="#9CC2FF" strokeWidth={4} />
-            </g>
-            <g className="set-spin2">
-              <circle cx="60" cy="58" r="11" stroke="#FFC46B" strokeWidth={5} strokeDasharray="5 4.4" />
-              <circle cx="60" cy="58" r="5" stroke="#FFC46B" strokeWidth={3} />
-            </g>
-          </svg>
+          <ThresholdArt />
         </div>
       </section>
 
