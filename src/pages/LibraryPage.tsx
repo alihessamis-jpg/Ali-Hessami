@@ -42,7 +42,9 @@ export function LibraryPage() {
   const [cards, setCards] = useState<LibraryCard[]>([])
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
-  const [dailyGoal, setDailyGoal] = useState(20)
+  const [dailyGoal, setDailyGoal] = useState(10)
+  const [goalSheetOpen, setGoalSheetOpen] = useState(false)
+  const [goalDraft, setGoalDraft] = useState('10')
   const [todayPages, setTodayPages] = useState(0)
   const [streak, setStreak] = useState(0)
   const [tab, setTab] = useState<LibraryTab>('book')
@@ -127,7 +129,7 @@ export function LibraryPage() {
   const dueByChapter = useMemo(() => {
     const map = new Map<string, number>()
     for (const [chapterId, list] of cardsByChapter) {
-      map.set(chapterId, list.filter((c) => new Date(c.due) <= now).length)
+      map.set(chapterId, list.filter((c) => c.status === 'approved' && c.reps > 0 && new Date(c.due) <= now).length)
     }
     return map
   }, [cardsByChapter]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,7 +152,7 @@ export function LibraryPage() {
   }, [chapters])
 
   const totalCards = cards.length
-  const dueTotal = cards.filter((c) => new Date(c.due) <= now).length
+  const dueTotal = cards.filter((c) => c.status === 'approved' && c.reps > 0 && new Date(c.due) <= now).length
   const chaptersRead = chapters.filter((c) => c.status !== 'unread').length
   const bookPct = chapters.length > 0 ? Math.round(chapters.reduce((sum, c) => sum + effectivePct(c), 0) / chapters.length) : 0
   const totalPages = book?.totalPages ?? chapters.reduce((sum, c) => sum + (c.pages ?? 0), 0)
@@ -159,6 +161,7 @@ export function LibraryPage() {
 
   async function saveDailyGoal(value: number) {
     setDailyGoal(value)
+    setGoalSheetOpen(false)
     try {
       await updateUserSettings({ readingDailyGoal: value })
     } catch {
@@ -219,15 +222,26 @@ export function LibraryPage() {
             <div className="np-head">
               <b style={{ fontSize: 13 }}>Today's goal</b>
               <span style={{ fontSize: 12, color: '#C9DAF8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                {todayPages} /{' '}
-                <input
-                  type="number"
-                  min={1}
-                  value={dailyGoal}
-                  onChange={(e) => void saveDailyGoal(Math.max(1, Number(e.target.value) || 1))}
-                  style={{ width: 36, background: 'rgba(255,255,255,.12)', border: 'none', borderRadius: 6, color: '#fff', padding: '2px 4px' }}
-                />{' '}
-                pages · {streak}-day streak
+                {todayPages} / {dailyGoal} pages · {streak}-day streak
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGoalDraft(String(dailyGoal))
+                    setGoalSheetOpen(true)
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,.12)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: '#fff',
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Edit
+                </button>
               </span>
             </div>
             <div className="gbar">
@@ -450,6 +464,41 @@ export function LibraryPage() {
           </section>
         </aside>
       </div>
+
+      {goalSheetOpen && (
+        <>
+          <div className="more-sheet-backdrop" onClick={() => setGoalSheetOpen(false)} />
+          <div className="more-sheet" role="dialog" aria-label="Edit daily reading goal">
+            <div className="more-sheet-handle" />
+            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Daily reading goal</h2>
+            <div className="np-field" style={{ marginBottom: 16 }}>
+              <label htmlFor="daily-goal-input">Pages per day</label>
+              <input
+                id="daily-goal-input"
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={goalDraft}
+                onChange={(e) => setGoalDraft(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="np-btn ghost" style={{ flex: 1 }} onClick={() => setGoalSheetOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="np-btn"
+                style={{ flex: 1 }}
+                onClick={() => void saveDailyGoal(Math.max(1, Number(goalDraft) || 1))}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

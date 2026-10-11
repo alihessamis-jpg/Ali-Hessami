@@ -1,9 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ensureLibraryBookSeeded, listAllLibraryCards, listReadingLog, updateLibraryCardFsrs } from '../lib/api/library'
+import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
 import type { FsrsRating, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
+
+function todayStorageKey() {
+  const d = new Date()
+  return `nephron-new-cards-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function loadIntroducedToday(): Set<string> {
+  try {
+    const raw = localStorage.getItem(todayStorageKey())
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveIntroducedToday(ids: Set<string>) {
+  try {
+    localStorage.setItem(todayStorageKey(), JSON.stringify([...ids]))
+  } catch {
+    // per-viewer convenience only -- fine if storage is unavailable
+  }
+}
 
 const TYPE_LABEL: Record<LibraryCard['kind'], string> = {
   cloze: 'CLOZE',
@@ -53,13 +76,32 @@ export function ReviewPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([listAllLibraryCards(), ensureLibraryBookSeeded(), listReadingLog()])
-      .then(([cardRows, seeded, log]) => {
+    Promise.all([listAllLibraryCards(), ensureLibraryBookSeeded(), listReadingLog(), getUserSettings()])
+      .then(([cardRows, seeded, log, settings]) => {
         const now = new Date()
-        let due = cardRows.filter((c) => new Date(c.due) <= now)
-        if (chapterScope) due = due.filter((c) => c.chapterId === chapterScope)
-        due.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
-        setAllDue(due)
+        let approved = cardRows.filter((c) => c.status === 'approved')
+        if (chapterScope) approved = approved.filter((c) => c.chapterId === chapterScope)
+
+        const dueCards = approved.filter((c) => c.reps > 0 && new Date(c.due) <= now)
+        dueCards.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
+
+        const introducedToday = loadIntroducedToday()
+        const newPool = approved
+          .filter((c) => c.reps === 0)
+          .sort((a, b) => {
+            if (a.highYield !== b.highYield) return a.highYield ? -1 : 1
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          })
+
+        const alreadyIntroduced = newPool.filter((c) => introducedToday.has(c.id))
+        const remainingSlots = Math.max(0, settings.dailyNewCardLimit - alreadyIntroduced.length)
+        const freshNew = newPool.filter((c) => !introducedToday.has(c.id)).slice(0, remainingSlots)
+
+        const nextIntroduced = new Set(introducedToday)
+        for (const c of freshNew) nextIntroduced.add(c.id)
+        saveIntroducedToday(nextIntroduced)
+
+        setAllDue([...dueCards, ...alreadyIntroduced, ...freshNew])
         setChapters(seeded.chapters)
         setStreak(computeReadingStreak(log))
       })

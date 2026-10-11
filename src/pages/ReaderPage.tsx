@@ -78,8 +78,18 @@ export function ReaderPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const articleRef = useRef<HTMLDivElement>(null)
-  const persistedPctRef = useRef(0)
-  const livePctRef = useRef(0)
+  const bottomSentinelRef = useRef<HTMLDivElement>(null)
+  const furthestSectionIndexRef = useRef(-1)
+  const [furthestSectionIndex, setFurthestSectionIndex] = useState(-1)
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(-1)
+
+  const sections = useMemo(() => parseSections(chapter?.note), [chapter?.note])
+
+  function markSectionsReadUpTo(idx: number) {
+    if (idx <= furthestSectionIndexRef.current) return
+    furthestSectionIndexRef.current = idx
+    setFurthestSectionIndex(idx)
+  }
 
   async function reload() {
     if (!id) return
@@ -96,8 +106,11 @@ export function ReaderPage() {
     if (seeded) {
       setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
     }
-    persistedPctRef.current = chapterRow?.readingPct ?? 0
-    livePctRef.current = chapterRow?.readingPct ?? 0
+    const freshSections = parseSections(chapterRow?.note)
+    const initialIdx = chapterRow ? freshSections.findIndex((s) => s.number === chapterRow.lastSection) : -1
+    furthestSectionIndexRef.current = initialIdx
+    setFurthestSectionIndex(initialIdx)
+    setCurrentSectionIndex(initialIdx)
     setQuickCheck(buildQuickCheck(cardRows.filter((c) => c.status === 'approved')))
     setQcIndex(0)
     setQcAnswer(null)
@@ -126,49 +139,72 @@ export function ReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  // Track reading progress as a fraction of the article's scrolled height,
-  // persisting the furthest point reached (never regresses) every ~15s and
-  // on unmount, and logging the equivalent page count toward the daily goal.
+  // Track reading progress per section instead of raw scroll fraction: a
+  // section only counts as read once the reader scrolls past its heading
+  // into the next one (or reaches the end of the article, for the last
+  // section) -- not merely because the chapter was imported or opened.
   useEffect(() => {
-    function onScroll() {
-      const el = articleRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const total = rect.height - window.innerHeight * 0.5
-      const scrolled = window.innerHeight * 0.5 - rect.top
-      const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((scrolled / total) * 100))) : 0
-      if (pct > livePctRef.current) livePctRef.current = pct
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-    const interval = setInterval(() => void persistProgress(), 15000)
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      clearInterval(interval)
-      void persistProgress()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chapter?.id])
+    if (sections.length === 0) return
+    const headingEls = sections
+      .map((s) => document.getElementById(s.anchor))
+      .filter((el): el is HTMLElement => el !== null)
+    if (headingEls.length === 0) return
 
-  async function persistProgress() {
-    if (!chapter) return
-    const pct = livePctRef.current
-    if (pct <= persistedPctRef.current) return
-    const deltaPct = pct - persistedPctRef.current
-    const deltaPages = chapter.pages ? Math.round((deltaPct / 100) * chapter.pages) : 0
-    persistedPctRef.current = pct
-    try {
-      const promotesToReading = chapter.status === 'unread'
-      const updated = await updateLibraryChapter(chapter.id, {
-        readingPct: pct,
-        status: promotesToReading ? 'reading' : undefined,
-      })
-      setChapter(updated)
-      if (deltaPages > 0) await logPagesRead(deltaPages)
-    } catch {
-      // best-effort — reading progress isn't critical path
+    const headingObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const idx = headingEls.indexOf(entry.target as HTMLElement)
+          if (idx < 0) continue
+          setCurrentSectionIndex(idx)
+          if (idx > 0) markSectionsReadUpTo(idx - 1)
+        }
+      },
+      { rootMargin: '0px 0px -75% 0px', threshold: 0 }
+    )
+    headingEls.forEach((el) => headingObserver.observe(el))
+
+    let bottomObserver: IntersectionObserver | null = null
+    const sentinel = bottomSentinelRef.current
+    if (sentinel) {
+      bottomObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) markSectionsReadUpTo(sections.length - 1)
+        },
+        { threshold: 0 }
+      )
+      bottomObserver.observe(sentinel)
     }
-  }
+
+    return () => {
+      headingObserver.disconnect()
+      bottomObserver?.disconnect()
+    }
+  }, [sections, chapter?.id])
+
+  // Persist the furthest section reached as reading_pct/last_section --
+  // never regresses, and logs the equivalent page count toward the daily
+  // goal.
+  useEffect(() => {
+    if (!chapter || sections.length === 0 || furthestSectionIndex < 0) return
+    const pct = Math.round(((furthestSectionIndex + 1) / sections.length) * 100)
+    if (pct <= chapter.readingPct) return
+    const deltaPages = chapter.pages ? Math.round(((pct - chapter.readingPct) / 100) * chapter.pages) : 0
+    const promotesToReading = chapter.status === 'unread'
+    updateLibraryChapter(chapter.id, {
+      readingPct: pct,
+      lastSection: sections[furthestSectionIndex].number,
+      status: promotesToReading ? 'reading' : undefined,
+    })
+      .then((updated) => {
+        setChapter(updated)
+        if (deltaPages > 0) return logPagesRead(deltaPages)
+      })
+      .catch(() => {
+        // best-effort — reading progress isn't critical path
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [furthestSectionIndex])
 
   async function handleMakeCard(payload: MakeCardPayload) {
     if (!id) return
@@ -325,11 +361,11 @@ export function ReaderPage() {
     }
   }
 
-  const sections = useMemo(() => parseSections(chapter?.note), [chapter?.note])
   const minutesLeft = useMemo(() => estimateMinutesLeft(chapter?.note, chapter?.readingPct ?? 0), [chapter?.note, chapter?.readingPct])
   const approvedCards = cards.filter((c) => c.status === 'approved')
   const suggestedCount = cards.length - approvedCards.length
-  const dueCount = approvedCards.filter((c) => new Date(c.due) <= new Date()).length
+  const dueCount = approvedCards.filter((c) => c.reps > 0 && new Date(c.due) <= new Date()).length
+  const newCount = approvedCards.filter((c) => c.reps === 0).length
   const masteredCount = approvedCards.filter((c) => isCardMastered(c)).length
   const masteryPct = approvedCards.length > 0 ? Math.round((masteredCount / approvedCards.length) * 100) : null
 
@@ -425,19 +461,29 @@ export function ReaderPage() {
           <div className="prog" aria-label={`${chapter.readingPct}% of chapter read`}>
             <i style={{ width: `${chapter.readingPct}%` }} />
           </div>
+          {currentSectionIndex >= 0 && currentSectionIndex > furthestSectionIndex && (
+            <button
+              type="button"
+              className="np-btn ghost"
+              style={{ fontSize: 12, padding: '4px 10px', alignSelf: 'flex-start' }}
+              onClick={() => markSectionsReadUpTo(currentSectionIndex)}
+            >
+              Mark section {sections[currentSectionIndex]?.number} read
+            </button>
+          )}
         </header>
 
         {sections.length > 0 && (
           <>
             <nav className="toc np-fade" aria-label="Sections">
               <h2>Sections</h2>
-              {sections.map((s) => (
-                <a key={s.number} href={`#${s.anchor}`}>
+              {sections.map((s, i) => (
+                <a key={s.number} href={`#${s.anchor}`} className={i === currentSectionIndex ? 'now' : undefined}>
                   <span className="n">{s.number}</span>
                   <span className="np-fa" dir="rtl">
                     {s.title}
                   </span>
-                  <span className="st" />
+                  <span className="st">{i <= furthestSectionIndex ? '✓' : ''}</span>
                 </a>
               ))}
               {quickCheck.length > 0 && (
@@ -479,6 +525,7 @@ export function ReaderPage() {
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>
             )}
+            <div ref={bottomSentinelRef} style={{ height: 1 }} />
           </article>
 
           {reviewQueue && (
@@ -573,7 +620,12 @@ export function ReaderPage() {
               <button type="button" className="np-btn ghost" onClick={() => void handleMarkRead()}>
                 Mark chapter read
               </button>
-              <button type="button" className="np-btn" onClick={() => navigate(`/academy/review?chapter=${chapter.id}`)} disabled={dueCount === 0}>
+              <button
+                type="button"
+                className="np-btn"
+                onClick={() => navigate(`/academy/review?chapter=${chapter.id}`)}
+                disabled={dueCount === 0 && newCount === 0}
+              >
                 Review {dueCount} due cards
               </button>
             </div>

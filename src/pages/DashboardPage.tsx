@@ -47,6 +47,13 @@ import {
 } from '../components/icons'
 import type { AcademyTopic, Flashcard, KnowledgeGap, LibraryCard, LibraryChapter, ReadingItem, ResearchProject } from '../types/domain'
 
+function pickHighYieldCardOfTheDay(cards: LibraryCard[]): LibraryCard | null {
+  const pool = cards.filter((c) => c.status === 'approved' && c.highYield)
+  if (pool.length === 0) return null
+  const dayIndex = Math.floor(Date.now() / 86400000)
+  return pool[dayIndex % pool.length]
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setDate(d.getDate() + days)
@@ -164,6 +171,8 @@ export function DashboardPage() {
   const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [academyUnavailable, setAcademyUnavailable] = useState(false)
+  const [libraryCards, setLibraryCards] = useState<LibraryCard[]>([])
+  const [hyRevealed, setHyRevealed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -229,6 +238,7 @@ export function DashboardPage() {
           setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
           setFlashcards(flashcardRows)
           setAcademyUnavailable(!academyV2.ok)
+          setLibraryCards(academyV2.libraryCardRows)
           const readiness = computeTopicReadiness(
             boardQuestionRows,
             boardQuestionAttemptRows,
@@ -381,6 +391,7 @@ export function DashboardPage() {
   })
 
   const topicOfTheDay = dueTopics[0] ?? topics[0] ?? null
+  const cardOfTheDay = pickHighYieldCardOfTheDay(libraryCards)
 
   return (
     <div className="np-page">
@@ -415,23 +426,62 @@ export function DashboardPage() {
 
         <CalendarWidget />
 
-        {topicOfTheDay && (
-          <section className="np-card np-fade" style={{ animationDelay: '.2s', flexDirection: 'row', alignItems: 'center' }}>
+        {cardOfTheDay ? (
+          <button
+            type="button"
+            className="np-card np-fade"
+            style={{
+              animationDelay: '.2s',
+              flexDirection: 'row',
+              alignItems: 'center',
+              border: 0,
+              textAlign: 'left',
+              cursor: 'pointer',
+              font: 'inherit',
+              color: 'inherit',
+            }}
+            onClick={() => setHyRevealed((v) => !v)}
+          >
             <span className="np-ic" style={{ width: 56, height: 56, borderRadius: '50%' }}>
               <ZapIcon />
             </span>
-            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: '#1E5BD8' }}>
                 HIGH-YIELD OF THE DAY
               </span>
               <b className="np-fa" dir="rtl" style={{ textAlign: 'left', fontSize: 16 }}>
-                {topicOfTheDay.name}
+                {cardOfTheDay.kind === 'cloze'
+                  ? hyRevealed
+                    ? cardOfTheDay.front.replace('_____', cardOfTheDay.back)
+                    : cardOfTheDay.front.replace('_____', '•••')
+                  : hyRevealed
+                    ? `${cardOfTheDay.front} — ${cardOfTheDay.back}`
+                    : cardOfTheDay.front}
               </b>
             </span>
-            <Link to={`/academy/${topicOfTheDay.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-              Start reading →
-            </Link>
-          </section>
+            <span style={{ fontSize: 13, fontWeight: 600, flexShrink: 0, color: '#1E5BD8' }}>
+              {hyRevealed ? 'Hide' : 'Tap to reveal'}
+            </span>
+          </button>
+        ) : (
+          topicOfTheDay && (
+            <section className="np-card np-fade" style={{ animationDelay: '.2s', flexDirection: 'row', alignItems: 'center' }}>
+              <span className="np-ic" style={{ width: 56, height: 56, borderRadius: '50%' }}>
+                <ZapIcon />
+              </span>
+              <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: '#1E5BD8' }}>
+                  HIGH-YIELD OF THE DAY
+                </span>
+                <b className="np-fa" dir="rtl" style={{ textAlign: 'left', fontSize: 16 }}>
+                  {topicOfTheDay.name}
+                </b>
+              </span>
+              <Link to={`/academy/${topicOfTheDay.id}`} style={{ fontSize: 13, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+                Start reading →
+              </Link>
+            </section>
+          )
         )}
 
         <QuickTools />

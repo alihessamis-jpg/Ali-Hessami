@@ -1,5 +1,6 @@
 // Authoring conventions for a Library chapter's `note` (markdown):
-//   ## 6.1 Section title       -> a Section (parsed at render time, not stored)
+//   ## 6.1 Section title                              -> legacy section heading
+//   ## بخش ۱: مقدمه · Introduction {#ch74-s1}          -> v1.1 import section heading
 //   {p.1756}                   -> an inline "p. 1756" page-reference chip
 //   > [!pearl] text…           -> a PEARL callout box
 //   > [!flag] text…            -> a RED FLAG callout box
@@ -12,14 +13,26 @@ export interface ParsedSection {
   anchor: string
 }
 
-const SECTION_HEADING_RE = /^##\s+([\d]+(?:\.[\d]+)*)\s+(.+)$/
+const LEGACY_SECTION_RE = /^##\s+([\d]+(?:\.[\d]+)*)\s+(.+)$/
+const ANCHORED_SECTION_RE = /^##\s+(.+?)\s*\{#([\w-]+)\}\s*$/
 
 export function parseSections(note: string | null | undefined): ParsedSection[] {
   if (!note) return []
   const sections: ParsedSection[] = []
   for (const line of note.split('\n')) {
-    const m = line.match(SECTION_HEADING_RE)
-    if (m) sections.push({ number: m[1], title: m[2].trim(), anchor: `s${m[1]}` })
+    const legacy = line.match(LEGACY_SECTION_RE)
+    if (legacy) {
+      sections.push({ number: legacy[1], title: legacy[2].trim(), anchor: `s${legacy[1]}` })
+      continue
+    }
+    const anchored = line.match(ANCHORED_SECTION_RE)
+    if (anchored) {
+      const anchor = anchored[2]
+      const number = anchor.replace(/^.*-s/, '')
+      let title = anchored[1].replace(/^بخش\s+[۰-۹]+\s*:\s*/, '')
+      title = title.split(' · ')[0].trim()
+      sections.push({ number, title, anchor })
+    }
   }
   return sections
 }
@@ -42,6 +55,7 @@ export function estimateMinutesLeft(note: string | null | undefined, readingPct:
   if (!note) return 0
   const wordCount = note.split(/\s+/).filter(Boolean).length
   const remainingWords = wordCount * (1 - Math.min(100, Math.max(0, readingPct)) / 100)
+  if (remainingWords <= 0) return 0
   return Math.max(1, Math.round(remainingWords / WORDS_PER_MINUTE))
 }
 

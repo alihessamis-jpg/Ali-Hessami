@@ -51,7 +51,17 @@ const BIOPSY_FIELDS: FieldConfig[] = [
 
 const HUS_FIELDS: FieldConfig[] = [{ key: 'husLdhUpperLimit', label: 'LDH upper limit of normal', step: '1', unit: 'U/L' }]
 
-const ALL_FIELDS = [...ANEMIA_FIELDS, ...ACIDOSIS_FIELDS, ...CKD_MBD_FIELDS, ...PHOSPHATE_FIELDS, ...BIOPSY_FIELDS, ...HUS_FIELDS]
+const ACADEMY_FIELDS: FieldConfig[] = [{ key: 'dailyNewCardLimit', label: 'New cards per day', step: '1', unit: 'cards' }]
+
+const ALL_FIELDS = [
+  ...ANEMIA_FIELDS,
+  ...ACIDOSIS_FIELDS,
+  ...CKD_MBD_FIELDS,
+  ...PHOSPHATE_FIELDS,
+  ...BIOPSY_FIELDS,
+  ...HUS_FIELDS,
+  ...ACADEMY_FIELDS,
+]
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -219,6 +229,15 @@ export function SettingsPage() {
                 <div className="set-tf">{HUS_FIELDS.map(renderField)}</div>
                 <span className="np-small" style={{ lineHeight: 1.5 }}>
                   HUS is considered active (ongoing hemolysis) while the latest LDH is above this value.
+                </span>
+              </section>
+
+              <section className="np-card np-fade" style={{ animationDelay: '.4s' }}>
+                <h2>Academy review pacing</h2>
+                <div className="set-tf">{ACADEMY_FIELDS.map(renderField)}</div>
+                <span className="np-small" style={{ lineHeight: 1.5 }}>
+                  How many never-reviewed cards the Review tab introduces per day. High-yield (⭐) cards are
+                  introduced first.
                 </span>
               </section>
             </div>

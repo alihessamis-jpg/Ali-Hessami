@@ -953,5 +953,6 @@ export interface UserSettings {
   biopsyInrMax: number
   husLdhUpperLimit: number
   readingDailyGoal: number
+  dailyNewCardLimit: number
   lastBackupAt?: string | null
 }

@@ -363,6 +363,8 @@ export function ChapterProse({
   }
 
   const components = {
+    // The note's own "# Title" duplicates the Reader's own header -- never render it.
+    h1: () => null,
     h2: ({ node }: { node?: HastElement }) => {
       const raw = node ? hastText(node) : ''
       const { display, en, sectionNumber, anchorId } = parseHeadingText(raw)

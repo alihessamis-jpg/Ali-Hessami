@@ -165,7 +165,10 @@ export function TodayPage() {
     () => academyCards.filter((c) => !c.nextReview || c.nextReview <= today),
     [academyCards, today]
   )
-  const dueLibraryCards = useMemo(() => libraryCards.filter((c) => new Date(c.due).getTime() <= Date.now()), [libraryCards])
+  const dueLibraryCards = useMemo(
+    () => libraryCards.filter((c) => c.status === 'approved' && c.reps > 0 && new Date(c.due).getTime() <= Date.now()),
+    [libraryCards]
+  )
 
   const currentFlashcard = dueFlashcards[flashcardIndex % Math.max(dueFlashcards.length, 1)]
   const currentLeitner = dueLeitnerItems[leitnerIndex % Math.max(dueLeitnerItems.length, 1)]
