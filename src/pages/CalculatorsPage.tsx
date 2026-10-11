@@ -22,6 +22,7 @@ import {
   urineProteinRateMgM2Hr,
   type ProteinuriaClass,
 } from '../lib/proteinuria'
+import { FiltrationGaugeArt } from '../components/heroArt/PageArt'
 
 const CALCS = [
   { id: 'egfr', label: 'Schwartz eGFR' },
@@ -114,25 +115,7 @@ export function CalculatorsPage() {
             <h1>Calculators</h1>
             <p className="np-sub">Standard pediatric formulas — reference aids, not a substitute for clinical judgement.</p>
           </div>
-          <svg className="np-art np-art-float" width="78" height="90" viewBox="0 0 78 90" fill="none" aria-hidden="true">
-            <rect x="6" y="4" width="66" height="82" rx="12" fill="rgba(255,255,255,.08)" stroke="#4F86E8" strokeWidth={2} />
-            <rect x="14" y="12" width="50" height="22" rx="6" fill="#0A2352" stroke="#9CC2FF" strokeWidth={1.5} />
-            <text x="56" y="28" textAnchor="end" fill="#7FD4FF" fontSize="13" fontWeight="700" fontFamily="Plus Jakarta Sans">
-              37.3
-            </text>
-            <rect className="calc-cursor" x="57" y="17" width="2" height="13" fill="#7FD4FF" />
-            <g fill="#9CC2FF">
-              <circle cx="22" cy="48" r="4" />
-              <circle cx="39" cy="48" r="4" />
-              <circle cx="56" cy="48" r="4" fill="#FFC46B" />
-              <circle cx="22" cy="63" r="4" />
-              <circle cx="39" cy="63" r="4" />
-              <circle cx="56" cy="63" r="4" />
-              <circle cx="22" cy="77" r="4" />
-              <circle cx="39" cy="77" r="4" />
-              <circle cx="56" cy="77" r="4" />
-            </g>
-          </svg>
+          <FiltrationGaugeArt />
         </div>
       </section>
 

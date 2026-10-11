@@ -19,6 +19,7 @@ import {
 } from '../lib/storage'
 import { useAuth } from '../context/AuthContext'
 import type { DialysisRefEntry, DrugRefEntry, ReferenceAttachment } from '../types/domain'
+import { DosingArt } from '../components/heroArt/PageArt'
 
 function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
@@ -313,14 +314,7 @@ export function ReferencePage() {
             <h1>Reference</h1>
             <p className="np-sub">Your own verified dosing list — nothing pre-seeded, private to you.</p>
           </div>
-          <svg className="np-art" width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden="true">
-            <g className="ref-pill">
-              <rect x="14" y="30" width="56" height="24" rx="12" fill="#FFFFFF" />
-              <path d="M42 30h16a12 12 0 0 1 0 24H42z" fill="#4F86E8" />
-            </g>
-            <circle cx="20" cy="18" r="4" fill="#7FD4FF" className="ref-dot-a" />
-            <circle cx="66" cy="68" r="3" fill="#FFC46B" className="ref-dot-b" />
-          </svg>
+          <DosingArt />
         </div>
       </section>
 

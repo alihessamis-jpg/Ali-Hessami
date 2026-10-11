@@ -6,6 +6,7 @@ import { listResearchProjects } from '../lib/api/research'
 import { groupAcademicActivities, summarizeCaseLog } from '../lib/cvBuilder'
 import { toShamsi } from '../lib/shamsi'
 import type { AcademicActivity, CaseLogEntry, ResearchProject } from '../types/domain'
+import { CvArt } from '../components/heroArt/PageArt'
 
 const STATUS_LABEL: Record<string, string> = {
   planned: 'Planned',
@@ -70,11 +71,7 @@ export function CvPage() {
               up-to-date portfolio.
             </p>
           </div>
-          <svg className="np-art cv-paper" width="70" height="80" viewBox="0 0 70 80" fill="none" aria-hidden="true">
-            <rect x="8" y="6" width="54" height="68" rx="8" fill="#FFFFFF" />
-            <circle cx="24" cy="24" r="8" fill="#9CC2FF" />
-            <path d="M38 20h16M38 28h10M18 44h34M18 52h34M18 60h22" stroke="#C9DAF5" strokeWidth={3.5} strokeLinecap="round" />
-          </svg>
+          <CvArt />
         </div>
         <button type="button" className="np-btn white" onClick={() => window.print()}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

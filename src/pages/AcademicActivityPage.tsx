@@ -11,6 +11,7 @@ import {
 import { SHAMSI_MONTHS, toPersianDigits } from '../lib/shamsi'
 import { matchesSearch } from '../lib/textFilter'
 import type { AcademicActivity, AcademicActivityStatus } from '../types/domain'
+import { PresentationArt } from '../components/heroArt/PageArt'
 
 const emptyDraft = {
   date: new Date().toISOString().slice(0, 10),
@@ -137,10 +138,7 @@ export function AcademicActivityPage() {
               Conferences, journal club, presentations, posters and manuscripts — your record for portfolio review.
             </p>
           </div>
-          <svg className="np-art" width="70" height="70" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-            <path d="M16 58V8" stroke="#9CC2FF" strokeWidth={3} strokeLinecap="round" />
-            <path d="M16 10h32l-7 9 7 9H16z" fill="#FFC46B" className="ac-flag" />
-          </svg>
+          <PresentationArt />
         </div>
         <div className="np-hstats" style={{ '--n': 4 } as CSSProperties}>
           <div>

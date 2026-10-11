@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { matchesSearch } from '../lib/textFilter'
 import { sortSubTopics } from '../lib/sortSubTopics'
 import type { AcademyProgress, AcademyTopic } from '../types/domain'
+import { NephronBookArt } from '../components/heroArt/PageArt'
 
 export function AcademyPage() {
   const navigate = useNavigate()
@@ -151,17 +152,7 @@ export function AcademyPage() {
               for review.
             </p>
           </div>
-          <svg className="np-art" width="96" height="96" viewBox="0 0 90 90" fill="none" aria-hidden="true">
-            <circle className="acd-tw" cx="14" cy="16" r="2" fill="#FFE2B0" />
-            <circle className="acd-tw" cx="78" cy="22" r="2.5" fill="#FFE2B0" style={{ animationDelay: '.5s' }} />
-            <circle className="acd-tw" cx="72" cy="78" r="2" fill="#FFE2B0" style={{ animationDelay: '1s' }} />
-            <g className="acd-cap">
-              <path d="M45 22 8 38l37 16 37-16z" fill="#FFFFFF" />
-              <path d="M22 45v14c10 8 36 8 46 0V45L45 55z" fill="#9CC2FF" />
-              <path d="M76 41v18" stroke="#FFC46B" strokeWidth={3} strokeLinecap="round" />
-              <circle cx="76" cy="62" r="4" fill="#FFC46B" />
-            </g>
-          </svg>
+          <NephronBookArt />
         </div>
         <div style={{ position: 'relative', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <span className="np-tag" style={{ fontSize: 12, color: '#3D2A00', background: '#FFC46B', padding: '5px 10px' }}>

@@ -7,6 +7,7 @@ import { CASE_LOG_CATEGORIES, CASE_LOG_ROLES, CASE_LOG_SETTINGS } from '../lib/c
 import { SHAMSI_MONTHS, toPersianDigits } from '../lib/shamsi'
 import { matchesSearch } from '../lib/textFilter'
 import type { Patient } from '../types/domain'
+import { BiopsyArt } from '../components/heroArt/PageArt'
 
 function dateBadge(iso: string): { day: string; month: string } {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
@@ -123,27 +124,7 @@ export function CaseLogPage() {
               review.
             </p>
           </div>
-          <svg className="np-art np-art-float" width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
-            <rect x="20" y="14" width="56" height="70" rx="10" fill="rgba(255,255,255,.08)" stroke="#4F86E8" strokeWidth={2} />
-            <rect x="36" y="8" width="24" height="12" rx="4" fill="#0A2352" stroke="#9CC2FF" strokeWidth={2} />
-            <path
-              d="M32 38l6 6 12-12"
-              stroke="#7FD4FF"
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={40}
-              style={{ animation: 'np-draw 1s ease .4s both' }}
-            />
-            <path
-              d="M32 56h32M32 68h22"
-              stroke="#4F86E8"
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeDasharray={40}
-              style={{ animation: 'np-draw 1s ease .7s both' }}
-            />
-          </svg>
+          <BiopsyArt />
         </div>
         <div className="np-hstats" style={{ '--n': 5 } as CSSProperties}>
           {roleCounts.map((r) => (

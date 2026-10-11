@@ -22,6 +22,7 @@ import {
   QuizIcon,
   ReasoningIcon,
 } from '../components/icons'
+import { ConceptGraphArt } from '../components/heroArt/PageArt'
 
 type Tab =
   | 'notes'
@@ -68,20 +69,7 @@ export function StudyHubPage() {
             <h1>Study Hub</h1>
             <p className="np-sub">Notes, cases, challenges and questions — all linked.</p>
           </div>
-          <svg className="np-art sh-net" viewBox="0 0 220 120" fill="none" aria-hidden="true">
-            <g stroke="#2F5FB8" strokeWidth={2}>
-              <path d="M110 60 40 22M110 60 34 100M110 60 180 18M110 60 192 96M110 60 110 8M40 22 34 100M180 18 192 96" />
-            </g>
-            <g className="sh-flow" stroke="#7FD4FF" strokeWidth={2} strokeDasharray="4 8" strokeLinecap="round">
-              <path d="M110 60 40 22M110 60 34 100M110 60 180 18M110 60 192 96M110 60 110 8" />
-            </g>
-            <circle cx="110" cy="60" r="15" fill="#1E5BD8" stroke="#9CC2FF" strokeWidth={2} />
-            <g className="sh-node"><circle cx="40" cy="22" r="7" fill="#FFC46B" /></g>
-            <g className="sh-node" style={{ animationDelay: '.4s' }}><circle cx="34" cy="100" r="7" fill="#7FD4FF" /></g>
-            <g className="sh-node" style={{ animationDelay: '.8s' }}><circle cx="180" cy="18" r="7" fill="#7FD4FF" /></g>
-            <g className="sh-node" style={{ animationDelay: '1.2s' }}><circle cx="192" cy="96" r="7" fill="#FFC46B" /></g>
-            <g className="sh-node" style={{ animationDelay: '1.6s' }}><circle cx="110" cy="8" r="5" fill="#9CC2FF" /></g>
-          </svg>
+          <ConceptGraphArt />
         </div>
       </section>
 
