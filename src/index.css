@@ -62,6 +62,41 @@ body {
   color: var(--text);
 }
 
+/* Overflow safety net: nothing on any page -- chapter notes especially,
+   since they're free-form imported markdown -- should ever be able to
+   widen <body> past the viewport. A single too-wide element forces
+   mobile Safari to zoom the whole layout out to fit it (the "page looks
+   shrunk, white strip on the right" bug), and overflow-x:hidden on body
+   only hides the symptom while leaving the content uninteractable, so
+   every element that can overflow is constrained at the source instead. */
+img,
+svg,
+video,
+figure,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+pre,
+code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+table {
+  max-width: 100%;
+}
+
+a,
+p,
+li,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -6495,6 +6530,7 @@ select.pt-ward:focus {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .rhead {
@@ -6646,11 +6682,16 @@ select.pt-ward:focus {
   color: #fff;
 }
 
+.stack {
+  min-width: 0;
+}
+
 .art-card {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 22px;
   padding: 22px 20px;
+  min-width: 0;
 }
 
 .prose {
@@ -6661,6 +6702,7 @@ select.pt-ward:focus {
   max-width: 700px;
   margin: 0 auto;
   position: relative;
+  min-width: 0;
 }
 
 .prose h2 {
@@ -6961,6 +7003,7 @@ select.pt-ward:focus {
   border: 1px solid #dce6f5;
   border-radius: 16px;
   overflow: hidden;
+  max-width: 100%;
 }
 
 .tbl-top {
@@ -6981,6 +7024,7 @@ select.pt-ward:focus {
 
 .tscroll {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .t2 {
@@ -7009,8 +7053,11 @@ select.pt-ward:focus {
 
 .t2 th:first-child,
 .t2 td:first-child {
-  position: sticky;
-  right: 0;
+  /* No `position: sticky` here: a sticky cell inside an RTL
+     `overflow-x: auto` table is a known WebKit/iOS Safari trigger for the
+     whole page being measured as wider than the viewport, forcing the
+     browser to zoom the layout out to fit it (e.g. Ch 74's wide Table 1
+     vs. Ch 73, which has no table this wide and never shows the bug). */
   background: #f7faff;
   font-weight: 700;
   color: #12357a;
