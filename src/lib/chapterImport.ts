@@ -3,7 +3,7 @@
 // blocks' bullets into suggested (unscheduled) cards. Rendering the rest of
 // the note's markdown is ChapterProse's job (via splitNoteBlocks); this
 // module only extracts what the importer itself needs to decide.
-import { splitNoteBlocks } from './chapterNoteBlocks'
+import { splitNoteBlocks, type NoteBlock } from './chapterNoteBlocks'
 import { parseMcqBlock } from './mcqBlock'
 
 export interface ChapterNoteFrontMatter {
@@ -30,6 +30,15 @@ export interface ImportedSuggestedCard {
   topic: string | null
   /** v1.1: from a trailing ⭐ on the bullet or its group label. */
   highYield: boolean
+  /** v1.3: the figure to show on the card back, if its group label names one. */
+  figureKey: string | null
+}
+
+/** v1.3: one `![caption](figures/x.jpg){#id .figure}` book figure. */
+export interface ImportedFigure {
+  figureKey: string
+  file: string
+  caption: string
 }
 
 /** v1.2: a `### سؤال N {#id .mcq}` block, suggested like exam-bullet cards. */
@@ -46,6 +55,7 @@ export interface ParsedChapterNote {
   body: string
   suggestedCards: ImportedSuggestedCard[]
   suggestedMcqCards: ImportedMcqCard[]
+  figures: ImportedFigure[]
 }
 
 const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
@@ -107,6 +117,31 @@ const STAR_RE = /\s*⭐\s*$/
 
 function stripStar(text: string): { text: string; starred: boolean } {
   return { text: text.replace(STAR_RE, '').trimEnd(), starred: STAR_RE.test(text) }
+}
+
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
+
+function toEnglishDigits(s: string): string {
+  return s.replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
+}
+
+function figureNumberFromKey(key: string): number | null {
+  const m = key.match(/fig(\d+)$/)
+  return m ? Number(m[1]) : null
+}
+
+// v1.3: "#### خواندن شکل ۱ ⭐" -- a group label naming a figure. Matches it to
+// the parsed figure with the same number (from its id, e.g. "ch49-fig1"),
+// falling back to the chapter's only figure when there's just one.
+function findFigureForGroupLabel(label: string, figures: ImportedFigure[]): string | null {
+  if (figures.length === 0 || !label.includes('شکل')) return null
+  const numMatch = label.match(/شکل\s*([۰-۹0-9]+)/)
+  if (numMatch) {
+    const num = Number(toEnglishDigits(numMatch[1]))
+    const match = figures.find((f) => figureNumberFromKey(f.figureKey) === num)
+    if (match) return match.figureKey
+  }
+  return figures.length === 1 ? figures[0].figureKey : null
 }
 
 // Walks one exam block's raw markdown.
@@ -200,6 +235,9 @@ export function parseChapterNoteForImport(raw: string): ParsedChapterNote {
   const blocks = splitNoteBlocks(body)
   const suggestedCards: ImportedSuggestedCard[] = []
   const suggestedMcqCards: ImportedMcqCard[] = []
+  const figures: ImportedFigure[] = blocks
+    .filter((b): b is Extract<NoteBlock, { kind: 'figure' }> => b.kind === 'figure')
+    .map((b) => ({ figureKey: b.id, file: b.file, caption: b.caption }))
   let currentSectionId: string | null | undefined
   let indexInSection = 0
 
@@ -218,6 +256,7 @@ export function parseChapterNoteForImport(raw: string): ParsedChapterNote {
           tags: bullet.tag === 'not-book' ? ['not-book'] : [],
           topic: bullet.topic,
           highYield: bullet.highYield,
+          figureKey: bullet.topic ? findFigureForGroupLabel(bullet.topic, figures) : null,
         })
         indexInSection++
       }
@@ -238,5 +277,5 @@ export function parseChapterNoteForImport(raw: string): ParsedChapterNote {
     }
   }
 
-  return { meta, body, suggestedCards, suggestedMcqCards }
+  return { meta, body, suggestedCards, suggestedMcqCards, figures }
 }

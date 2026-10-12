@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 import bookContents from '../../data/bookContents.json'
 import { parseChapterNoteForImport } from '../chapterImport'
+import { uploadChapterFigureFile } from '../storage'
 import type {
   FsrsCardState,
   LibraryBook,
@@ -8,6 +9,7 @@ import type {
   LibraryCard,
   LibraryCardDraft,
   LibraryChapter,
+  LibraryChapterFigure,
   LibraryChapterSeed,
   LibraryChapterStatus,
   LibraryHighlight,
@@ -73,6 +75,16 @@ interface CardRow {
   tags: string[] | null
   topic: string | null
   high_yield: boolean
+  figure_key: string | null
+  created_at: string
+}
+
+interface FigureRow {
+  id: string
+  chapter_id: string
+  figure_key: string
+  storage_path: string
+  caption: string | null
   created_at: string
 }
 
@@ -149,6 +161,18 @@ function cardToDomain(row: CardRow): LibraryCard {
     tags: row.tags ?? [],
     topic: row.topic,
     highYield: row.high_yield ?? false,
+    figureKey: row.figure_key,
+    createdAt: row.created_at,
+  }
+}
+
+function figureToDomain(row: FigureRow): LibraryChapterFigure {
+  return {
+    id: row.id,
+    chapterId: row.chapter_id,
+    figureKey: row.figure_key,
+    storagePath: row.storage_path,
+    caption: row.caption,
     createdAt: row.created_at,
   }
 }
@@ -300,6 +324,7 @@ export async function addLibraryCard(draft: LibraryCardDraft): Promise<LibraryCa
       page: draft.page ?? null,
       source_text: draft.sourceText ?? null,
       patient_id: draft.patientId ?? null,
+      figure_key: draft.figureKey ?? null,
     })
     .select()
     .single()
@@ -373,11 +398,52 @@ export async function approveLibraryCards(ids: string[]): Promise<void> {
   if (error) throw error
 }
 
+// --- Chapter figures (NEPHRON_CHAPTER_FORMAT.md v1.3) ---------------------
+
+export async function listLibraryChapterFigures(chapterId: string): Promise<LibraryChapterFigure[]> {
+  const { data, error } = await supabase.from('library_chapter_figures').select('*').eq('chapter_id', chapterId)
+  if (error) throw error
+  return (data as FigureRow[]).map(figureToDomain)
+}
+
+export async function listAllLibraryChapterFigures(): Promise<LibraryChapterFigure[]> {
+  const { data, error } = await supabase.from('library_chapter_figures').select('*')
+  if (error) throw error
+  return (data as FigureRow[]).map(figureToDomain)
+}
+
+async function upsertLibraryChapterFigure(
+  userId: string,
+  chapterId: string,
+  figureKey: string,
+  storagePath: string,
+  caption: string | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('library_chapter_figures')
+    .upsert(
+      { owner_id: userId, chapter_id: chapterId, figure_key: figureKey, storage_path: storagePath, caption },
+      { onConflict: 'chapter_id,figure_key' }
+    )
+  if (error) throw error
+}
+
 // --- Chapter-note import (NEPHRON_CHAPTER_FORMAT.md v1) -------------------
 
 export interface ImportChapterNoteResult {
   chapter: LibraryChapter
   suggestedCardCount: number
+  /** v1.3: figure filenames the note references but weren't among `images`. */
+  missingFigures: string[]
+}
+
+// One image file supplied alongside the .md at import time, keyed by its
+// bare filename (e.g. "ch49-fig1.jpg") so it matches a note's
+// `figures/ch49-fig1.jpg` reference regardless of how it was selected
+// (multi-file picker, or unzipped from a single .zip).
+export interface ChapterNoteImageInput {
+  filename: string
+  file: File
 }
 
 // Parses a .md chapter note, updates the chapter its front matter's
@@ -388,7 +454,14 @@ export interface ImportChapterNoteResult {
 // because `status`/the fsrs_* columns are deliberately left out of the
 // upsert payload (Postgres's ON CONFLICT DO UPDATE only touches the
 // columns actually provided).
-export async function importChapterNote(raw: string): Promise<ImportChapterNoteResult> {
+//
+// v1.3: `images` carries the figure files selected alongside the .md (or
+// unzipped from a single .zip) -- each `![..](figures/x.jpg){#id .figure}`
+// reference is matched to one by filename, uploaded to the chapter-figures
+// bucket, and upserted by figureKey so re-import replaces the file in place.
+// A referenced figure with no matching image is reported in
+// `missingFigures` instead of failing the whole import.
+export async function importChapterNote(raw: string, images: ChapterNoteImageInput[] = []): Promise<ImportChapterNoteResult> {
   const userId = await currentUserId()
   const parsed = parseChapterNoteForImport(raw)
 
@@ -399,6 +472,7 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
     .maybeSingle()
   if (findError) throw findError
   if (!existingRow) throw new Error(`No chapter ${parsed.meta.chapter} found -- seed the Library first`)
+  const chapterId = (existingRow as ChapterRow).id
 
   const { data: updatedRow, error: updateError } = await supabase
     .from('library_chapters')
@@ -410,14 +484,14 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
       note_format: parsed.meta.format ?? 'nephron-chapter-note/1',
       imported_at: new Date().toISOString(),
     })
-    .eq('id', (existingRow as ChapterRow).id)
+    .eq('id', chapterId)
     .select()
     .single()
   if (updateError) throw updateError
 
   const clozeUpserts = parsed.suggestedCards.map((c) => ({
     owner_id: userId,
-    chapter_id: (existingRow as ChapterRow).id,
+    chapter_id: chapterId,
     kind: 'cloze' as const,
     front: c.front,
     back: c.back,
@@ -426,10 +500,11 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
     tags: c.tags,
     topic: c.topic,
     high_yield: c.highYield,
+    figure_key: c.figureKey,
   }))
   const mcqUpserts = parsed.suggestedMcqCards.map((c) => ({
     owner_id: userId,
-    chapter_id: (existingRow as ChapterRow).id,
+    chapter_id: chapterId,
     kind: 'mcq' as const,
     front: c.front,
     back: c.back,
@@ -439,6 +514,7 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
     tags: [],
     topic: null,
     high_yield: false,
+    figure_key: null,
   }))
   const cardUpserts = [...clozeUpserts, ...mcqUpserts]
 
@@ -449,9 +525,22 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
     if (upsertError) throw upsertError
   }
 
+  const missingFigures: string[] = []
+  for (const fig of parsed.figures) {
+    const filename = fig.file.split('/').pop() ?? fig.file
+    const imageInput = images.find((img) => img.filename === filename)
+    if (!imageInput) {
+      missingFigures.push(filename)
+      continue
+    }
+    const storagePath = await uploadChapterFigureFile(userId, parsed.meta.chapter, fig.figureKey, imageInput.file)
+    await upsertLibraryChapterFigure(userId, chapterId, fig.figureKey, storagePath, fig.caption || null)
+  }
+
   return {
     chapter: chapterToDomain(updatedRow as ChapterRow),
     suggestedCardCount: parsed.suggestedCards.length + parsed.suggestedMcqCards.length,
+    missingFigures,
   }
 }
 

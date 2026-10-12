@@ -7042,6 +7042,103 @@ select.pt-ward:focus {
   line-height: 1.7;
 }
 
+/* v1.3: one book figure ("![caption](figures/x.jpg){#id .figure}"). */
+.bookfig {
+  margin: 14px 0;
+  background: #fff;
+  border: 1px solid #e1e8f3;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.bookfig-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.bookfig-btn img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.bookfig-missing {
+  padding: 18px 14px;
+  border: 1px dashed #e1a94b;
+  border-radius: 10px;
+  background: #fdf5e6;
+  color: #93590b;
+  font-size: 13px;
+  text-align: center;
+}
+
+.bookfig figcaption {
+  font-size: 13px;
+  color: #56657b;
+  margin-top: 6px;
+}
+
+/* v1.3: full-screen pinch-zoom/pan figure viewer. */
+.figview {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(10, 16, 28, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  touch-action: none;
+}
+
+.figview-stage {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.figview-stage img {
+  max-width: 100%;
+  max-height: 80vh;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.05s linear;
+}
+
+.figview-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.figview-cap {
+  color: #c9d6ef;
+  font-size: 13px;
+  text-align: center;
+  max-width: 560px;
+}
+
 .hy {
   font-size: 11px;
   font-weight: 700;
@@ -7587,6 +7684,15 @@ select.pt-ward:focus {
   background: #f7faff;
   border-radius: 14px;
   padding: 12px 14px;
+}
+
+/* v1.3: the book figure attached to a "شکل" exam-group card's back. */
+.cardfig {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 14px;
+  border: 1px solid #e1e8f3;
+  display: block;
 }
 
 .reveal {

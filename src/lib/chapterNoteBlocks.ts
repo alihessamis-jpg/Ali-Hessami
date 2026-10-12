@@ -6,6 +6,7 @@
 //   ### توضیح ساده {.explain}     -> an "explain" block (soft panel)
 //   ### نکات امتحانی              -> an "exam" block (suggested-cards panel)
 //   ### سؤال N {#id .mcq}         -> an "mcq" block (v1.2 question card)
+//   ![caption](figures/x.jpg){#id .figure} -> a "figure" block (v1.3 book figure)
 // A note with none of these headings (every hand-authored pre-import
 // chapter) comes back as a single 'prose' block holding the whole note
 // unchanged, so this is a no-op for the existing authoring convention.
@@ -15,6 +16,7 @@ export type NoteBlock =
   | { kind: 'exam'; sectionId: string | null; markdown: string }
   | { kind: 'explain'; markdown: string }
   | { kind: 'mcq'; id: string; label: string; sectionId: string | null; markdown: string }
+  | { kind: 'figure'; id: string; file: string; caption: string; sectionId: string | null }
 
 const HEADING_RE = /^(#{2,4})\s+(.*)$/
 // v1.1: a "#### label" line INSIDE a نکات امتحانی/توضیح ساده block is a
@@ -24,6 +26,8 @@ const HEADING_RE = /^(#{2,4})\s+(.*)$/
 const BLOCK_END_RE = /^(##|###)\s+/
 // v1.2: "### سؤال N {#ch49-q7 .mcq}" -- captures the id, ignores the label text.
 const MCQ_HEADING_RE = /\{#([\w-]+)\s+\.mcq\}\s*$/
+// v1.3: "![caption](figures/ch49-fig1.jpg){#ch49-fig1 .figure}" on its own line.
+const FIGURE_LINE_RE = /^!\[([^\]]*)\]\(figures\/([^)]+)\)\{#([\w-]+)\s+\.figure\}\s*$/
 
 function bareHeadingText(text: string): string {
   // Drop a trailing {#id} or {.class} attribute block before comparing.
@@ -101,6 +105,15 @@ export function splitNoteBlocks(note: string): NoteBlock[] {
         }
       }
     }
+
+    const figMatch = line.trim().match(FIGURE_LINE_RE)
+    if (figMatch) {
+      flushProse()
+      blocks.push({ kind: 'figure', id: figMatch[3], file: figMatch[2], caption: figMatch[1], sectionId: currentSectionId })
+      i++
+      continue
+    }
+
     proseLines.push(line)
     i++
   }

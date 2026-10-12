@@ -353,6 +353,18 @@ export type LibraryChapterSeed = Pick<
   'bookId' | 'partRoman' | 'partTitle' | 'chapterNumber' | 'title' | 'startPage' | 'endPage' | 'pages'
 >
 
+// v1.3: one book figure (`![caption](figures/ch49-fig1.jpg){#ch49-fig1 .figure}`)
+// uploaded to the `chapter-figures` Storage bucket. `figureKey` is the stable
+// id so re-import replaces the same row/file instead of duplicating.
+export interface LibraryChapterFigure {
+  id: string
+  chapterId: string
+  figureKey: string
+  storagePath: string
+  caption?: string | null
+  createdAt: string
+}
+
 // FSRS (spaced-repetition) scheduling state — the canonical shape lives here,
 // same convention as SrsState above; lib/fsrs.ts imports and operates on it.
 export type FsrsRating = 'again' | 'hard' | 'good' | 'easy'
@@ -419,6 +431,8 @@ export interface LibraryCard extends FsrsCardState {
   topic?: string | null
   /** From a trailing ⭐ on the bullet or its group label (v1.1). */
   highYield: boolean
+  /** v1.3: a LibraryChapterFigure.figureKey, for cards in a "شکل" exam group. */
+  figureKey?: string | null
   createdAt: string
 }
 
@@ -426,7 +440,7 @@ export type LibraryCardDraft = Pick<
   LibraryCard,
   'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
 > &
-  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags' | 'topic' | 'highYield'>>
+  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags' | 'topic' | 'highYield' | 'figureKey'>>
 
 export type LibraryHighlightKind = 'highlight' | 'note'
 

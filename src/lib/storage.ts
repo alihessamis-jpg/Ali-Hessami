@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient'
 
 const IMAGING_BUCKET = 'imaging'
+const CHAPTER_FIGURES_BUCKET = 'chapter-figures'
 
 // Supabase's free tier caps total project storage at 1 GiB; used as the
 // denominator for the usage indicator until the project is on a paid plan.
@@ -128,4 +129,20 @@ export async function getFollowUpAttachmentSignedUrl(path: string): Promise<stri
 export async function deleteFollowUpAttachmentFile(path: string): Promise<void> {
   const { error } = await supabase.storage.from(IMAGING_BUCKET).remove([path])
   if (error) throw error
+}
+
+// v1.3: book figures (`chapter-figures` bucket, its own private bucket so the
+// RLS policy stays scoped to figure images -- path is userId/chNN/figureKey.ext).
+export async function uploadChapterFigureFile(userId: string, chapterNumber: number, figureKey: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${userId}/ch${chapterNumber}/${figureKey}${ext ? `.${ext}` : ''}`
+  const { error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).upload(path, file, { upsert: true })
+  if (error) throw error
+  return path
+}
+
+export async function getChapterFigureSignedUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).createSignedUrl(path, 60 * 60)
+  if (error) throw error
+  return data.signedUrl
 }

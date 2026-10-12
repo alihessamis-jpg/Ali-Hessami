@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
 import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -36,6 +36,8 @@ interface Props {
   onReviewSuggestedOneByOne?: (cardIds: string[]) => void
   /** Chapter-number -> id, so `[[chNN]]` links (v1.1) can navigate there. */
   chapterNumberToId?: Record<number, string>
+  /** v1.3: figureKey -> signed image URL, for `.figure` blocks. */
+  figures?: Record<string, string>
 }
 
 function renderBdi(text: string, keyBase: string): ReactNode[] {
@@ -313,6 +315,121 @@ function McqCard({
   )
 }
 
+// v1.3: one `![caption](figures/x.jpg){#id .figure}` book figure -- full
+// column width, caption below, tap opens the full-screen zoom/pan viewer.
+// Renders a "Missing figure" row instead of an <img> when the note
+// references a figure the import wasn't given an image file for.
+function FigureCard({
+  id,
+  src,
+  caption,
+  file,
+  onOpen,
+}: {
+  id: string
+  src: string | null
+  caption: string
+  file: string
+  onOpen: () => void
+}) {
+  return (
+    <figure className="bookfig" id={id}>
+      {src ? (
+        <button type="button" className="bookfig-btn" onClick={onOpen} aria-label="Open figure full screen">
+          <img src={src} alt={caption} loading="lazy" />
+        </button>
+      ) : (
+        <div className="bookfig-missing">Missing figure: {file.split('/').pop() ?? file} — add file</div>
+      )}
+      {caption && <figcaption>{renderBdi(caption, `${id}-cap`)}</figcaption>}
+    </figure>
+  )
+}
+
+// Full-screen figure viewer with pinch-zoom (two-finger touch or trackpad/
+// wheel) and drag-to-pan once zoomed in; double-tap/click toggles between
+// 1x and 2.5x centered. No library -- just Pointer Events, since a figure
+// zoom is the only place in the app that needs this.
+function FigureViewer({ src, caption, onClose }: { src: string; caption: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinchStart = useRef<{ dist: number; scale: number } | null>(null)
+  const dragStart = useRef<{ x: number; y: number; posX: number; posY: number } | null>(null)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function clampScale(s: number) {
+    return Math.min(4, Math.max(1, s))
+  }
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    ;(e.target as Element).setPointerCapture(e.pointerId)
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      pinchStart.current = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale }
+      dragStart.current = null
+    } else if (pointers.current.size === 1) {
+      dragStart.current = { x: e.clientX, y: e.clientY, posX: pos.x, posY: pos.y }
+    }
+  }
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointers.current.has(e.pointerId)) return
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size === 2 && pinchStart.current) {
+      const [a, b] = [...pointers.current.values()]
+      const dist = Math.hypot(a.x - b.x, a.y - b.y)
+      setScale(clampScale(pinchStart.current.scale * (dist / pinchStart.current.dist)))
+    } else if (pointers.current.size === 1 && dragStart.current && scale > 1) {
+      setPos({ x: dragStart.current.posX + (e.clientX - dragStart.current.x), y: dragStart.current.posY + (e.clientY - dragStart.current.y) })
+    }
+  }
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    pointers.current.delete(e.pointerId)
+    if (pointers.current.size < 2) pinchStart.current = null
+    if (pointers.current.size === 0) dragStart.current = null
+  }
+  function onDoubleClick() {
+    if (scale > 1) {
+      setScale(1)
+      setPos({ x: 0, y: 0 })
+    } else {
+      setScale(2.5)
+    }
+  }
+  function onWheel(e: ReactWheelEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setScale((s) => clampScale(s - e.deltaY * 0.01))
+  }
+
+  return (
+    <div className="figview" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <button type="button" className="figview-close" onClick={onClose} aria-label="Close">
+        ×
+      </button>
+      <div
+        className="figview-stage"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onDoubleClick={onDoubleClick}
+        onWheel={onWheel}
+      >
+        <img src={src} alt={caption} draggable={false} style={{ transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})` }} />
+      </div>
+      {caption && <p className="figview-cap">{caption}</p>}
+    </div>
+  )
+}
+
 export function ChapterProse({
   note,
   cards,
@@ -323,6 +440,7 @@ export function ChapterProse({
   onApproveAllSuggested,
   onReviewSuggestedOneByOne,
   chapterNumberToId,
+  figures,
 }: Props) {
   const chartIndexRef = useRef(0)
   chartIndexRef.current = 0
@@ -335,6 +453,7 @@ export function ChapterProse({
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null)
   const selectedTextRef = useRef('')
+  const [viewerFigure, setViewerFigure] = useState<{ src: string; caption: string } | null>(null)
 
   useEffect(() => {
     if (!onMakeCard && !onHighlight) return
@@ -598,6 +717,20 @@ export function ChapterProse({
       )
       continue
     }
+    if (block.kind === 'figure') {
+      const url = figures?.[block.id]
+      renderedBlocks.push(
+        <FigureCard
+          key={`b-${i}`}
+          id={block.id}
+          src={url ?? null}
+          caption={block.caption}
+          file={block.file}
+          onOpen={() => url && setViewerFigure({ src: url, caption: block.caption })}
+        />
+      )
+      continue
+    }
     // exam block
     const sectionNumber = block.sectionId ? block.sectionId.replace(/^.*-s/, '') : null
     const suggested = cards.filter((c) => c.status === 'suggested' && (c.sectionNumber ?? null) === sectionNumber)
@@ -650,6 +783,7 @@ export function ChapterProse({
         </div>
       )}
       {renderedBlocks}
+      {viewerFigure && <FigureViewer src={viewerFigure.src} caption={viewerFigure.caption} onClose={() => setViewerFigure(null)} />}
     </div>
   )
 }

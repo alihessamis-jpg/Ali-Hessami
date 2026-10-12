@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ensureLibraryBookSeeded, listAllLibraryCards, listReadingLog, updateLibraryCardFsrs } from '../lib/api/library'
+import {
+  ensureLibraryBookSeeded,
+  listAllLibraryCards,
+  listAllLibraryChapterFigures,
+  listReadingLog,
+  updateLibraryCardFsrs,
+} from '../lib/api/library'
+import { getChapterFigureSignedUrl } from '../lib/storage'
 import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
@@ -64,6 +71,7 @@ export function ReviewPage() {
 
   const [allDue, setAllDue] = useState<LibraryCard[]>([])
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
+  const [figureUrls, setFigureUrls] = useState<Record<string, string>>({})
   const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -78,8 +86,17 @@ export function ReviewPage() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([listAllLibraryCards(), ensureLibraryBookSeeded(), listReadingLog(), getUserSettings()])
-      .then(([cardRows, seeded, log, settings]) => {
+    Promise.all([
+      listAllLibraryCards(),
+      ensureLibraryBookSeeded(),
+      listReadingLog(),
+      getUserSettings(),
+      listAllLibraryChapterFigures().catch(() => []),
+    ])
+      .then(([cardRows, seeded, log, settings, figureRows]) => {
+        Promise.all(
+          figureRows.map(async (f) => [f.figureKey, await getChapterFigureSignedUrl(f.storagePath).catch(() => null)] as const)
+        ).then((entries) => setFigureUrls(Object.fromEntries(entries.filter((e): e is [string, string] => e[1] !== null))))
         const now = new Date()
         let approved = cardRows.filter((c) => c.status === 'approved')
         if (chapterScope) approved = approved.filter((c) => c.chapterId === chapterScope)
@@ -396,6 +413,9 @@ export function ReviewPage() {
                     <p className="ctx" dir="rtl">
                       {current.back}
                     </p>
+                  )}
+                  {revealed && current.figureKey && figureUrls[current.figureKey] && (
+                    <img className="cardfig" src={figureUrls[current.figureKey]} alt="" />
                   )}
                 </>
               )}

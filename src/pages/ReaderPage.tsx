@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import JSZip from 'jszip'
 import {
   addLibraryCard,
   addLibraryCards,
@@ -10,12 +11,15 @@ import {
   getLibraryChapter,
   importChapterNote,
   listLibraryCardsForChapter,
+  listLibraryChapterFigures,
   listLibraryHighlights,
   listTopicIdsForChapter,
   logPagesRead,
   updateLibraryCardFsrs,
   updateLibraryChapter,
+  type ChapterNoteImageInput,
 } from '../lib/api/library'
+import { getChapterFigureSignedUrl } from '../lib/storage'
 import { listAcademyTopics } from '../lib/api/academy'
 import { listPatientIdsForTopic } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
@@ -26,6 +30,8 @@ import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
 import type { AcademyTopic, FsrsRating, LibraryCard, LibraryChapter, LibraryHighlight, McqOptions, Patient } from '../types/domain'
+
+const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i
 
 const QUICK_CHECK_SIZE = 4
 
@@ -80,6 +86,7 @@ export function ReaderPage() {
   const [chapter, setChapter] = useState<LibraryChapter | null>(null)
   const [cards, setCards] = useState<LibraryCard[]>([])
   const [highlights, setHighlights] = useState<LibraryHighlight[]>([])
+  const [figureUrls, setFigureUrls] = useState<Record<string, string>>({})
   const [linkedTopics, setLinkedTopics] = useState<AcademyTopic[]>([])
   const [linkedPatients, setLinkedPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
@@ -112,16 +119,21 @@ export function ReaderPage() {
 
   async function reload() {
     if (!id) return
-    const [chapterRow, cardRows, highlightRows, topicIds, seeded] = await Promise.all([
+    const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows] = await Promise.all([
       getLibraryChapter(id),
       listLibraryCardsForChapter(id),
       listLibraryHighlights(id),
       listTopicIdsForChapter(id),
       ensureLibraryBookSeeded().catch(() => null),
+      listLibraryChapterFigures(id).catch(() => []),
     ])
     setChapter(chapterRow)
     setCards(cardRows)
     setHighlights(highlightRows)
+    const urlEntries = await Promise.all(
+      figureRows.map(async (f) => [f.figureKey, await getChapterFigureSignedUrl(f.storagePath).catch(() => null)] as const)
+    )
+    setFigureUrls(Object.fromEntries(urlEntries.filter((e): e is [string, string] => e[1] !== null)))
     if (seeded) {
       setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
     }
@@ -281,16 +293,47 @@ export function ReaderPage() {
     }
   }
 
-  async function handleImportFile(file: File) {
+  // v1.3: "Import note" accepts either the .md plus its figure image files
+  // selected together (multi-select), or a single .zip holding the .md and a
+  // figures/ folder -- either way the images are matched to the note's
+  // `figures/x.jpg` references by filename in importChapterNote.
+  async function handleImportFiles(fileList: FileList) {
     setImporting(true)
     setError(null)
     try {
-      const raw = await file.text()
-      const result = await importChapterNote(raw)
-      setMessage(
-        `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
-      )
-      setTimeout(() => setMessage(null), 4000)
+      const files = Array.from(fileList)
+      let raw: string
+      let images: ChapterNoteImageInput[]
+
+      const zipFile = files.length === 1 ? files.find((f) => f.name.toLowerCase().endsWith('.zip')) : undefined
+      if (zipFile) {
+        const zip = await JSZip.loadAsync(zipFile)
+        const entries = Object.values(zip.files).filter((f) => !f.dir)
+        const mdEntry = entries.find((f) => f.name.toLowerCase().endsWith('.md'))
+        if (!mdEntry) throw new Error('Zip has no .md file')
+        raw = await mdEntry.async('text')
+        const imageEntries = entries.filter((f) => IMAGE_EXT_RE.test(f.name))
+        images = await Promise.all(
+          imageEntries.map(async (entry) => {
+            const blob = await entry.async('blob')
+            const filename = entry.name.split('/').pop() ?? entry.name
+            return { filename, file: new File([blob], filename, { type: blob.type }) }
+          })
+        )
+      } else {
+        const mdFile = files.find((f) => f.name.toLowerCase().endsWith('.md'))
+        if (!mdFile) throw new Error('Select the .md file, with its figure images or a .zip')
+        raw = await mdFile.text()
+        images = files.filter((f) => f !== mdFile).map((f) => ({ filename: f.name, file: f }))
+      }
+
+      const result = await importChapterNote(raw, images)
+      let msg = `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
+      if (result.missingFigures.length > 0) {
+        msg += ` · missing figure${result.missingFigures.length > 1 ? 's' : ''}: ${result.missingFigures.join(', ')} — add file`
+      }
+      setMessage(msg)
+      setTimeout(() => setMessage(null), 5000)
       await reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import chapter note')
@@ -409,12 +452,13 @@ export function ReaderPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".md"
+                accept=".md,.zip,image/*"
+                multiple
                 style={{ display: 'none' }}
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
+                  const files = e.target.files
                   e.target.value = ''
-                  if (file) void handleImportFile(file)
+                  if (files && files.length > 0) void handleImportFiles(files)
                 }}
               />
               <button
@@ -422,8 +466,9 @@ export function ReaderPage() {
                 className="np-btn ghost sm"
                 disabled={importing}
                 onClick={() => fileInputRef.current?.click()}
+                title="Select the .md file with its figures/ images, or a .zip"
               >
-                {importing ? 'Importing…' : 'Import note (.md)'}
+                {importing ? 'Importing…' : 'Import note'}
               </button>
             </span>
           </div>
@@ -544,6 +589,7 @@ export function ReaderPage() {
                 onApproveAllSuggested={(ids) => void handleApproveAllSuggested(ids)}
                 onReviewSuggestedOneByOne={handleReviewSuggestedOneByOne}
                 chapterNumberToId={chapterNumberToId}
+                figures={figureUrls}
               />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>
