@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { Layout } from './components/Layout'
+import { OverflowDebugPanel } from './components/OverflowDebugPanel'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TodayPage } from './pages/TodayPage'
@@ -37,6 +38,7 @@ function protect(element: ReactElement) {
 export function App() {
   return (
     <AuthProvider>
+      <OverflowDebugPanel />
       <Layout>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
