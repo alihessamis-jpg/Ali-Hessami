@@ -27,6 +27,7 @@ import { listPatients } from '../lib/api/patients'
 import { ChapterProse, type MakeCardPayload, type MakeCardsFromTablePayload } from '../components/library/ChapterProse'
 import { PatientCaseCardForm } from '../components/library/PatientCaseCardForm'
 import { splitNoteBlocks, type NoteBlock } from '../lib/chapterNoteBlocks'
+import { describeError } from '../lib/describeError'
 import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
@@ -106,7 +107,7 @@ function MissingFigureRow({
     try {
       await onUpload(figureKey, picked)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(describeError(err, 'Upload failed'))
     } finally {
       setUploading(false)
     }
@@ -232,7 +233,7 @@ export function ReaderPage() {
   useEffect(() => {
     setLoading(true)
     reload()
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load chapter'))
+      .catch((err) => setError(describeError(err, 'Failed to load chapter')))
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
@@ -322,7 +323,7 @@ export function ReaderPage() {
       setMessage(`Card added: …${payload.sourceText.length > 28 ? payload.sourceText.slice(0, 28) + '…' : payload.sourceText}…`)
       setTimeout(() => setMessage(null), 2400)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create card')
+      setError(describeError(err, 'Failed to create card'))
     }
   }
 
@@ -332,7 +333,7 @@ export function ReaderPage() {
       const h = await addLibraryHighlight({ chapterId: id, sectionNumber: payload.sectionNumber, kind: 'highlight', text: payload.text, noteText: null })
       setHighlights((prev) => [...prev, h])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save highlight')
+      setError(describeError(err, 'Failed to save highlight'))
     }
   }
 
@@ -356,7 +357,7 @@ export function ReaderPage() {
       setMessage(`${created.length} cards from table`)
       setTimeout(() => setMessage(null), 2400)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create cards')
+      setError(describeError(err, 'Failed to create cards'))
     }
   }
 
@@ -404,7 +405,7 @@ export function ReaderPage() {
       setTimeout(() => setMessage(null), 5000)
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import chapter note')
+      setError(describeError(err, 'Failed to import chapter note'))
     } finally {
       setImporting(false)
     }
@@ -429,7 +430,7 @@ export function ReaderPage() {
       setMessage(`${cardIds.length} cards approved`)
       setTimeout(() => setMessage(null), 2400)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve cards')
+      setError(describeError(err, 'Failed to approve cards'))
     }
   }
 
@@ -446,7 +447,7 @@ export function ReaderPage() {
         const updated = await approveLibraryCard(cardId)
         setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to approve card')
+        setError(describeError(err, 'Failed to approve card'))
       }
     }
     if (reviewIndex + 1 < reviewQueue.length) {
@@ -486,7 +487,7 @@ export function ReaderPage() {
       const byId = new Map(results.map((c) => [c.id, c]))
       setCards((prev) => prev.map((c) => byId.get(c.id) ?? c))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update cards')
+      setError(describeError(err, 'Failed to update cards'))
     }
   }
 
@@ -499,7 +500,7 @@ export function ReaderPage() {
       const updated = await updateLibraryChapter(chapter.id, { status: nextStatus, readingPct: 100 })
       setChapter(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update chapter')
+      setError(describeError(err, 'Failed to update chapter'))
     }
   }
 
@@ -513,7 +514,10 @@ export function ReaderPage() {
 
   if (!id) return null
   if (loading) return <p>Loading…</p>
-  if (error) return <p className="form-error">{error}</p>
+  // Once the chapter has loaded once, a later action failure (import,
+  // approve, etc.) is shown as an inline banner below instead of replacing
+  // the whole page -- only an error before any chapter ever loaded is fatal.
+  if (error && !chapter) return <p className="form-error">{error}</p>
   if (!chapter) return <p className="empty-state">Chapter not found.</p>
 
   return (
@@ -668,6 +672,14 @@ export function ReaderPage() {
 
         <div className="stack">
           <article className="art-card np-fade" ref={articleRef}>
+            {error && (
+              <p className="form-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span>{error}</span>
+                <button type="button" className="np-btn ghost sm" onClick={() => setError(null)}>
+                  Dismiss
+                </button>
+              </p>
+            )}
             {message && <p className="patient-meta">{message}</p>}
             {chapter.note ? (
               <ChapterProse

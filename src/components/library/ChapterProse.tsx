@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
 import { tokenizeBidi } from '../../lib/bidiText'
+import { describeError } from '../../lib/describeError'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
 import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
 import { parseMcqBlock, type ParsedMcqChoice } from '../../lib/mcqBlock'
@@ -347,7 +348,7 @@ function FigureCard({
     try {
       await onUploadFigure(id, picked)
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+      setUploadError(describeError(err, 'Upload failed'))
     } finally {
       setUploading(false)
     }
