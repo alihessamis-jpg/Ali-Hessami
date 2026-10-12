@@ -72,6 +72,7 @@ export function ReviewPage() {
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [mcqChoice, setMcqChoice] = useState<number | null>(null)
+  const [mcqCorrect, setMcqCorrect] = useState<boolean | null>(null)
   const [grades, setGrades] = useState<Array<{ card: LibraryCard; rating: FsrsRating }>>([])
   const [startedAt] = useState(() => Date.now())
 
@@ -124,18 +125,25 @@ export function ReviewPage() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!current) return
-      if (e.code === 'Space' && !revealed && current.kind !== 'mcq') {
+      if (current.kind === 'mcq') {
+        if (e.code === 'Space' && mcqChoice != null) {
+          e.preventDefault()
+          void handleGrade(mcqCorrect ? 'good' : 'again')
+        }
+        return
+      }
+      if (e.code === 'Space' && !revealed) {
         e.preventDefault()
         setRevealed(true)
-      } else if (/^[1-4]$/.test(e.key)) {
+      } else if (/^[1-4]$/.test(e.key) && revealed) {
         const ratings: FsrsRating[] = ['again', 'hard', 'good', 'easy']
-        if (revealed || (current.kind === 'mcq' && mcqChoice != null)) void handleGrade(ratings[Number(e.key) - 1])
+        void handleGrade(ratings[Number(e.key) - 1])
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, revealed, mcqChoice])
+  }, [current, revealed, mcqChoice, mcqCorrect])
 
   async function handleGrade(rating: FsrsRating) {
     if (!current) return
@@ -148,13 +156,18 @@ export function ReviewPage() {
     setGrades((prev) => [...prev, { card: { ...current, ...next }, rating }])
     setRevealed(false)
     setMcqChoice(null)
+    setMcqCorrect(null)
     setIndex((i) => i + 1)
   }
 
+  // v1.2: tapping an option reveals right/wrong + the explanation; the
+  // FSRS grade is decided by correctness alone (good/again), not a manual
+  // 4-way choice -- the reveal still waits for "Continue" so the reader can
+  // read the explanation before the card advances.
   function handleMcqPick(choiceIndex: number, correct: boolean) {
     setMcqChoice(choiceIndex)
+    setMcqCorrect(correct)
     setRevealed(true)
-    void correct
   }
 
   if (loading) return <p>Loading…</p>
@@ -390,14 +403,9 @@ export function ReviewPage() {
 
             {current.kind === 'mcq' ? (
               mcqChoice != null && (
-                <div className="grade on">
-                  {(['again', 'hard', 'good', 'easy'] as FsrsRating[]).map((r, i) => (
-                    <button key={r} className={`g${i + 1}`} onClick={() => void handleGrade(r)}>
-                      <b>{r[0].toUpperCase() + r.slice(1)}</b>
-                      <span>{preview?.[r].label}</span>
-                    </button>
-                  ))}
-                </div>
+                <button className="reveal" onClick={() => void handleGrade(mcqCorrect ? 'good' : 'again')}>
+                  Continue <kbd>Space</kbd>
+                </button>
               )
             ) : !revealed ? (
               <button className="reveal" onClick={() => setRevealed(true)}>

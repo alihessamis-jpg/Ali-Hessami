@@ -415,30 +415,43 @@ export async function importChapterNote(raw: string): Promise<ImportChapterNoteR
     .single()
   if (updateError) throw updateError
 
-  if (parsed.suggestedCards.length > 0) {
+  const clozeUpserts = parsed.suggestedCards.map((c) => ({
+    owner_id: userId,
+    chapter_id: (existingRow as ChapterRow).id,
+    kind: 'cloze' as const,
+    front: c.front,
+    back: c.back,
+    section_number: c.sectionNumber,
+    import_key: c.importKey,
+    tags: c.tags,
+    topic: c.topic,
+    high_yield: c.highYield,
+  }))
+  const mcqUpserts = parsed.suggestedMcqCards.map((c) => ({
+    owner_id: userId,
+    chapter_id: (existingRow as ChapterRow).id,
+    kind: 'mcq' as const,
+    front: c.front,
+    back: c.back,
+    options: c.options,
+    section_number: c.sectionNumber,
+    import_key: c.importKey,
+    tags: [],
+    topic: null,
+    high_yield: false,
+  }))
+  const cardUpserts = [...clozeUpserts, ...mcqUpserts]
+
+  if (cardUpserts.length > 0) {
     const { error: upsertError } = await supabase
       .from('library_cards')
-      .upsert(
-        parsed.suggestedCards.map((c) => ({
-          owner_id: userId,
-          chapter_id: (existingRow as ChapterRow).id,
-          kind: 'cloze' as const,
-          front: c.front,
-          back: c.back,
-          section_number: c.sectionNumber,
-          import_key: c.importKey,
-          tags: c.tags,
-          topic: c.topic,
-          high_yield: c.highYield,
-        })),
-        { onConflict: 'chapter_id,import_key' }
-      )
+      .upsert(cardUpserts, { onConflict: 'chapter_id,import_key' })
     if (upsertError) throw upsertError
   }
 
   return {
     chapter: chapterToDomain(updatedRow as ChapterRow),
-    suggestedCardCount: parsed.suggestedCards.length,
+    suggestedCardCount: parsed.suggestedCards.length + parsed.suggestedMcqCards.length,
   }
 }
 

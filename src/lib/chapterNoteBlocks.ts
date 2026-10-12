@@ -5,6 +5,7 @@
 //                                     surrounding prose stream
 //   ### توضیح ساده {.explain}     -> an "explain" block (soft panel)
 //   ### نکات امتحانی              -> an "exam" block (suggested-cards panel)
+//   ### سؤال N {#id .mcq}         -> an "mcq" block (v1.2 question card)
 // A note with none of these headings (every hand-authored pre-import
 // chapter) comes back as a single 'prose' block holding the whole note
 // unchanged, so this is a no-op for the existing authoring convention.
@@ -13,6 +14,7 @@ export type NoteBlock =
   | { kind: 'prose'; markdown: string }
   | { kind: 'exam'; sectionId: string | null; markdown: string }
   | { kind: 'explain'; markdown: string }
+  | { kind: 'mcq'; id: string; label: string; sectionId: string | null; markdown: string }
 
 const HEADING_RE = /^(#{2,4})\s+(.*)$/
 // v1.1: a "#### label" line INSIDE a نکات امتحانی/توضیح ساده block is a
@@ -20,6 +22,8 @@ const HEADING_RE = /^(#{2,4})\s+(.*)$/
 // a heading that ends the block -- only ##/### do that. Outside such a
 // block, #### still means "ترجمه" (dropped) same as v1.
 const BLOCK_END_RE = /^(##|###)\s+/
+// v1.2: "### سؤال N {#ch49-q7 .mcq}" -- captures the id, ignores the label text.
+const MCQ_HEADING_RE = /\{#([\w-]+)\s+\.mcq\}\s*$/
 
 function bareHeadingText(text: string): string {
   // Drop a trailing {#id} or {.class} attribute block before comparing.
@@ -79,6 +83,22 @@ export function splitNoteBlocks(note: string): NoteBlock[] {
         }
         blocks.push({ kind: 'exam', sectionId: currentSectionId, markdown: body.join('\n').trim() })
         continue
+      }
+
+      if (m[1] === '###') {
+        const mcqMatch = rawText.match(MCQ_HEADING_RE)
+        if (mcqMatch) {
+          flushProse()
+          const id = mcqMatch[1]
+          i++
+          const body: string[] = []
+          while (i < lines.length && !BLOCK_END_RE.test(lines[i])) {
+            body.push(lines[i])
+            i++
+          }
+          blocks.push({ kind: 'mcq', id, label: bare, sectionId: currentSectionId, markdown: body.join('\n').trim() })
+          continue
+        }
       }
     }
     proseLines.push(line)

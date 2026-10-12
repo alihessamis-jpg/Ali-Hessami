@@ -25,7 +25,7 @@ import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { AcademyTopic, FsrsRating, LibraryCard, LibraryChapter, LibraryHighlight, Patient } from '../types/domain'
+import type { AcademyTopic, FsrsRating, LibraryCard, LibraryChapter, LibraryHighlight, McqOptions, Patient } from '../types/domain'
 
 const QUICK_CHECK_SIZE = 4
 
@@ -44,8 +44,26 @@ function shuffle<T>(items: T[]): T[] {
   return copy
 }
 
+function isMcqOptions(o: LibraryCard['options']): o is McqOptions {
+  return !!o && 'choices' in o
+}
+
+// v1.2: the chapter's own board-style MCQs make a better quick check than a
+// generated one (real distractors, a real explanation) -- use them first and
+// only fall back to picking-and-faking-options-from-other-cards if the
+// chapter has none.
 function buildQuickCheck(cards: LibraryCard[]): QuickCheckQuestion[] {
-  const pool = cards.filter((c) => c.kind !== 'patient_case' && c.kind !== 'table_cell')
+  const mcqPool = cards.filter((c) => c.kind === 'mcq' && isMcqOptions(c.options) && c.options.choices.length > 0)
+  if (mcqPool.length > 0) {
+    const picked = shuffle(mcqPool).slice(0, QUICK_CHECK_SIZE)
+    return picked.map((card) => {
+      const choices = (card.options as McqOptions).choices
+      const options = choices.map((c) => c.text)
+      const correctIndex = Math.max(0, choices.findIndex((c) => c.correct))
+      return { card, options, correctIndex }
+    })
+  }
+  const pool = cards.filter((c) => c.kind !== 'patient_case' && c.kind !== 'table_cell' && c.kind !== 'mcq')
   const picked = shuffle(pool).slice(0, QUICK_CHECK_SIZE)
   const allBacks = cards.map((c) => c.back)
   return picked.map((card) => {

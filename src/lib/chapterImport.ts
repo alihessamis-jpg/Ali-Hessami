@@ -4,6 +4,7 @@
 // the note's markdown is ChapterProse's job (via splitNoteBlocks); this
 // module only extracts what the importer itself needs to decide.
 import { splitNoteBlocks } from './chapterNoteBlocks'
+import { parseMcqBlock } from './mcqBlock'
 
 export interface ChapterNoteFrontMatter {
   format: string | null
@@ -31,10 +32,20 @@ export interface ImportedSuggestedCard {
   highYield: boolean
 }
 
+/** v1.2: a `### سؤال N {#id .mcq}` block, suggested like exam-bullet cards. */
+export interface ImportedMcqCard {
+  importKey: string
+  sectionNumber: string | null
+  front: string
+  back: string
+  options: { choices: Array<{ label: string; text: string; correct: boolean }>; explanation: string | null }
+}
+
 export interface ParsedChapterNote {
   meta: ChapterNoteFrontMatter
   body: string
   suggestedCards: ImportedSuggestedCard[]
+  suggestedMcqCards: ImportedMcqCard[]
 }
 
 const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
@@ -188,28 +199,44 @@ export function parseChapterNoteForImport(raw: string): ParsedChapterNote {
   const { meta, body } = parseChapterNoteFile(raw)
   const blocks = splitNoteBlocks(body)
   const suggestedCards: ImportedSuggestedCard[] = []
+  const suggestedMcqCards: ImportedMcqCard[] = []
   let currentSectionId: string | null | undefined
   let indexInSection = 0
 
   for (const block of blocks) {
-    if (block.kind !== 'exam') continue
-    if (block.sectionId !== currentSectionId) {
-      currentSectionId = block.sectionId
-      indexInSection = 0
+    if (block.kind === 'exam') {
+      if (block.sectionId !== currentSectionId) {
+        currentSectionId = block.sectionId
+        indexInSection = 0
+      }
+      for (const bullet of parseExamBullets(block.markdown)) {
+        suggestedCards.push({
+          importKey: `${block.sectionId ?? 'root'}::exam::${indexInSection}`,
+          sectionNumber: block.sectionId ? block.sectionId.replace(/^.*-s/, '') : null,
+          front: bullet.front,
+          back: bullet.back,
+          tags: bullet.tag === 'not-book' ? ['not-book'] : [],
+          topic: bullet.topic,
+          highYield: bullet.highYield,
+        })
+        indexInSection++
+      }
+      continue
     }
-    for (const bullet of parseExamBullets(block.markdown)) {
-      suggestedCards.push({
-        importKey: `${block.sectionId ?? 'root'}::exam::${indexInSection}`,
+
+    if (block.kind === 'mcq') {
+      const parsed = parseMcqBlock(block.markdown)
+      if (!parsed) continue
+      const correct = parsed.choices.find((c) => c.correct)
+      suggestedMcqCards.push({
+        importKey: block.id,
         sectionNumber: block.sectionId ? block.sectionId.replace(/^.*-s/, '') : null,
-        front: bullet.front,
-        back: bullet.back,
-        tags: bullet.tag === 'not-book' ? ['not-book'] : [],
-        topic: bullet.topic,
-        highYield: bullet.highYield,
+        front: parsed.stem,
+        back: correct?.text ?? '',
+        options: { choices: parsed.choices, explanation: parsed.explanation },
       })
-      indexInSection++
     }
   }
 
-  return { meta, body, suggestedCards }
+  return { meta, body, suggestedCards, suggestedMcqCards }
 }

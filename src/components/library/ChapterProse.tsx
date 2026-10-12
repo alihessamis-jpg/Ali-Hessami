@@ -5,7 +5,8 @@ import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
 import { tokenizeBidi } from '../../lib/bidiText'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
-import { splitNoteBlocks } from '../../lib/chapterNoteBlocks'
+import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
+import { parseMcqBlock, type ParsedMcqChoice } from '../../lib/mcqBlock'
 import { toPersianDigits } from '../../lib/shamsi'
 import { renderNephronChart, type NephronChartSpec } from './nephronChart'
 import type { LibraryCard, LibraryHighlight } from '../../types/domain'
@@ -273,6 +274,45 @@ function parseHeadingText(raw: string): { display: string; en: string | null; se
   return { display: faPart.trim(), en, sectionNumber, anchorId }
 }
 
+// v1.2: one `### سؤال N {#id .mcq}` block -- a tappable question card with a
+// "Show answer" toggle (native <details>, no extra state needed).
+function McqCard({
+  id,
+  label,
+  stem,
+  choices,
+  explanation,
+}: {
+  id: string
+  label: string
+  stem: string
+  choices: ParsedMcqChoice[]
+  explanation: string | null
+}) {
+  return (
+    <section className="mcqc" id={id}>
+      <div className="mq">{label}</div>
+      <p className="mq-stem">{renderBdi(stem, `${id}-stem`)}</p>
+      <ul>
+        {choices.map((c) => (
+          <li key={c.label}>
+            {c.label}) {renderBdi(c.text, `${id}-${c.label}`)}
+          </li>
+        ))}
+      </ul>
+      <details className="ans">
+        <summary>
+          <bdi dir="ltr">Show answer</bdi>
+        </summary>
+        <div>
+          <strong>{choices.find((c) => c.correct)?.label}</strong>
+          {explanation && <> — {renderBdi(explanation, `${id}-expl`)}</>}
+        </div>
+      </details>
+    </section>
+  )
+}
+
 export function ChapterProse({
   note,
   cards,
@@ -489,6 +529,109 @@ export function ChapterProse({
   }
 
   const blocks = splitNoteBlocks(cleanedNote)
+  const cardByImportKey = new Map(cards.filter((c) => c.importKey).map((c) => [c.importKey as string, c] as const))
+  const renderedBlocks: ReactNode[] = []
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]
+    if (block.kind === 'prose') {
+      renderedBlocks.push(
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} key={`b-${i}`}>
+          {block.markdown}
+        </ReactMarkdown>
+      )
+      continue
+    }
+    if (block.kind === 'explain') {
+      renderedBlocks.push(
+        <div key={`b-${i}`}>
+          <h3 className="explain-h">توضیح ساده</h3>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+            {block.markdown}
+          </ReactMarkdown>
+        </div>
+      )
+      continue
+    }
+    if (block.kind === 'mcq') {
+      const runStart = i
+      const run: Array<Extract<NoteBlock, { kind: 'mcq' }>> = []
+      while (i < blocks.length && blocks[i].kind === 'mcq') {
+        run.push(blocks[i] as Extract<NoteBlock, { kind: 'mcq' }>)
+        i++
+      }
+      i--
+      const suggestedIds = run
+        .map((b) => cardByImportKey.get(b.id))
+        .filter((c): c is LibraryCard => !!c && c.status === 'suggested')
+        .map((c) => c.id)
+      renderedBlocks.push(
+        <div key={`b-${runStart}`}>
+          {run.map((mcqBlock) => {
+            const parsed = parseMcqBlock(mcqBlock.markdown)
+            if (!parsed) return null
+            return (
+              <McqCard
+                key={mcqBlock.id}
+                id={mcqBlock.id}
+                label={mcqBlock.label}
+                stem={parsed.stem}
+                choices={parsed.choices}
+                explanation={parsed.explanation}
+              />
+            )
+          })}
+          {suggestedIds.length > 0 && (onApproveAllSuggested || onReviewSuggestedOneByOne) && (
+            <div className="exam-f">
+              {onApproveAllSuggested && (
+                <button type="button" className="np-btn sm" onClick={() => onApproveAllSuggested(suggestedIds)}>
+                  Approve all
+                </button>
+              )}
+              {onReviewSuggestedOneByOne && (
+                <button type="button" className="np-btn ghost sm" onClick={() => onReviewSuggestedOneByOne(suggestedIds)}>
+                  Review one by one
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )
+      continue
+    }
+    // exam block
+    const sectionNumber = block.sectionId ? block.sectionId.replace(/^.*-s/, '') : null
+    const suggested = cards.filter((c) => c.status === 'suggested' && (c.sectionNumber ?? null) === sectionNumber)
+    const suggestedIds = suggested.map((c) => c.id)
+    renderedBlocks.push(
+      <section className="exam" key={`b-${i}`}>
+        <div className="exam-h">
+          <b>نکات امتحانی</b>
+          {suggested.length > 0 && (
+            <span className="sug">
+              <bdi dir="ltr">{suggested.length} suggested cards</bdi>
+            </span>
+          )}
+        </div>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+          {block.markdown}
+        </ReactMarkdown>
+        {suggestedIds.length > 0 && (onApproveAllSuggested || onReviewSuggestedOneByOne) && (
+          <div className="exam-f">
+            {onApproveAllSuggested && (
+              <button type="button" className="np-btn sm" onClick={() => onApproveAllSuggested(suggestedIds)}>
+                Approve all
+              </button>
+            )}
+            {onReviewSuggestedOneByOne && (
+              <button type="button" className="np-btn ghost sm" onClick={() => onReviewSuggestedOneByOne(suggestedIds)}>
+                Review one by one
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+    )
+  }
 
   return (
     <div className="prose" dir="rtl" id="prose" ref={containerRef}>
@@ -506,58 +649,7 @@ export function ChapterProse({
           )}
         </div>
       )}
-      {blocks.map((block, i) => {
-        if (block.kind === 'prose') {
-          return (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} key={`b-${i}`}>
-              {block.markdown}
-            </ReactMarkdown>
-          )
-        }
-        if (block.kind === 'explain') {
-          return (
-            <div key={`b-${i}`}>
-              <h3 className="explain-h">توضیح ساده</h3>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-                {block.markdown}
-              </ReactMarkdown>
-            </div>
-          )
-        }
-        // exam block
-        const sectionNumber = block.sectionId ? block.sectionId.replace(/^.*-s/, '') : null
-        const suggested = cards.filter((c) => c.status === 'suggested' && (c.sectionNumber ?? null) === sectionNumber)
-        const suggestedIds = suggested.map((c) => c.id)
-        return (
-          <section className="exam" key={`b-${i}`}>
-            <div className="exam-h">
-              <b>نکات امتحانی</b>
-              {suggested.length > 0 && (
-                <span className="sug">
-                  <bdi dir="ltr">{suggested.length} suggested cards</bdi>
-                </span>
-              )}
-            </div>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-              {block.markdown}
-            </ReactMarkdown>
-            {suggestedIds.length > 0 && (onApproveAllSuggested || onReviewSuggestedOneByOne) && (
-              <div className="exam-f">
-                {onApproveAllSuggested && (
-                  <button type="button" className="np-btn sm" onClick={() => onApproveAllSuggested(suggestedIds)}>
-                    Approve all
-                  </button>
-                )}
-                {onReviewSuggestedOneByOne && (
-                  <button type="button" className="np-btn ghost sm" onClick={() => onReviewSuggestedOneByOne(suggestedIds)}>
-                    Review one by one
-                  </button>
-                )}
-              </div>
-            )}
-          </section>
-        )
-      })}
+      {renderedBlocks}
     </div>
   )
 }
