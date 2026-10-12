@@ -360,21 +360,25 @@ export function ReaderPage() {
     }
   }
 
-  // v1.3: "Import note" accepts either the .md plus its figure image files
-  // selected together (multi-select), or a single .zip holding the .md and a
-  // figures/ folder -- either way the images are matched to the note's
-  // `figures/x.jpg` references by filename in importChapterNote.
-  async function handleImportFiles(fileList: FileList) {
+  // "Import note" takes a single file: the .md itself, or a .zip holding
+  // the .md plus a figures/ folder. A plain .md with no bundled images
+  // leaves its figures to the separate "Add figure images" flow below --
+  // that single-file, single-purpose picker is the one that reliably opens
+  // on mobile; the earlier version that asked for a combined multi-select
+  // of the .md with its image files at once did not (iOS Safari in
+  // particular can route a multi-select accept list that mixes extensions
+  // and image types straight to the Photos picker, with no way to also
+  // reach the .md in Files), so it was dropped in favor of this plus the
+  // per-figure uploader.
+  async function handleImportFile(file: File) {
     setImporting(true)
     setError(null)
     try {
-      const files = Array.from(fileList)
       let raw: string
-      let images: ChapterNoteImageInput[]
+      let images: ChapterNoteImageInput[] = []
 
-      const zipFile = files.length === 1 ? files.find((f) => f.name.toLowerCase().endsWith('.zip')) : undefined
-      if (zipFile) {
-        const zip = await JSZip.loadAsync(zipFile)
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        const zip = await JSZip.loadAsync(file)
         const entries = Object.values(zip.files).filter((f) => !f.dir)
         const mdEntry = entries.find((f) => f.name.toLowerCase().endsWith('.md'))
         if (!mdEntry) throw new Error('Zip has no .md file')
@@ -388,16 +392,13 @@ export function ReaderPage() {
           })
         )
       } else {
-        const mdFile = files.find((f) => f.name.toLowerCase().endsWith('.md'))
-        if (!mdFile) throw new Error('Select the .md file, with its figure images or a .zip')
-        raw = await mdFile.text()
-        images = files.filter((f) => f !== mdFile).map((f) => ({ filename: f.name, file: f }))
+        raw = await file.text()
       }
 
       const result = await importChapterNote(raw, images)
       let msg = `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
       if (result.missingFigures.length > 0) {
-        msg += ` · missing figure${result.missingFigures.length > 1 ? 's' : ''}: ${result.missingFigures.join(', ')} — add file`
+        msg += ` · missing figure${result.missingFigures.length > 1 ? 's' : ''}: ${result.missingFigures.join(', ')} — use "Add figure images"`
       }
       setMessage(msg)
       setTimeout(() => setMessage(null), 5000)
@@ -531,18 +532,12 @@ export function ReaderPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                // Explicit extensions (not the "image/*" MIME wildcard) so the
-                // .md and its figure images both show up as selectable in the
-                // same multi-select picker -- mixing a wildcard MIME type
-                // into `accept` makes some browsers (mobile Safari especially)
-                // default to a Photos-only picker and hide the .md file.
-                accept=".md,.zip,.jpg,.jpeg,.png,.gif,.webp"
-                multiple
+                accept=".md,.zip"
                 style={{ display: 'none' }}
                 onChange={(e) => {
-                  const files = e.target.files
+                  const file = e.target.files?.[0]
                   e.target.value = ''
-                  if (files && files.length > 0) void handleImportFiles(files)
+                  if (file) void handleImportFile(file)
                 }}
               />
               <button
@@ -550,7 +545,7 @@ export function ReaderPage() {
                 className="np-btn ghost sm"
                 disabled={importing}
                 onClick={() => fileInputRef.current?.click()}
-                title="Select the .md file together with its figures/ images (multi-select), or a single .zip"
+                title="Select the .md file, or a .zip with the .md and its figures/ images"
               >
                 {importing ? 'Importing…' : 'Import note'}
               </button>
