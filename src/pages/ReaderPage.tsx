@@ -20,7 +20,7 @@ import {
   updateLibraryChapter,
   type ChapterNoteImageInput,
 } from '../lib/api/library'
-import { getChapterFigureSignedUrl } from '../lib/storage'
+import { cacheChapterBundle, getCachedChapterBundle, resolveFigureUrl } from '../lib/offlineCache'
 import { listAcademyTopics } from '../lib/api/academy'
 import { listPatientIdsForTopic } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
@@ -32,7 +32,16 @@ import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { AcademyTopic, FsrsRating, LibraryCard, LibraryChapter, LibraryHighlight, McqOptions, Patient } from '../types/domain'
+import type {
+  AcademyTopic,
+  FsrsRating,
+  LibraryCard,
+  LibraryChapter,
+  LibraryChapterFigure,
+  LibraryHighlight,
+  McqOptions,
+  Patient,
+} from '../types/domain'
 
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp)$/i
 
@@ -151,6 +160,7 @@ export function ReaderPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [chapterNumberToId, setChapterNumberToId] = useState<Record<number, string>>({})
+  const [offlineFallback, setOfflineFallback] = useState(false)
 
   const [quickCheck, setQuickCheck] = useState<QuickCheckQuestion[]>([])
   const [qcIndex, setQcIndex] = useState(0)
@@ -185,48 +195,85 @@ export function ReaderPage() {
     setFurthestSectionIndex(idx)
   }
 
-  async function reload() {
-    if (!id) return
-    const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows] = await Promise.all([
-      getLibraryChapter(id),
-      listLibraryCardsForChapter(id),
-      listLibraryHighlights(id),
-      listTopicIdsForChapter(id),
-      ensureLibraryBookSeeded().catch(() => null),
-      listLibraryChapterFigures(id).catch(() => []),
-    ])
+  // Renders a chapter's core reading state (note/cards/highlights/figures)
+  // from whichever source reload() found -- Supabase or the offline cache --
+  // so both paths drive the same section/quick-check setup exactly once.
+  async function applyChapterCore(
+    chapterRow: LibraryChapter,
+    cardRows: LibraryCard[],
+    highlightRows: LibraryHighlight[],
+    figureRows: LibraryChapterFigure[]
+  ) {
     setChapter(chapterRow)
     setCards(cardRows)
     setHighlights(highlightRows)
     const urlEntries = await Promise.all(
-      figureRows.map(async (f) => [f.figureKey, await getChapterFigureSignedUrl(f.storagePath).catch(() => null)] as const)
+      figureRows.map(async (f) => [f.figureKey, await resolveFigureUrl(f.figureKey, f.storagePath)] as const)
     )
     setFigureUrls(Object.fromEntries(urlEntries.filter((e): e is [string, string] => e[1] !== null)))
-    if (seeded) {
-      setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
-    }
-    const freshSections = parseSections(chapterRow?.note)
-    const initialIdx = chapterRow ? freshSections.findIndex((s) => s.number === chapterRow.lastSection) : -1
+    const freshSections = parseSections(chapterRow.note)
+    const initialIdx = freshSections.findIndex((s) => s.number === chapterRow.lastSection)
     furthestSectionIndexRef.current = initialIdx
     setFurthestSectionIndex(initialIdx)
     setCurrentSectionIndex(initialIdx)
     setQuickCheck(buildQuickCheck(cardRows.filter((c) => c.status === 'approved')))
     setQcIndex(0)
     setQcAnswer(null)
-    if (topicIds.length > 0) {
-      const allTopics = await listAcademyTopics()
-      setLinkedTopics(allTopics.filter((t) => topicIds.includes(t.id)))
-      const patientIdSets = await Promise.all(topicIds.map((tid) => listPatientIdsForTopic(tid)))
-      const patientIds = Array.from(new Set(patientIdSets.flat()))
-      if (patientIds.length > 0) {
-        const allPatients = await listPatients()
-        setLinkedPatients(allPatients.filter((p) => patientIds.includes(p.id)))
+  }
+
+  // Read-only offline support for Academy: a successful load caches this
+  // chapter's note/cards/highlights/figures (src/lib/offlineCache.ts); if
+  // the network fetch then fails (no connection), reload() falls back to
+  // that cache instead of leaving the Reader blank. Nothing written while
+  // offline (highlights, approvals, FSRS grades) is queued -- the next
+  // successful online load just overwrites the cache again.
+  async function reload() {
+    if (!id) return
+    try {
+      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows] = await Promise.all([
+        getLibraryChapter(id),
+        listLibraryCardsForChapter(id),
+        listLibraryHighlights(id),
+        listTopicIdsForChapter(id),
+        ensureLibraryBookSeeded().catch(() => null),
+        listLibraryChapterFigures(id).catch(() => []),
+      ])
+      setOfflineFallback(false)
+      if (!chapterRow) {
+        setChapter(null)
+        setCards([])
+        setHighlights([])
+        setFigureUrls({})
+        return
+      }
+      await applyChapterCore(chapterRow, cardRows, highlightRows, figureRows)
+      void cacheChapterBundle({ chapterId: id, chapter: chapterRow, cards: cardRows, highlights: highlightRows, figures: figureRows })
+      if (seeded) {
+        setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
+      }
+      if (topicIds.length > 0) {
+        const allTopics = await listAcademyTopics()
+        setLinkedTopics(allTopics.filter((t) => topicIds.includes(t.id)))
+        const patientIdSets = await Promise.all(topicIds.map((tid) => listPatientIdsForTopic(tid)))
+        const patientIds = Array.from(new Set(patientIdSets.flat()))
+        if (patientIds.length > 0) {
+          const allPatients = await listPatients()
+          setLinkedPatients(allPatients.filter((p) => patientIds.includes(p.id)))
+        } else {
+          setLinkedPatients([])
+        }
       } else {
+        setLinkedTopics([])
         setLinkedPatients([])
       }
-    } else {
+    } catch (err) {
+      const cached = await getCachedChapterBundle(id)
+      if (!cached) throw err
+      await applyChapterCore(cached.chapter, cached.cards, cached.highlights, cached.figures)
+      setChapterNumberToId({})
       setLinkedTopics([])
       setLinkedPatients([])
+      setOfflineFallback(true)
     }
   }
 
@@ -419,8 +466,8 @@ export function ReaderPage() {
     if (!chapter) return
     const caption = noteFigures.find((f) => f.id === figureKey)?.caption ?? null
     const figure = await addLibraryChapterFigure(chapter.id, chapter.chapterNumber, figureKey, caption, file)
-    const url = await getChapterFigureSignedUrl(figure.storagePath)
-    setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
+    const url = await resolveFigureUrl(figureKey, figure.storagePath)
+    if (url) setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
   }
 
   async function handleApproveAllSuggested(cardIds: string[]) {
@@ -672,6 +719,12 @@ export function ReaderPage() {
 
         <div className="stack">
           <article className="art-card np-fade" ref={articleRef}>
+            {offlineFallback && (
+              <p className="np-small" style={{ color: '#93590B', background: '#FDF0D5', padding: '8px 12px', borderRadius: 10 }}>
+                Offline — showing the last downloaded version of this chapter. Import, approving cards, and new figures need a
+                connection.
+              </p>
+            )}
             {error && (
               <p className="form-error" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                 <span>{error}</span>

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { OfflineIndicator } from './OfflineIndicator'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { MobileTabBar } from './MobileTabBar'
 import { Sidebar } from './Sidebar'
@@ -37,6 +38,7 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="header-actions">
+          <OfflineIndicator />
           <StorageUsageIndicator />
           <span className="header-email">{session.user.email}</span>
           <button onClick={() => void signOut()}>Sign out</button>

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { OfflineIndicator } from './OfflineIndicator'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { SettingsIcon } from './icons'
 import { NAV_LINKS } from '../lib/navLinks'
@@ -59,6 +60,7 @@ export function Sidebar() {
         </Link>
       </nav>
       <div className="sfoot">
+        <OfflineIndicator />
         <StorageUsageIndicator />
         <span className="semail">{session?.user.email}</span>
         <button type="button" className="sout" onClick={() => void signOut()}>

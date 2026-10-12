@@ -9,6 +9,7 @@ import { listAcademyCardsForTopic } from '../lib/api/academyCards'
 import { listAcademyTopics } from '../lib/api/academy'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
+import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
 import type { AcademyTopic, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
@@ -54,6 +55,7 @@ export function LibraryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [bookUnavailable, setBookUnavailable] = useState(false)
+  const [offlineFallback, setOfflineFallback] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -79,14 +81,25 @@ export function LibraryPage() {
       })
 
     const bookPromise = Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listReadingLog()])
-      .then(([seeded, cardRows, log]) => ({ ok: true as const, seeded, cardRows, log }))
-      .catch((err) => {
+      .then(([seeded, cardRows, log]) => {
+        void cacheLibrarySnapshot(seeded.book, seeded.chapters)
+        return { ok: true as const, seeded, cardRows, log, offline: false }
+      })
+      .catch(async (err) => {
         console.error('Academy v2 (Library) data failed to load', err)
+        // Offline (or Supabase unreachable): fall back to whatever the last
+        // successful load cached, so the chapter list still shows instead
+        // of silently dropping to the Topics tab.
+        const cached = await getCachedLibrarySnapshot()
+        if (cached) {
+          return { ok: true as const, seeded: cached, cardRows: [] as LibraryCard[], log: [] as ReadingLogEntry[], offline: true }
+        }
         return {
           ok: false as const,
           seeded: null as { book: LibraryBook; chapters: LibraryChapter[] } | null,
           cardRows: [] as LibraryCard[],
           log: [] as ReadingLogEntry[],
+          offline: false,
         }
       })
 
@@ -95,6 +108,7 @@ export function LibraryPage() {
         setTopics(topicRows)
         setTopicCardCounts(counts)
         setBookUnavailable(!bookResult.ok)
+        setOfflineFallback(bookResult.offline)
         if (bookResult.ok && bookResult.seeded) {
           setBook(bookResult.seeded.book)
           setChapters(bookResult.seeded.chapters)
@@ -182,6 +196,12 @@ export function LibraryPage() {
         <p className="np-small" style={{ color: '#9B3A31', background: '#FDECEB', padding: '8px 12px', borderRadius: 10 }}>
           Academy data unavailable — the Academy v2 database migration hasn't been applied yet. The book library is hidden
           until it is; your topics below are unaffected.
+        </p>
+      )}
+
+      {offlineFallback && (
+        <p className="np-small" style={{ color: '#93590B', background: '#FDF0D5', padding: '8px 12px', borderRadius: 10 }}>
+          Offline — showing your last downloaded chapter list. Due/card counts refresh once you're back online.
         </p>
       )}
 
