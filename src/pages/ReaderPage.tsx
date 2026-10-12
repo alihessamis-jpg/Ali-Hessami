@@ -452,7 +452,12 @@ export function ReaderPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".md,.zip,image/*"
+                // Explicit extensions (not the "image/*" MIME wildcard) so the
+                // .md and its figure images both show up as selectable in the
+                // same multi-select picker -- mixing a wildcard MIME type
+                // into `accept` makes some browsers (mobile Safari especially)
+                // default to a Photos-only picker and hide the .md file.
+                accept=".md,.zip,.jpg,.jpeg,.png,.gif,.webp"
                 multiple
                 style={{ display: 'none' }}
                 onChange={(e) => {
@@ -466,7 +471,7 @@ export function ReaderPage() {
                 className="np-btn ghost sm"
                 disabled={importing}
                 onClick={() => fileInputRef.current?.click()}
-                title="Select the .md file with its figures/ images, or a .zip"
+                title="Select the .md file together with its figures/ images (multi-select), or a single .zip"
               >
                 {importing ? 'Importing…' : 'Import note'}
               </button>
