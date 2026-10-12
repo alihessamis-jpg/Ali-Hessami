@@ -412,20 +412,30 @@ export async function listAllLibraryChapterFigures(): Promise<LibraryChapterFigu
   return (data as FigureRow[]).map(figureToDomain)
 }
 
-async function upsertLibraryChapterFigure(
-  userId: string,
+// Uploads one figure's image file to the chapter-figures bucket and
+// upserts its library_chapter_figures row by (chapter, figureKey), so
+// re-uploading the same figure replaces the file/row in place instead of
+// duplicating. Shared by the .md import flow and the Reader's own per-figure
+// "Add image" upload (for a figure the import was missing an image for).
+export async function addLibraryChapterFigure(
   chapterId: string,
+  chapterNumber: number,
   figureKey: string,
-  storagePath: string,
-  caption: string | null
-): Promise<void> {
-  const { error } = await supabase
+  caption: string | null,
+  file: File
+): Promise<LibraryChapterFigure> {
+  const userId = await currentUserId()
+  const storagePath = await uploadChapterFigureFile(userId, chapterNumber, figureKey, file)
+  const { data, error } = await supabase
     .from('library_chapter_figures')
     .upsert(
       { owner_id: userId, chapter_id: chapterId, figure_key: figureKey, storage_path: storagePath, caption },
       { onConflict: 'chapter_id,figure_key' }
     )
+    .select()
+    .single()
   if (error) throw error
+  return figureToDomain(data as FigureRow)
 }
 
 // --- Chapter-note import (NEPHRON_CHAPTER_FORMAT.md v1) -------------------
@@ -533,8 +543,7 @@ export async function importChapterNote(raw: string, images: ChapterNoteImageInp
       missingFigures.push(filename)
       continue
     }
-    const storagePath = await uploadChapterFigureFile(userId, parsed.meta.chapter, fig.figureKey, imageInput.file)
-    await upsertLibraryChapterFigure(userId, chapterId, fig.figureKey, storagePath, fig.caption || null)
+    await addLibraryChapterFigure(chapterId, parsed.meta.chapter, fig.figureKey, fig.caption || null, imageInput.file)
   }
 
   return {

@@ -38,6 +38,8 @@ interface Props {
   chapterNumberToId?: Record<number, string>
   /** v1.3: figureKey -> signed image URL, for `.figure` blocks. */
   figures?: Record<string, string>
+  /** v1.3: upload an image for a figure the import had no file for. */
+  onUploadFigure?: (figureKey: string, file: File) => Promise<void>
 }
 
 function renderBdi(text: string, keyBase: string): ReactNode[] {
@@ -325,13 +327,32 @@ function FigureCard({
   caption,
   file,
   onOpen,
+  onUploadFigure,
 }: {
   id: string
   src: string | null
   caption: string
   file: string
   onOpen: () => void
+  onUploadFigure?: (figureKey: string, file: File) => Promise<void>
 }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(picked: File) {
+    if (!onUploadFigure) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      await onUploadFigure(id, picked)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <figure className="bookfig" id={id}>
       {src ? (
@@ -339,7 +360,28 @@ function FigureCard({
           <img src={src} alt={caption} loading="lazy" />
         </button>
       ) : (
-        <div className="bookfig-missing">Missing figure: {file.split('/').pop() ?? file} — add file</div>
+        <div className="bookfig-missing">
+          <span>Missing figure: {file.split('/').pop() ?? file}</span>
+          {onUploadFigure && (
+            <>
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const picked = e.target.files?.[0]
+                  e.target.value = ''
+                  if (picked) void handleFile(picked)
+                }}
+              />
+              <button type="button" className="np-btn ghost sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+                {uploading ? 'Uploading…' : 'Add image'}
+              </button>
+              {uploadError && <span className="bookfig-err">{uploadError}</span>}
+            </>
+          )}
+        </div>
       )}
       {caption && <figcaption>{renderBdi(caption, `${id}-cap`)}</figcaption>}
     </figure>
@@ -441,6 +483,7 @@ export function ChapterProse({
   onReviewSuggestedOneByOne,
   chapterNumberToId,
   figures,
+  onUploadFigure,
 }: Props) {
   const chartIndexRef = useRef(0)
   chartIndexRef.current = 0
@@ -727,6 +770,7 @@ export function ChapterProse({
           caption={block.caption}
           file={block.file}
           onOpen={() => url && setViewerFigure({ src: url, caption: block.caption })}
+          onUploadFigure={onUploadFigure}
         />
       )
       continue

@@ -4,6 +4,7 @@ import JSZip from 'jszip'
 import {
   addLibraryCard,
   addLibraryCards,
+  addLibraryChapterFigure,
   addLibraryHighlight,
   approveLibraryCard,
   approveLibraryCards,
@@ -25,6 +26,7 @@ import { listPatientIdsForTopic } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
 import { ChapterProse, type MakeCardPayload, type MakeCardsFromTablePayload } from '../components/library/ChapterProse'
 import { PatientCaseCardForm } from '../components/library/PatientCaseCardForm'
+import { splitNoteBlocks, type NoteBlock } from '../lib/chapterNoteBlocks'
 import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
@@ -80,6 +82,61 @@ function buildQuickCheck(cards: LibraryCard[]): QuickCheckQuestion[] {
   })
 }
 
+// v1.3: one row in the "Add figure images" panel -- a figure the chapter
+// note references that has no uploaded image yet, with its own file picker
+// so the reader can go through several one by one.
+function MissingFigureRow({
+  figureKey,
+  file,
+  caption,
+  onUpload,
+}: {
+  figureKey: string
+  file: string
+  caption: string
+  onUpload: (figureKey: string, file: File) => Promise<void>
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(picked: File) {
+    setUploading(true)
+    setError(null)
+    try {
+      await onUpload(figureKey, picked)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="figrow">
+      <div>
+        <b>{file.split('/').pop() ?? file}</b>
+        {caption && <span className="np-small"> · {caption}</span>}
+        {error && <span className="bookfig-err"> · {error}</span>}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const picked = e.target.files?.[0]
+          e.target.value = ''
+          if (picked) void handleFile(picked)
+        }}
+      />
+      <button type="button" className="np-btn ghost sm" disabled={uploading} onClick={() => inputRef.current?.click()}>
+        {uploading ? 'Uploading…' : 'Add image'}
+      </button>
+    </div>
+  )
+}
+
 export function ReaderPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -102,6 +159,7 @@ export function ReaderPage() {
   const [reviewQueue, setReviewQueue] = useState<string[] | null>(null)
   const [reviewIndex, setReviewIndex] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [figurePanelOpen, setFigurePanelOpen] = useState(false)
 
   const articleRef = useRef<HTMLDivElement>(null)
   const bottomSentinelRef = useRef<HTMLDivElement>(null)
@@ -110,6 +168,15 @@ export function ReaderPage() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1)
 
   const sections = useMemo(() => parseSections(chapter?.note), [chapter?.note])
+
+  // v1.3: every `.figure` the chapter note references, vs. the ones that
+  // actually have an uploaded image (figureUrls) -- the gap is what "Add
+  // figure images" lets the reader fill in one by one.
+  const noteFigures = useMemo(
+    () => splitNoteBlocks(chapter?.note ?? '').filter((b): b is Extract<NoteBlock, { kind: 'figure' }> => b.kind === 'figure'),
+    [chapter?.note]
+  )
+  const missingFigures = noteFigures.filter((f) => !figureUrls[f.id])
 
   function markSectionsReadUpTo(idx: number) {
     if (idx <= furthestSectionIndexRef.current) return
@@ -342,6 +409,18 @@ export function ReaderPage() {
     }
   }
 
+  // v1.3: uploads one figure's image (from the per-figure "Add image" button
+  // on a missing-figure card, or from the "Add figure images" panel) and
+  // shows it immediately -- no re-import needed. Errors are surfaced by the
+  // caller (FigureCard / MissingFigureRow own their upload state), not here.
+  async function handleUploadFigure(figureKey: string, file: File) {
+    if (!chapter) return
+    const caption = noteFigures.find((f) => f.id === figureKey)?.caption ?? null
+    const figure = await addLibraryChapterFigure(chapter.id, chapter.chapterNumber, figureKey, caption, file)
+    const url = await getChapterFigureSignedUrl(figure.storagePath)
+    setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
+  }
+
   async function handleApproveAllSuggested(cardIds: string[]) {
     try {
       await approveLibraryCards(cardIds)
@@ -475,6 +554,18 @@ export function ReaderPage() {
               >
                 {importing ? 'Importing…' : 'Import note'}
               </button>
+              {noteFigures.length > 0 && (
+                <button
+                  type="button"
+                  className="np-btn ghost sm"
+                  disabled={missingFigures.length === 0}
+                  onClick={() => setFigurePanelOpen((v) => !v)}
+                  title={missingFigures.length === 0 ? 'Every figure in this chapter has an image' : 'Upload the missing figure images one by one'}
+                  style={{ marginInlineStart: 8 }}
+                >
+                  Add figure images{missingFigures.length > 0 ? ` (${missingFigures.length})` : ''}
+                </button>
+              )}
             </span>
           </div>
           <div className="rhead-title">
@@ -595,12 +686,25 @@ export function ReaderPage() {
                 onReviewSuggestedOneByOne={handleReviewSuggestedOneByOne}
                 chapterNumberToId={chapterNumberToId}
                 figures={figureUrls}
+                onUploadFigure={handleUploadFigure}
               />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>
             )}
             <div ref={bottomSentinelRef} style={{ height: 1 }} />
           </article>
+
+          {figurePanelOpen && missingFigures.length > 0 && (
+            <section className="np-card np-fade" style={{ gap: 12 }}>
+              <div className="np-head">
+                <h2>Add figure images</h2>
+                <span className="np-small">{missingFigures.length} missing</span>
+              </div>
+              {missingFigures.map((f) => (
+                <MissingFigureRow key={f.id} figureKey={f.id} file={f.file} caption={f.caption} onUpload={handleUploadFigure} />
+              ))}
+            </section>
+          )}
 
           {reviewQueue && (
             <section className="np-card np-fade" style={{ gap: 12 }}>
