@@ -5,7 +5,7 @@ import { sortSubTopics } from '../lib/sortSubTopics'
 import { isolateLatinRuns } from '../lib/bidiText'
 import { MarkdownSection } from '../components/MarkdownSection'
 import type { AcademyTopic } from '../types/domain'
-import { PearlsArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 function hasHighYieldContent(t: AcademyTopic): boolean {
   return Boolean(t.summary?.trim() || t.keyPoints.length > 0 || t.redFlags?.trim() || t.pearls?.trim())
@@ -92,7 +92,8 @@ export function HighYieldPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow amber" />
+        <HeroScene scene="spark" page="highyield" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>High-Yield Summary</h1>
@@ -101,7 +102,6 @@ export function HighYieldPage() {
               review.
             </p>
           </div>
-          <PearlsArt />
         </div>
       </section>
 

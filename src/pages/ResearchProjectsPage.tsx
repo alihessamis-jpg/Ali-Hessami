@@ -5,7 +5,7 @@ import { listLusStudyEnrollments } from '../lib/api/lusStudy'
 import { matchesSearch } from '../lib/textFilter'
 import { ResearchIcon } from '../components/icons'
 import type { ResearchProject } from '../types/domain'
-import { MicroscopeArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 const STAGES = [
   { label: 'Proposal', detail: 'Question, design, sample size' },
@@ -73,13 +73,13 @@ export function ResearchProjectsPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow cyan" />
+        <HeroScene scene="podocyte" page="research" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Research &amp; Thesis Center</h1>
             <p className="np-sub">Track every project from idea to publication.</p>
           </div>
-          <MicroscopeArt />
         </div>
       </section>
 

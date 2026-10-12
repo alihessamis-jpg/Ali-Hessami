@@ -7,6 +7,7 @@ import { formatAge } from '../lib/patientAge'
 import { useCountUp } from '../hooks/useCountUp'
 import { PersonIcon, PlusIcon, SearchIcon, WarningIcon, ZapIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
+import { HeroScene } from '../components/hero/HeroScene'
 import type { Patient, PatientCareStatus } from '../types/domain'
 
 const WARDS: Array<{ id: PatientCareStatus; label: string; chipLabel: string }> = [
@@ -119,7 +120,8 @@ export function PatientsListPage() {
   return (
     <div className="np-page">
       <section className="pt-hero np-fade">
-        <div className="pt-hero-glow" />
+        <HeroScene scene="branching" page="patients" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="pt-hero-top">
           <h1>Patients</h1>
           <div className="pt-hero-actions">
@@ -133,7 +135,7 @@ export function PatientsListPage() {
             </button>
           </div>
         </div>
-        <svg viewBox="0 0 700 40" width="100%" height="40" fill="none" preserveAspectRatio="none" aria-hidden="true" style={{ position: 'relative', display: 'block' }}>
+        <svg viewBox="0 0 700 40" width="100%" height="40" fill="none" preserveAspectRatio="none" aria-hidden="true" style={{ position: 'relative', zIndex: 2, display: 'block' }}>
           <path
             d="M0 22H120l8-14 10 28 8-20 6 6H330l8-14 10 28 8-20 6 6H540l8-14 10 28 8-20 6 6H700"
             stroke="rgba(127,212,255,.25)"

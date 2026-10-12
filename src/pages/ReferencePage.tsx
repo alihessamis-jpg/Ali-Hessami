@@ -19,7 +19,7 @@ import {
 } from '../lib/storage'
 import { useAuth } from '../context/AuthContext'
 import type { DialysisRefEntry, DrugRefEntry, ReferenceAttachment } from '../types/domain'
-import { DosingArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 function isImagePath(path: string): boolean {
   return /\.(png|jpe?g|gif|webp|heic|heif)$/i.test(path)
@@ -308,13 +308,13 @@ export function ReferencePage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow cyan" />
+        <HeroScene scene="pyramids" page="reference" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Reference</h1>
             <p className="np-sub">Your own verified dosing list — nothing pre-seeded, private to you.</p>
           </div>
-          <DosingArt />
         </div>
       </section>
 

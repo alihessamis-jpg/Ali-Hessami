@@ -7,7 +7,7 @@ import { CASE_LOG_CATEGORIES, CASE_LOG_ROLES, CASE_LOG_SETTINGS } from '../lib/c
 import { SHAMSI_MONTHS, toPersianDigits } from '../lib/shamsi'
 import { matchesSearch } from '../lib/textFilter'
 import type { Patient } from '../types/domain'
-import { BiopsyArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 function dateBadge(iso: string): { day: string; month: string } {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
@@ -115,7 +115,8 @@ export function CaseLogPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="converge" page="caselog" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Case Log</h1>
@@ -124,7 +125,6 @@ export function CaseLogPage() {
               review.
             </p>
           </div>
-          <BiopsyArt />
         </div>
         <div className="np-hstats" style={{ '--n': 5 } as CSSProperties}>
           {roleCounts.map((r) => (

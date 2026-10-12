@@ -17,6 +17,7 @@ import { toShamsi } from '../lib/shamsi'
 import { describeError } from '../lib/describeError'
 import { useCountUp } from '../hooks/useCountUp'
 import { LusStudySessionForm } from '../components/patient/LusStudySessionForm'
+import { HeroScene } from '../components/hero/HeroScene'
 import type { LusStudySessionWithPatient } from '../lib/api/lusStudy'
 import type { LusStudyEnrollment, LusStudyGroup, LusStudySessionDraft, Patient, PatientCareStatus } from '../types/domain'
 
@@ -317,6 +318,8 @@ export function ThesisFormPage() {
       </button>
 
       <section className="np-hero th-hero np-fade">
+        <HeroScene scene="jga" page="thesis" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <span className="np-eyebrow" style={{ color: '#7FD4FF' }}>

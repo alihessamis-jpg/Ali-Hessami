@@ -4,6 +4,7 @@ import { ensureLibraryBookSeeded, listAllLibraryCards, listReadingLog, updateLib
 import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
+import { HeroScene } from '../components/hero/HeroScene'
 import type { FsrsRating, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
 
 function todayStorageKey() {
@@ -205,7 +206,8 @@ export function ReviewPage() {
       <div className="np-page">
         <div className="rv">
           <section className="sum np-fade">
-            <div className="np-glow" style={{ background: 'radial-gradient(circle,rgba(124,92,224,.45),rgba(124,92,224,0) 70%)', top: -120, right: -60 }} />
+            <HeroScene scene="channels" page="review" className="hero-scene" />
+            <div className="hero-scrim" />
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="eyebrow" style={{ color: '#B9A6F5' }}>
                 SESSION COMPLETE

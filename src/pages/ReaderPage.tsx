@@ -24,6 +24,7 @@ import { PatientCaseCardForm } from '../components/library/PatientCaseCardForm'
 import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
+import { HeroScene } from '../components/hero/HeroScene'
 import type { AcademyTopic, FsrsRating, LibraryCard, LibraryChapter, LibraryHighlight, Patient } from '../types/domain'
 
 const QUICK_CHECK_SIZE = 4
@@ -408,9 +409,13 @@ export function ReaderPage() {
               </button>
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <div className="rhead-title">
+            <HeroScene scene="microvilli" page="reader" className="hero-scene" opacity={0.35} />
+            <div className="hero-scrim-light" />
             <span
               style={{
+                position: 'relative',
+                zIndex: 2,
                 width: 56,
                 height: 56,
                 borderRadius: 16,
@@ -427,7 +432,7 @@ export function ReaderPage() {
               <span style={{ fontSize: 9, color: '#A9C6FF', fontWeight: 700, letterSpacing: '.08em' }}>CH</span>
               <b style={{ fontSize: 20 }}>{chapter.chapterNumber}</b>
             </span>
-            <h1>{chapter.title}</h1>
+            <h1 style={{ position: 'relative', zIndex: 2 }}>{chapter.title}</h1>
           </div>
           <div className="rmeta">
             <span className="chip2">

@@ -10,6 +10,7 @@ import {
   setChecklistCompletion,
 } from '../lib/api/checklists'
 import { useAuth } from '../context/AuthContext'
+import { HeroScene } from '../components/hero/HeroScene'
 import { isolateLatinRuns } from '../lib/bidiText'
 import { matchesSearch } from '../lib/textFilter'
 import type { ChecklistItem, ChecklistTemplate } from '../types/domain'
@@ -161,7 +162,8 @@ export function ChecklistsPage() {
           ) : (
             <>
               <section className="np-hero np-fade" dir="rtl">
-                <div className="np-glow cyan" />
+                <HeroScene scene="fibers" page="checklists" className="hero-scene" />
+                <div className="hero-scrim" />
                 <div className="np-hrow">
                   <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true">
                     <circle cx="48" cy="48" r={RING_RADIUS} stroke="rgba(255,255,255,.14)" strokeWidth={8} />

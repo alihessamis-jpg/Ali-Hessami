@@ -6,7 +6,7 @@ import { listResearchProjects } from '../lib/api/research'
 import { groupAcademicActivities, summarizeCaseLog } from '../lib/cvBuilder'
 import { toShamsi } from '../lib/shamsi'
 import type { AcademicActivity, CaseLogEntry, ResearchProject } from '../types/domain'
-import { CvArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 const STATUS_LABEL: Record<string, string> = {
   planned: 'Planned',
@@ -62,7 +62,8 @@ export function CvPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="peristalsis" page="cv" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Academic CV</h1>
@@ -71,7 +72,6 @@ export function CvPage() {
               up-to-date portfolio.
             </p>
           </div>
-          <CvArt />
         </div>
         <button type="button" className="np-btn white" onClick={() => window.print()}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

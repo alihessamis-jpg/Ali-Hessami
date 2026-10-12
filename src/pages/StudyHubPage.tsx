@@ -22,7 +22,7 @@ import {
   QuizIcon,
   ReasoningIcon,
 } from '../components/icons'
-import { ConceptGraphArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 type Tab =
   | 'notes'
@@ -63,13 +63,13 @@ export function StudyHubPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="system" page="studyhub" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Study Hub</h1>
             <p className="np-sub">Notes, cases, challenges and questions — all linked.</p>
           </div>
-          <ConceptGraphArt />
         </div>
       </section>
 

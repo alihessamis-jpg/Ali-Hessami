@@ -22,7 +22,7 @@ import {
   urineProteinRateMgM2Hr,
   type ProteinuriaClass,
 } from '../lib/proteinuria'
-import { FiltrationGaugeArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 const CALCS = [
   { id: 'egfr', label: 'Schwartz eGFR' },
@@ -109,13 +109,13 @@ export function CalculatorsPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="membrane" page="calculators" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Calculators</h1>
             <p className="np-sub">Standard pediatric formulas — reference aids, not a substitute for clinical judgement.</p>
           </div>
-          <FiltrationGaugeArt />
         </div>
       </section>
 

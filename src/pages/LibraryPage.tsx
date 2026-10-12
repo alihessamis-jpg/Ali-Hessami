@@ -10,6 +10,7 @@ import { listAcademyTopics } from '../lib/api/academy'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon } from '../components/icons'
+import { HeroScene } from '../components/hero/HeroScene'
 import type { AcademyTopic, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics'
@@ -186,7 +187,8 @@ export function LibraryPage() {
 
       {book && (
         <section className="np-hero np-fade" style={{ gap: 18 }}>
-          <div className="np-glow amber" />
+          <HeroScene scene="glomerulus" page="library" className="hero-scene" />
+          <div className="hero-scrim" />
           <div className="libhero">
             <div className="cover" aria-hidden="true">
               <i>{book.edition} ed.</i>

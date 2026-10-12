@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { HeroScene } from '../components/hero/HeroScene'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listAllAcademyCards, updateAcademyCardSrs } from '../lib/api/academyCards'
 import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
@@ -243,13 +244,14 @@ export function TodayPage() {
   return (
     <div className="np-page">
       <section className="td-hero np-fade">
-        <div className="td-hero-glow" />
+        <HeroScene scene="dawn" page="today" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="td-hero-body">
           <span className="td-eyebrow">TODAY</span>
           <h1>Review queue</h1>
           <p>Everything due for spaced repetition, in one place.</p>
         </div>
-        <svg width="112" height="112" viewBox="0 0 112 112" fill="none" aria-hidden="true" style={{ position: 'relative', flexShrink: 0 }}>
+        <svg width="112" height="112" viewBox="0 0 112 112" fill="none" aria-hidden="true" style={{ position: 'relative', zIndex: 2, flexShrink: 0 }}>
           <circle cx="56" cy="56" r="48" stroke="rgba(255,255,255,.12)" strokeWidth="8" />
           <circle
             cx="56"

@@ -8,6 +8,7 @@ import { listFlashcards } from '../lib/api/flashcards'
 import { ensureLibraryBookSeeded, listAllLibraryCards } from '../lib/api/library'
 import { describeError, tagPromise } from '../lib/debugError'
 import { computeTopicReadiness, type TopicReadiness } from '../lib/examReadiness'
+import { HeroScene } from '../components/hero/HeroScene'
 import { useCountUp } from '../hooks/useCountUp'
 import { isolateLatinRuns } from '../lib/bidiText'
 
@@ -83,7 +84,8 @@ export function BoardReadinessPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="loop" page="board" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Board Readiness</h1>

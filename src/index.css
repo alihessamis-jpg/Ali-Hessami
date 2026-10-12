@@ -2719,6 +2719,7 @@ legend {
 
 .td-hero-body {
   position: relative;
+  z-index: 2;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -2986,6 +2987,7 @@ legend {
 
 .pt-hero-top {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3055,6 +3057,7 @@ legend {
 
 .pt-stats {
   position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
@@ -3477,6 +3480,29 @@ select.pt-ward:focus {
   gap: 16px;
 }
 
+.np-hero > *:not(.hero-scene):not(.hero-scrim) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Canvas/video page-hero scene (components/hero/HeroScene.tsx) -- fills the
+   hero box behind the existing text, with a navy scrim on top of it for
+   contrast. Both are position:absolute;inset:0 already (see the component);
+   this just orders them under the hero's text/stats. */
+.hero-scene {
+  z-index: 0;
+}
+
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(6, 20, 47, 0.78), rgba(6, 20, 47, 0.08) 55%, rgba(6, 20, 47, 0.42) 100%),
+    linear-gradient(100deg, rgba(6, 20, 47, 0.55), rgba(6, 20, 47, 0) 55%);
+}
+
 .np-glow {
   position: absolute;
   width: 240px;
@@ -3506,6 +3532,7 @@ select.pt-ward:focus {
 
 .np-hrow {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -3536,6 +3563,7 @@ select.pt-ward:focus {
 
 .np-art {
   position: relative;
+  z-index: 2;
   flex-shrink: 0;
 }
 
@@ -3555,6 +3583,7 @@ select.pt-ward:focus {
 
 .np-hstats {
   position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
   gap: 6px;
@@ -4309,6 +4338,7 @@ select.pt-ward:focus {
 
 .dh-hero-body {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -5602,6 +5632,7 @@ select.pt-ward:focus {
 
 .pc-top {
   position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -5643,6 +5674,7 @@ select.pt-ward:focus {
 
 .pc-chips {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -5660,6 +5692,7 @@ select.pt-ward:focus {
 
 .pc-ecg {
   position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 34px;
@@ -5671,6 +5704,7 @@ select.pt-ward:focus {
 
 .pc-actions {
   position: relative;
+  z-index: 2;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -6137,6 +6171,8 @@ select.pt-ward:focus {
 /* --- Library ------------------------------------------------- */
 
 .libhero {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 18px;
@@ -6175,6 +6211,8 @@ select.pt-ward:focus {
 }
 
 .lstats {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -6192,6 +6230,8 @@ select.pt-ward:focus {
 }
 
 .goal {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6537,6 +6577,26 @@ select.pt-ward:focus {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Chapter header only (dimmed, never behind the running text below it). */
+.rhead-title {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 10px;
+  margin: -10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.hero-scrim-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.82));
 }
 
 .crumb {
@@ -7620,6 +7680,11 @@ select.pt-ward:focus {
   gap: 18px;
   position: relative;
   overflow: hidden;
+}
+
+.sum > *:not(.hero-scene):not(.hero-scrim) {
+  position: relative;
+  z-index: 2;
 }
 
 .sgrid {

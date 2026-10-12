@@ -11,7 +11,7 @@ import {
 import { SHAMSI_MONTHS, toPersianDigits } from '../lib/shamsi'
 import { matchesSearch } from '../lib/textFilter'
 import type { AcademicActivity, AcademicActivityStatus } from '../types/domain'
-import { PresentationArt } from '../components/heroArt/PageArt'
+import { HeroScene } from '../components/hero/HeroScene'
 
 const emptyDraft = {
   date: new Date().toISOString().slice(0, 10),
@@ -130,7 +130,8 @@ export function AcademicActivityPage() {
       </button>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="peristalsis2" page="activity" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Academic Activity</h1>
@@ -138,7 +139,6 @@ export function AcademicActivityPage() {
               Conferences, journal club, presentations, posters and manuscripts — your record for portfolio review.
             </p>
           </div>
-          <PresentationArt />
         </div>
         <div className="np-hstats" style={{ '--n': 4 } as CSSProperties}>
           <div>

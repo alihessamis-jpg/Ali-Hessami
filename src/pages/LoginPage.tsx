@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import { HeroScene } from '../components/hero/HeroScene'
 
 const reveal = {
   hidden: { opacity: 0, y: 12 },
@@ -41,32 +42,7 @@ export function LoginPage() {
       <div className="login-glow g2" />
       <div className="login-wrap">
         <div className="login-vis">
-          <svg viewBox="0 0 390 420" fill="none" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <g className="login-beat">
-              <circle cx="90" cy="110" r="34" stroke="#3E73D6" strokeWidth={2} />
-              <path
-                d="M70 100c6-14 22-14 26-4s-14 10-8 22 22 4 22-10M74 124c10 6 28 4 32-10"
-                stroke="#9CC2FF"
-                strokeWidth={2.4}
-                strokeLinecap="round"
-              />
-            </g>
-            <path
-              d="M126 96C146 60 166 118 186 80S216 50 236 76L268 300Q286 334 304 300L322 120C330 90 350 130 360 100"
-              stroke="#1D4A9E"
-              strokeWidth={10}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M126 96C146 60 166 118 186 80S216 50 236 76L268 300Q286 334 304 300L322 120C330 90 350 130 360 100"
-              stroke="#7FD4FF"
-              strokeWidth={2.6}
-              strokeLinecap="round"
-              strokeDasharray="6 8"
-              className="login-flow"
-            />
-          </svg>
+          <HeroScene scene="kidney" page="login" className="hero-scene" />
         </div>
 
         <motion.div className="login-side" initial="hidden" animate="show" transition={{ staggerChildren: 0.1, delayChildren: 0.05 }}>

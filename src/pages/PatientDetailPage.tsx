@@ -8,6 +8,7 @@ import { listLabEntries } from '../lib/api/labs'
 import { schwartzEGFR } from '../lib/formulas'
 import { isUnderlyingDiseaseDuplicate } from '../lib/clinicalFlags'
 import { toShamsi } from '../lib/shamsi'
+import { HeroScene } from '../components/hero/HeroScene'
 import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
 import { LabsTab } from '../components/patient/LabsTab'
@@ -181,7 +182,8 @@ export function PatientDetailPage() {
       </Link>
 
       <section className="np-hero np-fade">
-        <div className="np-glow blue" />
+        <HeroScene scene="cross" page="patient" className="hero-scene" />
+        <div className="hero-scrim" />
         <div className="pc-top">
           <span className="pc-avatar">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
