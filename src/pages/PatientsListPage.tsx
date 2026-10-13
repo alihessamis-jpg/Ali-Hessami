@@ -219,11 +219,24 @@ export function PatientsListPage() {
           {visiblePatients.map((p, i) => {
             const critical = lowHbByPatient[p.id] != null
             return (
-              <Link
+              // A plain div + onClick here, not a <Link> wrapping the row: nesting
+              // the <select> status picker inside an <a> is invalid HTML and some
+              // mobile browsers (notably iOS Safari) resolve a tap anywhere on the
+              // row to the nested control instead of the link, so the whole card
+              // opened the status dropdown instead of navigating to the patient.
+              <div
                 key={p.id}
-                to={`/patients/${p.id}`}
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(`/patients/${p.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    navigate(`/patients/${p.id}`)
+                  }
+                }}
                 className={critical ? 'pt-pt crit' : 'pt-pt'}
-                style={{ animationDelay: `${Math.min(i, 8) * 0.07}s` }}
+                style={{ animationDelay: `${Math.min(i, 8) * 0.07}s`, cursor: 'pointer' }}
               >
                 <span className="pt-av">
                   <PersonIcon />
@@ -252,7 +265,7 @@ export function PatientsListPage() {
                     </option>
                   ))}
                 </select>
-              </Link>
+              </div>
             )
           })}
         </div>
