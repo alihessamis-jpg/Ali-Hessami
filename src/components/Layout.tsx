@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { OfflineIndicator } from './OfflineIndicator'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
@@ -46,7 +47,19 @@ export function Layout({ children }: { children: ReactNode }) {
       </header>
       <div className="shell-row">
         <Sidebar />
-        <main className="app-main">{children}</main>
+        <main className="app-main">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
       {location.pathname !== '/academy/review' && <MobileTabBar currentPath={location.pathname} />}
     </div>

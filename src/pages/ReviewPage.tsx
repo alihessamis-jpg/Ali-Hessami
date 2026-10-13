@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   ensureLibraryBookSeeded,
   listAllLibraryCards,
@@ -345,7 +346,15 @@ export function ReviewPage() {
         </div>
 
         <div className="stage">
-          <div className={revealed ? 'cardx on revealed' : 'cardx on'}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={current.id}
+              className={revealed ? 'cardx on revealed' : 'cardx on'}
+              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -14, scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            >
             <div className="face" style={{ '--stripe': style.stripe } as React.CSSProperties}>
               <div className="src">
                 <span className="chip2">
@@ -434,16 +443,22 @@ export function ReviewPage() {
                 Show answer <kbd>Space</kbd>
               </button>
             ) : (
-              <div className="grade on">
+              <motion.div
+                className="grade on"
+                initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              >
                 {(['again', 'hard', 'good', 'easy'] as FsrsRating[]).map((r, i) => (
                   <button key={r} className={`g${i + 1}`} onClick={() => void handleGrade(r)}>
                     <b>{r[0].toUpperCase() + r.slice(1)}</b>
                     <span>{preview?.[r].label}</span>
                   </button>
                 ))}
-              </div>
+              </motion.div>
             )}
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
         <p className="hint">Keyboard: Space = show · 1 Again · 2 Hard · 3 Good · 4 Easy.</p>
       </div>

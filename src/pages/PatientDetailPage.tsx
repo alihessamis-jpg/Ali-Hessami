@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { getPatient } from '../lib/api/patients'
 import { formatAge } from '../lib/patientAge'
 import { getLusStudyEnrollment } from '../lib/api/lusStudy'
@@ -364,8 +365,15 @@ export function PatientDetailPage() {
             const TabIcon = t.icon
             return (
               <button key={t.id} type="button" className={t.id === tab ? 'np-chip on' : 'np-chip'} onClick={() => setTab(t.id)}>
+                {t.id === tab && (
+                  <motion.span
+                    layoutId="pc-tab-pill"
+                    className="pc-tab-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
                 <TabIcon width={15} height={15} />
-                {t.label}
+                <span className="pc-tab-label">{t.label}</span>
               </button>
             )
           })}
@@ -391,25 +399,33 @@ export function PatientDetailPage() {
           ))}
         </nav>
 
-        <div>
-          {tab === 'overview' && <OverviewTab patientId={id} patient={patient} labEntries={labEntries} onNavigate={navigateTo} />}
-          {tab === 'timeline' && <TimelineTab patientId={id} />}
-          {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
-          {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
-          {tab === 'growth' && <GrowthTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
-          {tab === 'trends' && <TrendsTab patientId={id} />}
-          {tab === 'notes' && <NotesTab patientId={id} onPatientUpdated={setPatient} />}
-          {tab === 'medications' && <MedicationsTab patientId={id} />}
-          {tab === 'imaging' && <ImagingTab patientId={id} />}
-          {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
-          {tab === 'dialysis' && <DialysisTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
-          {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
-          {tab === 'lusStudy' && <LusStudyTab patientId={id} patient={patient} />}
-          {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
-          {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
-          {tab === 'reminders' && <RemindersTab patientId={id} />}
-          {tab === 'document' && <DocumentTab patientId={id} />}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {tab === 'overview' && <OverviewTab patientId={id} patient={patient} labEntries={labEntries} onNavigate={navigateTo} />}
+            {tab === 'timeline' && <TimelineTab patientId={id} />}
+            {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
+            {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
+            {tab === 'growth' && <GrowthTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
+            {tab === 'trends' && <TrendsTab patientId={id} />}
+            {tab === 'notes' && <NotesTab patientId={id} onPatientUpdated={setPatient} />}
+            {tab === 'medications' && <MedicationsTab patientId={id} />}
+            {tab === 'imaging' && <ImagingTab patientId={id} />}
+            {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
+            {tab === 'dialysis' && <DialysisTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
+            {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
+            {tab === 'lusStudy' && <LusStudyTab patientId={id} patient={patient} />}
+            {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
+            {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
+            {tab === 'reminders' && <RemindersTab patientId={id} />}
+            {tab === 'document' && <DocumentTab patientId={id} />}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <button type="button" className={fabHidden ? 'pc-fab pc-fab--hidden' : 'pc-fab'} onClick={() => setAddOpen(true)}>

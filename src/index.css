@@ -5804,6 +5804,30 @@ select.pt-ward:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* The sliding pill (framer-motion layoutId) carries the active chip's
+   background; the chip's own `.on` background is cleared here so the
+   pill is the only thing moving, instead of a second blue layer sitting
+   statically underneath it. */
+.pc-tabs .np-chip.on {
+  background: transparent;
+}
+
+.pc-tabs .np-chip svg,
+.pc-tab-label {
+  position: relative;
+  z-index: 1;
+}
+
+.pc-tab-pill {
+  position: absolute;
+  inset: 0;
+  background: #1e5bd8;
+  border-radius: inherit;
+  z-index: 0;
 }
 
 .pc-vtabs {
