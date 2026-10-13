@@ -585,13 +585,13 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
     camera.updateProjectionMatrix()
     const visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
     const visW = visH * camera.aspect
-    // Bigger scale cap + a smaller rightward offset than the original
-    // prototype crops in tighter on the capillary tuft (per the reference
-    // macro photos) instead of showing the whole small corpuscle in the
-    // corner of the banner.
-    const s = Math.min(1.7, visW / 5.2)
+    // ~20% smaller than the previous crop, and anchored further right/down
+    // so the full Bowman's capsule clears both the frame edges and the
+    // text block (now absolutely positioned at left:6%, see .dh-hero-body)
+    // at every hero width instead of only at the one size it was tuned for.
+    const s = Math.min(1.36, visW / 6.5)
     corpuscle.scale.setScalar(s)
-    corpuscle.position.set(visW / 2 - 1.7 * s, 0.15 * s, 0)
+    corpuscle.position.set(visW / 2 - 2.1 * s, -0.08 * s, 0)
     const pxScale = (H * DPR) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)))
     sparkMats.forEach((m) => (m.uniforms.uScale.value = pxScale))
   }

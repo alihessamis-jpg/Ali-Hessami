@@ -4350,8 +4350,12 @@ select.pt-ward:focus {
 }
 
 .dh-hero-body {
-  position: relative;
+  position: absolute;
   z-index: 2;
+  left: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 56%;
   display: flex;
   flex-direction: column;
   gap: 4px;
