@@ -20,7 +20,7 @@ import {
 } from '../lib/api/dashboard'
 import { ANURIA_THRESHOLD_ML_KG_HR, POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/formulas'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
-import { listExpiredPatientIds } from '../lib/api/patients'
+import { listActivePatientIds } from '../lib/api/patients'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listAllAcademyCards } from '../lib/api/academyCards'
 import { listFlashcards } from '../lib/api/flashcards'
@@ -227,7 +227,7 @@ export function DashboardPage() {
       tagPromise('urine_output_entries/patients (listAnuriaAlerts)', listAnuriaAlerts().catch(() => [] as AnuriaAlert[])),
       tagPromise('academy_cards (listAllAcademyCards)', listAllAcademyCards()),
       academyV2Promise,
-      tagPromise('patients (listExpiredPatientIds)', listExpiredPatientIds()),
+      tagPromise('patients (listActivePatientIds)', listActivePatientIds()),
     ])
       .then(
         async ([
@@ -248,16 +248,17 @@ export function DashboardPage() {
           anuriaRowsRaw,
           cardRows,
           academyV2,
-          expiredIds,
+          activeIds,
         ]) => {
-          // Expired patients keep their chart and case log, but drop out of
-          // every Dashboard alert/follow-up list (AKI, anuria, abnormal
-          // labs, reminders, uropathy watches, the patient-glance panel).
-          const labRows = labRowsRaw.filter((l) => !expiredIds.has(l.patientId))
-          const reminderRows = reminderRowsRaw.filter((r) => !expiredIds.has(r.patientId))
-          const watchRows = watchRowsRaw.filter((w) => !expiredIds.has(w.patientId))
-          const akiRows = akiRowsRaw.filter((a) => !expiredIds.has(a.patientId))
-          const anuriaRows = anuriaRowsRaw.filter((a) => !expiredIds.has(a.patientId))
+          // Discharged and expired patients keep their chart and case log,
+          // but drop out of every Dashboard alert/follow-up list (AKI,
+          // anuria, abnormal labs, reminders, uropathy watches, the
+          // patient-glance panel) -- only inpatient/outpatient count.
+          const labRows = labRowsRaw.filter((l) => activeIds.has(l.patientId))
+          const reminderRows = reminderRowsRaw.filter((r) => activeIds.has(r.patientId))
+          const watchRows = watchRowsRaw.filter((w) => activeIds.has(w.patientId))
+          const akiRows = akiRowsRaw.filter((a) => activeIds.has(a.patientId))
+          const anuriaRows = anuriaRowsRaw.filter((a) => activeIds.has(a.patientId))
           setLabs(labRows)
           setReminders(reminderRows)
           setTopics(topicRows)

@@ -133,7 +133,7 @@ export async function listPatientsByIds(ids: string[]): Promise<PatientGlance[]>
     .from('patients')
     .select('id, name, age, bed, diagnosis, height')
     .in('id', ids)
-    .neq('care_status', 'expired')
+    .in('care_status', ['inpatient', 'outpatient'])
   if (patientsError) throw patientsError
   return buildPatientGlances(patientRows as PatientOverviewRow[])
 }
@@ -200,6 +200,7 @@ export async function listAkiAlerts(): Promise<AkiAlert[]> {
     .from('patients')
     .select('id, name, baseline_cr, dialysis_status')
     .not('baseline_cr', 'is', null)
+    .in('care_status', ['inpatient', 'outpatient'])
   if (patientsError) throw patientsError
   const patients = patientRows as PatientBaselineRow[]
   if (patients.length === 0) return []
@@ -256,7 +257,11 @@ interface UrineOutputEntryRow {
 // (check bladder/Foley for obstruction, then Lasix 2-4 mg/kg stat if not
 // obstructive/dehydrated).
 export async function listAnuriaAlerts(): Promise<AnuriaAlert[]> {
-  const { data: patientRows, error: patientsError } = await supabase.from('patients').select('id, name, weight').not('weight', 'is', null)
+  const { data: patientRows, error: patientsError } = await supabase
+    .from('patients')
+    .select('id, name, weight')
+    .not('weight', 'is', null)
+    .in('care_status', ['inpatient', 'outpatient'])
   if (patientsError) throw patientsError
   const patients = patientRows as PatientWeightRow[]
   if (patients.length === 0) return []

@@ -210,11 +210,13 @@ export async function markPatientExpired(id: string, deceasedDate: string): Prom
   return updatePatient(id, { careStatus: 'expired', deceasedDate })
 }
 
-// Used by the Dashboard to exclude expired patients from "Needs attention"
-// / follow-up alerts without having to join care_status into every alert
-// query (labs, reminders, AKI, anuria, uropathy watches, ...).
-export async function listExpiredPatientIds(): Promise<Set<string>> {
-  const { data, error } = await supabase.from('patients').select('id').eq('care_status', 'expired')
+// Used by the Dashboard so "Needs attention" / follow-up alerts (AKI,
+// anuria, abnormal labs, reminders, uropathy watches, the patient-glance
+// panel) only ever count currently-active patients -- not discharged or
+// expired ones -- without having to join care_status into every alert
+// query individually.
+export async function listActivePatientIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('patients').select('id').in('care_status', ['inpatient', 'outpatient'])
   if (error) throw error
   return new Set((data as Array<{ id: string }>).map((r) => r.id))
 }
