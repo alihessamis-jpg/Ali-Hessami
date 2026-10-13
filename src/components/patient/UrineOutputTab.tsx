@@ -6,7 +6,7 @@ import {
 } from '../../lib/api/urineOutput'
 import { listRemindersForPatient } from '../../lib/api/reminders'
 import { hasObstructiveUropathy } from '../../lib/clinicalFlags'
-import { OLIGURIA_THRESHOLD_ML_KG_HR, POLYURIA_THRESHOLD_ML_KG_HR, urineOutputRate } from '../../lib/formulas'
+import { ANURIA_THRESHOLD_ML_KG_HR, OLIGURIA_THRESHOLD_ML_KG_HR, POLYURIA_THRESHOLD_ML_KG_HR, urineOutputRate } from '../../lib/formulas'
 import { toShamsi } from '../../lib/shamsi'
 import type { Patient, UrineOutputEntry } from '../../types/domain'
 
@@ -161,7 +161,15 @@ export function UrineOutputTab({ patientId, patient }: Props) {
                   <td>{e.durationHours}</td>
                   <td className={abnormal ? 'value-abnormal' : ''}>
                     {rate != null
-                      ? `${rate.toFixed(2)}${rate < OLIGURIA_THRESHOLD_ML_KG_HR ? ' — oliguria' : rate > POLYURIA_THRESHOLD_ML_KG_HR ? ' — polyuria' : ''}`
+                      ? `${rate.toFixed(2)}${
+                          rate < ANURIA_THRESHOLD_ML_KG_HR
+                            ? ' — anuria'
+                            : rate < OLIGURIA_THRESHOLD_ML_KG_HR
+                              ? ' — oliguria'
+                              : rate > POLYURIA_THRESHOLD_ML_KG_HR
+                                ? ' — polyuria'
+                                : ''
+                        }`
                       : '—'}
                   </td>
                   <td>{e.notes}</td>

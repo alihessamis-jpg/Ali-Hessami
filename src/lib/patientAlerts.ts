@@ -1,4 +1,4 @@
-import { kdigoStage } from './formulas'
+import { ANURIA_THRESHOLD_ML_KG_HR, kdigoStage, urineOutputRate } from './formulas'
 import { assessObstructiveCreatinineTrend, hasVurPuvOrObstruction, isCkdPatient } from './clinicalFlags'
 import { assessCkdMbd } from './ckdMbd'
 import { assessAcidBase } from './acidBase'
@@ -9,9 +9,9 @@ import { ageInYears } from './growth'
 import { daysSince } from './dates'
 import { FOLLOW_UP_WINDOW_DAYS, procedureStatusesFor } from './procedureChecks'
 import { toShamsi } from './shamsi'
-import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, UserSettings, Vaccination } from '../types/domain'
+import type { FollowUpItem, ImagingEntry, LabEntry, Patient, PatientReminder, UrineOutputEntry, UserSettings, Vaccination } from '../types/domain'
 
-export type AlertTab = 'labs' | 'followUp' | 'reminders' | 'vaccinations'
+export type AlertTab = 'labs' | 'followUp' | 'reminders' | 'vaccinations' | 'urineOutput'
 
 // Three tiers: critical (needs attention now), warning (needs follow-up
 // soon but isn't acutely dangerous), info (FYI). Rendered as red/amber/
@@ -36,6 +36,7 @@ export interface PatientAlertsInput {
   imagingEntries: ImagingEntry[]
   reminders: PatientReminder[]
   vaccinations: Vaccination[]
+  urineOutputEntries: UrineOutputEntry[]
 }
 
 // Pulls together the same pure detection logic already used by the Labs,
@@ -43,8 +44,23 @@ export interface PatientAlertsInput {
 // can surface everything that needs attention without re-deriving any of
 // the underlying clinical rules itself.
 export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] {
-  const { patient, labEntries, activeMedNames, settings, followUpItems, imagingEntries, reminders, vaccinations } = input
+  const { patient, labEntries, activeMedNames, settings, followUpItems, imagingEntries, reminders, vaccinations, urineOutputEntries } = input
   const alerts: PatientAlert[] = []
+
+  if (patient.weight && urineOutputEntries.length > 0) {
+    const latestUo = urineOutputEntries.reduce((a, b) => (b.recordedAt > a.recordedAt ? b : a))
+    if (latestUo.durationHours > 0) {
+      const rate = urineOutputRate(latestUo.volumeMl, latestUo.durationHours, patient.weight)
+      if (rate < ANURIA_THRESHOLD_ML_KG_HR) {
+        alerts.push({
+          id: 'anuria',
+          severity: 'critical',
+          text: `Anuria — ${rate.toFixed(2)} mL/kg/hr (${toShamsi(latestUo.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 1-2 mg/kg IV stat`,
+          tab: 'urineOutput',
+        })
+      }
+    }
+  }
 
   const hbEntries = labEntries.filter((e) => e.test === 'Hemoglobin' && e.value != null)
   if (hbEntries.length > 0) {

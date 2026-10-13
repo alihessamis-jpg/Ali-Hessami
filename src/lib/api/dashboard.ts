@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient'
 import { isAbnormal } from '../labRange'
 import { isPositiveCulture } from '../labPresets'
 import { hasObstructiveUropathy } from '../clinicalFlags'
-import { kdigoStage, schwartzEGFR } from '../formulas'
+import { ANURIA_THRESHOLD_ML_KG_HR, kdigoStage, schwartzEGFR, urineOutputRate } from '../formulas'
 import type { MicroDetails } from '../../types/domain'
 
 export interface AbnormalLab {
@@ -225,6 +225,64 @@ export async function listAkiAlerts(): Promise<AkiAlert[]> {
     if (latestCr == null || p.baseline_cr == null) continue
     const stage = kdigoStage(p.baseline_cr, latestCr, !!p.dialysis_status)
     if (stage) alerts.push({ patientId: p.id, patientName: p.name, stage })
+  }
+  return alerts
+}
+
+export interface AnuriaAlert {
+  patientId: string
+  patientName: string
+  rateMlKgHr: number
+  recordedAt: string
+}
+
+interface PatientWeightRow {
+  id: string
+  name: string
+  weight: number | null
+}
+
+interface UrineOutputEntryRow {
+  patient_id: string
+  recorded_at: string
+  volume_ml: number
+  duration_hours: number
+}
+
+// Anuria (most recent urine-output entry below ANURIA_THRESHOLD_ML_KG_HR)
+// is otherwise only visible inside that one patient's Urine output tab --
+// surfaced here too so it reaches the Dashboard's "needs attention" list
+// (check bladder/Foley for obstruction, then Lasix 1-2 mg/kg stat if not
+// obstructive/dehydrated).
+export async function listAnuriaAlerts(): Promise<AnuriaAlert[]> {
+  const { data: patientRows, error: patientsError } = await supabase.from('patients').select('id, name, weight').not('weight', 'is', null)
+  if (patientsError) throw patientsError
+  const patients = patientRows as PatientWeightRow[]
+  if (patients.length === 0) return []
+
+  const { data: entryRows, error: entriesError } = await supabase
+    .from('urine_output_entries')
+    .select('patient_id, recorded_at, volume_ml, duration_hours')
+    .in(
+      'patient_id',
+      patients.map((p) => p.id)
+    )
+    .order('recorded_at', { ascending: false })
+  if (entriesError) throw entriesError
+
+  const latestByPatient = new Map<string, UrineOutputEntryRow>()
+  for (const row of entryRows as UrineOutputEntryRow[]) {
+    if (!latestByPatient.has(row.patient_id)) latestByPatient.set(row.patient_id, row)
+  }
+
+  const alerts: AnuriaAlert[] = []
+  for (const p of patients) {
+    const entry = latestByPatient.get(p.id)
+    if (!entry || p.weight == null || entry.duration_hours <= 0) continue
+    const rate = urineOutputRate(entry.volume_ml, entry.duration_hours, p.weight)
+    if (rate < ANURIA_THRESHOLD_ML_KG_HR) {
+      alerts.push({ patientId: p.id, patientName: p.name, rateMlKgHr: rate, recordedAt: entry.recorded_at })
+    }
   }
   return alerts
 }

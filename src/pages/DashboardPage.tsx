@@ -8,15 +8,17 @@ import { EmptyState } from '../components/illustrations/EmptyState'
 import { toShamsi } from '../lib/shamsi'
 import {
   listAkiAlerts,
+  listAnuriaAlerts,
   listObstructiveUropathyWatches,
   listPatientsByIds,
   listRecentAbnormalLabs,
   type AbnormalLab,
   type AkiAlert,
+  type AnuriaAlert,
   type PatientGlance,
   type UropathyWatch,
 } from '../lib/api/dashboard'
-import { POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/formulas'
+import { ANURIA_THRESHOLD_ML_KG_HR, POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/formulas'
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
 import { listAllAcademyCards } from '../lib/api/academyCards'
@@ -143,6 +145,16 @@ function akiToAlert(aki: AkiAlert): AlertItem {
   }
 }
 
+function anuriaToAlert(anuria: AnuriaAlert): AlertItem {
+  return {
+    id: `anuria-${anuria.patientId}`,
+    severity: 'critical',
+    title: `Anuria — ${anuria.patientName}`,
+    detail: `${anuria.rateMlKgHr.toFixed(2)} mL/kg/hr, below the ${ANURIA_THRESHOLD_ML_KG_HR} mL/kg/hr anuria threshold (${toShamsi(anuria.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 1-2 mg/kg IV stat`,
+    to: `/patients/${anuria.patientId}`,
+  }
+}
+
 function labToAlert(lab: AbnormalLab): AlertItem {
   const result = lab.organism ?? lab.valueText ?? `${lab.value ?? ''} ${lab.unit ?? ''} (ref ${lab.ref ?? '—'})`
   return {
@@ -168,6 +180,7 @@ export function DashboardPage() {
   const [caseLogEntries, setCaseLogEntries] = useState<CaseLogEntryWithPatient[]>([])
   const [uropathyWatches, setUropathyWatches] = useState<UropathyWatch[]>([])
   const [akiAlerts, setAkiAlerts] = useState<AkiAlert[]>([])
+  const [anuriaAlerts, setAnuriaAlerts] = useState<AnuriaAlert[]>([])
   const [readingItems, setReadingItems] = useState<ReadingItem[]>([])
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [academyUnavailable, setAcademyUnavailable] = useState(false)
@@ -210,6 +223,7 @@ export function DashboardPage() {
       tagPromise('reading_items (listReadingItems)', listReadingItems()),
       tagPromise('user_settings (getUserSettings)', getUserSettings()),
       tagPromise('lab_entries/patients (listAkiAlerts)', listAkiAlerts()),
+      tagPromise('urine_output_entries/patients (listAnuriaAlerts)', listAnuriaAlerts().catch(() => [] as AnuriaAlert[])),
       tagPromise('academy_cards (listAllAcademyCards)', listAllAcademyCards()),
       academyV2Promise,
     ])
@@ -229,6 +243,7 @@ export function DashboardPage() {
           readingRows,
           settings,
           akiRows,
+          anuriaRows,
           cardRows,
           academyV2,
         ]) => {
@@ -256,6 +271,7 @@ export function DashboardPage() {
           setReadingItems(readingRows)
           setLastBackupAt(settings.lastBackupAt ?? null)
           setAkiAlerts(akiRows)
+          setAnuriaAlerts(anuriaRows)
 
           const today = new Date().toISOString().slice(0, 10)
           const tomorrow = addDays(today, 1)
@@ -266,6 +282,7 @@ export function DashboardPage() {
               ...activeReminders.map((r) => r.patientId),
               ...watchRows.map((w) => w.patientId),
               ...akiRows.map((a) => a.patientId),
+              ...anuriaRows.map((a) => a.patientId),
             ])
           )
           const patientRows = await tagPromise('patients (listPatientsByIds)', listPatientsByIds(attentionIds))
@@ -347,11 +364,13 @@ export function DashboardPage() {
       : []
 
   const akiAlertItems = akiAlerts.map(akiToAlert)
+  const anuriaAlertItems = anuriaAlerts.map(anuriaToAlert)
 
   const critical = [
     ...labAlerts,
     ...reminderAlerts.filter((a) => a.severity === 'critical'),
     ...akiAlertItems.filter((a) => a.severity === 'critical'),
+    ...anuriaAlertItems,
   ]
   const warning = [
     ...reminderAlerts.filter((a) => a.severity === 'warning'),
@@ -383,6 +402,7 @@ export function DashboardPage() {
       patientSeverity.set(a.patientId, severity)
     }
   }
+  for (const a of anuriaAlerts) patientSeverity.set(a.patientId, 'critical')
   const sortedPatients = [...patients].sort((a, b) => {
     const rank = { critical: 0, warning: 1 } as const
     const sa = rank[patientSeverity.get(a.id) ?? 'warning']
