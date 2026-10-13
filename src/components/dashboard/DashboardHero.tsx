@@ -1,5 +1,5 @@
 import { formatShamsiWeekdayLong } from '../../lib/shamsi'
-import { HeroScene } from '../hero/HeroScene'
+import { GlomerulusHero } from './GlomerulusHero'
 
 function greeting(hour: number): string {
   if (hour < 12) return 'Good morning'
@@ -11,7 +11,7 @@ export function DashboardHero({ followUpCount }: { followUpCount: number }) {
   const now = new Date()
   return (
     <section className="dh-hero np-fade">
-      <HeroScene scene="nephron" page="home" className="hero-scene" />
+      <GlomerulusHero className="hero-scene" />
       <div className="hero-scrim" />
       <div className="dh-hero-body">
         <span className="dh-hero-date" dir="rtl">
