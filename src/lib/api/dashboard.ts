@@ -133,6 +133,7 @@ export async function listPatientsByIds(ids: string[]): Promise<PatientGlance[]>
     .from('patients')
     .select('id, name, age, bed, diagnosis, height')
     .in('id', ids)
+    .neq('care_status', 'expired')
   if (patientsError) throw patientsError
   return buildPatientGlances(patientRows as PatientOverviewRow[])
 }

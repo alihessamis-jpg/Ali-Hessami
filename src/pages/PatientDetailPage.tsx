@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { getPatient } from '../lib/api/patients'
+import { getPatient, markPatientExpired } from '../lib/api/patients'
 import { formatAge } from '../lib/patientAge'
 import { getLusStudyEnrollment } from '../lib/api/lusStudy'
 import { listGrowthEntries } from '../lib/api/growth'
@@ -113,6 +113,10 @@ export function PatientDetailPage() {
   const [idShown, setIdShown] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [fabHidden, setFabHidden] = useState(false)
+  const [expireOpen, setExpireOpen] = useState(false)
+  const [expireDate, setExpireDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [expiring, setExpiring] = useState(false)
+  const [expireError, setExpireError] = useState<string | null>(null)
 
   useEffect(() => {
     let lastY = window.scrollY
@@ -155,12 +159,30 @@ export function PatientDetailPage() {
     setAddOpen(false)
   }
 
+  async function handleConfirmExpired() {
+    if (!id) return
+    setExpiring(true)
+    setExpireError(null)
+    try {
+      const updated = await markPatientExpired(id, expireDate)
+      setPatient(updated)
+      setExpireOpen(false)
+    } catch (err) {
+      setExpireError(err instanceof Error ? err.message : 'Failed to mark as expired')
+    } finally {
+      setExpiring(false)
+    }
+  }
+
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
   if (!patient || !id) return <p>Patient not found.</p>
 
   const careStatusLabel = patient.careStatus ? patient.careStatus.charAt(0).toUpperCase() + patient.careStatus.slice(1) : null
-  const wardChip = [careStatusLabel, patient.bed].filter(Boolean).join(' ')
+  const wardChip =
+    patient.careStatus === 'expired'
+      ? ['Expired', patient.deceasedDate ? toShamsi(patient.deceasedDate) : null].filter(Boolean).join(' · ')
+      : [careStatusLabel, patient.bed].filter(Boolean).join(' ')
   const underlyingDiseaseChip = isUnderlyingDiseaseDuplicate(patient.diagnosis, patient.underlyingDisease)
     ? null
     : patient.underlyingDisease
@@ -263,6 +285,15 @@ export function PatientDetailPage() {
             </svg>
             Print
           </button>
+          {patient.careStatus !== 'expired' && (
+            <button type="button" className="np-btn glass sm" onClick={() => setExpireOpen(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M6.5 6.5l11 11" />
+              </svg>
+              Mark as expired
+            </button>
+          )}
           <button type="button" className="np-btn sm pc-addhero" style={{ marginLeft: 'auto' }} onClick={() => setAddOpen(true)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
@@ -436,6 +467,45 @@ export function PatientDetailPage() {
       </button>
 
       <AddToChartSheet open={addOpen} patientName={patient.name} onClose={() => setAddOpen(false)} onNavigate={navigateTo} />
+
+      {expireOpen && (
+        <>
+          <div className="pc-sheet-bg" onClick={() => !expiring && setExpireOpen(false)} />
+          <div className="pc-sheet" role="dialog" aria-label="Mark as expired">
+            <div style={{ width: 40, height: 5, borderRadius: 3, background: '#D5DEEB', alignSelf: 'center' }} />
+            <div className="np-head">
+              <h2 style={{ fontSize: 17 }}>
+                Mark <span className="fa">{patient.name}</span> as expired
+              </h2>
+              <button
+                type="button"
+                className="np-btn ghost sm"
+                style={{ width: 44, padding: 0 }}
+                aria-label="Close"
+                onClick={() => setExpireOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="np-small">
+              The chart and case log stay exactly as they are. The patient just drops out of Dashboard follow-up/attention alerts.
+            </p>
+            <label>
+              Date of death
+              <input
+                type="date"
+                value={expireDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setExpireDate(e.target.value)}
+              />
+            </label>
+            {expireError && <p className="form-error">{expireError}</p>}
+            <button type="button" className="np-btn sm" disabled={expiring || !expireDate} onClick={() => void handleConfirmExpired()}>
+              {expiring ? 'Saving…' : 'Confirm'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

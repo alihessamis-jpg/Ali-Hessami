@@ -4,6 +4,7 @@ import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
 import { listLabEntriesByTest } from '../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
 import { formatAge } from '../lib/patientAge'
+import { toShamsi } from '../lib/shamsi'
 import { useCountUp } from '../hooks/useCountUp'
 import { PersonIcon, PlusIcon, SearchIcon, WarningIcon, ZapIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
@@ -14,12 +15,19 @@ const WARDS: Array<{ id: PatientCareStatus; label: string; chipLabel: string }> 
   { id: 'inpatient', label: 'Inpatient F1 (Pediatric Nephrology)', chipLabel: 'Inpatient F1' },
   { id: 'outpatient', label: 'Outpatient / Dialysis clinic', chipLabel: 'Outpatient / Dialysis' },
   { id: 'discharged', label: 'Discharged patients', chipLabel: 'Discharged' },
+  { id: 'expired', label: 'Expired patients', chipLabel: 'Expired' },
 ]
+
+// 'expired' is deliberately not a <select> option below -- it's only ever
+// set from the dedicated "Mark as expired" flow on the patient's own page,
+// which also records the date of death, instead of a casual dropdown pick.
+const EDITABLE_CARE_STATUSES: PatientCareStatus[] = ['inpatient', 'outpatient', 'discharged']
 
 const CARE_STATUS_LABELS: Record<PatientCareStatus, string> = {
   inpatient: 'Inpatient',
   outpatient: 'Outpatient',
   discharged: 'Discharged',
+  expired: 'Expired',
 }
 
 function StatCount({ value, label }: { value: number; label: string }) {
@@ -253,18 +261,24 @@ export function PatientsListPage() {
                     Hb {lowHbByPatient[p.id]}
                   </span>
                 )}
-                <select
-                  className="pt-ward"
-                  value={p.careStatus}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
-                >
-                  {(Object.keys(CARE_STATUS_LABELS) as PatientCareStatus[]).map((status) => (
-                    <option key={status} value={status}>
-                      {CARE_STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
+                {p.careStatus === 'expired' ? (
+                  <span className="pt-ward pt-ward-expired" onClick={(e) => e.stopPropagation()}>
+                    Expired{p.deceasedDate ? ` · ${toShamsi(p.deceasedDate)}` : ''}
+                  </span>
+                ) : (
+                  <select
+                    className="pt-ward"
+                    value={p.careStatus}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
+                  >
+                    {EDITABLE_CARE_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {CARE_STATUS_LABELS[status]}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )
           })}

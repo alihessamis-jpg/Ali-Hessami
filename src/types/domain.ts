@@ -2,7 +2,7 @@
 // so existing formulas/logic (e.g. scheduleReview, schwartzEGFR) can be
 // reused as-is against these types.
 
-export type PatientCareStatus = 'inpatient' | 'outpatient' | 'discharged'
+export type PatientCareStatus = 'inpatient' | 'outpatient' | 'discharged' | 'expired'
 
 export interface Patient {
   id: string
@@ -14,6 +14,8 @@ export interface Patient {
   doa?: string | null
   bed?: string | null
   careStatus: PatientCareStatus
+  /** Set when careStatus is 'expired'. The chart and case log stay intact. */
+  deceasedDate?: string | null
   diagnosis?: string | null
   underlyingDisease?: string | null
   height?: number | null

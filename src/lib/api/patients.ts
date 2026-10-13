@@ -11,6 +11,7 @@ interface PatientRow {
   doa: string | null
   bed: string | null
   care_status: PatientCareStatus
+  deceased_date: string | null
   diagnosis: string | null
   underlying_disease: string | null
   height: number | null
@@ -62,6 +63,7 @@ function toDomain(row: PatientRow): Patient {
     doa: row.doa,
     bed: row.bed,
     careStatus: row.care_status,
+    deceasedDate: row.deceased_date,
     diagnosis: row.diagnosis,
     underlyingDisease: row.underlying_disease,
     height: row.height,
@@ -113,6 +115,7 @@ function toRow(patient: Partial<Patient>): Partial<Omit<PatientRow, 'id'>> {
     doa: patient.doa,
     bed: patient.bed,
     care_status: patient.careStatus,
+    deceased_date: patient.deceasedDate,
     diagnosis: patient.diagnosis,
     underlying_disease: patient.underlyingDisease,
     height: patient.height,
@@ -198,4 +201,20 @@ export async function updatePatient(id: string, patch: Partial<Patient>): Promis
 export async function deletePatient(id: string): Promise<void> {
   const { error } = await supabase.from('patients').delete().eq('id', id)
   if (error) throw error
+}
+
+// Marks a patient expired with a date of death. Nothing else is touched --
+// the chart and case log stay as-is, this only flips careStatus so
+// Dashboard alerts/follow-up and the ward tabs stop surfacing them.
+export async function markPatientExpired(id: string, deceasedDate: string): Promise<Patient> {
+  return updatePatient(id, { careStatus: 'expired', deceasedDate })
+}
+
+// Used by the Dashboard to exclude expired patients from "Needs attention"
+// / follow-up alerts without having to join care_status into every alert
+// query (labs, reminders, AKI, anuria, uropathy watches, ...).
+export async function listExpiredPatientIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from('patients').select('id').eq('care_status', 'expired')
+  if (error) throw error
+  return new Set((data as Array<{ id: string }>).map((r) => r.id))
 }
