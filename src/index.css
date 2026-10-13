@@ -6864,6 +6864,13 @@ select.pt-ward:focus {
   margin: 18px 0;
   display: flex;
   gap: 12px;
+  direction: rtl;
+}
+
+.callout ul,
+.callout ol {
+  padding-inline-start: 22px;
+  padding-inline-end: 0;
 }
 
 .callout.pearl {

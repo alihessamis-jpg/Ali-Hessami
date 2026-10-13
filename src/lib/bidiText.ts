@@ -15,12 +15,20 @@ const ARROWS = '←-↙⇄⇅'
 // reorder). Parens are only ever isolated as part of a whole
 // parenthetical group that is purely Latin/number content end to end --
 // see PAREN_GROUP_RE / tokenizeBidi below.
-const RUN_CHARS = `A-Za-z0-9۰-۹./%+\\-:,${ARROWS}`
+//
+// A space is deliberately IN this class (unlike parens): a multi-word
+// English phrase like "Radiological features of ARPKD" must be ONE isolate
+// unit, not one per word -- isolating each word separately left the plain
+// RTL spaces between them to the browser's bidi algorithm, which reordered
+// the words (e.g. rendering it as "ARPKD of features Radiological"). A run
+// is still cut at the first Persian/Arabic character either side, so this
+// never merges two unrelated Latin phrases separated by Persian text.
+const RUN_CHARS = `A-Za-z0-9۰-۹ ./%+\\-:;,'’α-ω${ARROWS}`
 // Exported so other renderers (e.g. the Academy v2 Reader, which wraps runs
 // in real <bdi> elements instead of invisible isolate marks) can match the
 // exact same "what counts as a Latin/number run" definition.
 export const LATIN_RUN_RE = new RegExp(`[${RUN_CHARS}]+`, 'g')
-export const LATIN_RUN_HAS_CONTENT_RE = new RegExp(`[A-Za-z0-9۰-۹${ARROWS}]`)
+export const LATIN_RUN_HAS_CONTENT_RE = new RegExp(`[A-Za-z0-9۰-۹α-ω${ARROWS}]`)
 const RUN_RE = LATIN_RUN_RE
 const HAS_CONTENT_RE = LATIN_RUN_HAS_CONTENT_RE
 

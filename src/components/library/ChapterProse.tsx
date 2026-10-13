@@ -620,6 +620,12 @@ export function ChapterProse({
     li: (props: { children?: ReactNode }) => (
       <li>{transformChildren(props.children, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId)}</li>
     ),
+    td: (props: { children?: ReactNode }) => (
+      <td>{transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId)}</td>
+    ),
+    th: (props: { children?: ReactNode }) => (
+      <th>{transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId)}</th>
+    ),
     pre: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
       const codeNode = node?.children.find((c): c is HastElement => c.type === 'element' && c.tagName === 'code')
       const classes = (codeNode?.properties?.className as string[] | undefined) ?? []
