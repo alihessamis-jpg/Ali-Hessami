@@ -158,7 +158,7 @@ export const CKD_STAGE_LABEL: Record<string, string> = {
 export const OLIGURIA_THRESHOLD_ML_KG_HR = 0.5
 
 // Anuria: essentially no urine output. Used to flag "check bladder/Foley
-// for obstruction, then Lasix 1-2 mg/kg stat if not obstructive/dehydrated".
+// for obstruction, then Lasix 2-4 mg/kg stat if not obstructive/dehydrated".
 export const ANURIA_THRESHOLD_ML_KG_HR = 0.1
 
 // Threshold commonly used to flag clinically significant post-obstructive

@@ -16,13 +16,20 @@ declare
 In a patient with anuria, before assuming intrinsic renal failure:
 
 1. **Check for a mechanical cause first** — palpate/percuss the bladder for distension, and check the Foley catheter (if one is in place) for kinking/blockage; flush or replace it.
-2. If the bladder/Foley is not the problem and there is **no obstruction and no dehydration/volume depletion**, give a diagnostic/therapeutic trial of **furosemide (Lasix) 1–2 mg/kg IV, stat**.
+2. If the bladder/Foley is not the problem and there is **no obstruction and no dehydration/volume depletion**, give a diagnostic/therapeutic trial of **furosemide (Lasix) 2–4 mg/kg IV, stat**.
 3. No response → continue the standard anuria/AKI workup (volume status, renal ultrasound, labs) rather than repeating Lasix.$pearl$;
 begin
   select id into v_owner_id from auth.users where email = 'alihessamis@gmail.com' limit 1;
   if v_owner_id is null then
     raise exception 'owner not found for email alihessamis@gmail.com';
   end if;
+
+  -- Dose correction: an earlier run of this script may already have inserted
+  -- the pearl with the wrong dose (1-2 mg/kg); fix it in place wherever it's
+  -- already present before deciding whether a fresh append is still needed.
+  update public.academy_topics set
+    treatment = replace(treatment, 'furosemide (Lasix) 1–2 mg/kg IV, stat', 'furosemide (Lasix) 2–4 mg/kg IV, stat')
+  where owner_id = v_owner_id and treatment like '%furosemide (Lasix) 1–2 mg/kg IV, stat%';
 
   select id into v_topic_id from public.academy_topics
     where owner_id = v_owner_id and (name ilike '%Acute Kidney Injury%' or name ilike '%AKI%')

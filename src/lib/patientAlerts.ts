@@ -55,7 +55,7 @@ export function computePatientAlerts(input: PatientAlertsInput): PatientAlert[] 
         alerts.push({
           id: 'anuria',
           severity: 'critical',
-          text: `Anuria — ${rate.toFixed(2)} mL/kg/hr (${toShamsi(latestUo.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 1-2 mg/kg IV stat`,
+          text: `Anuria — ${rate.toFixed(2)} mL/kg/hr (${toShamsi(latestUo.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 2-4 mg/kg IV stat`,
           tab: 'urineOutput',
         })
       }

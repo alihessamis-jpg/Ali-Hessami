@@ -252,7 +252,7 @@ interface UrineOutputEntryRow {
 // Anuria (most recent urine-output entry below ANURIA_THRESHOLD_ML_KG_HR)
 // is otherwise only visible inside that one patient's Urine output tab --
 // surfaced here too so it reaches the Dashboard's "needs attention" list
-// (check bladder/Foley for obstruction, then Lasix 1-2 mg/kg stat if not
+// (check bladder/Foley for obstruction, then Lasix 2-4 mg/kg stat if not
 // obstructive/dehydrated).
 export async function listAnuriaAlerts(): Promise<AnuriaAlert[]> {
   const { data: patientRows, error: patientsError } = await supabase.from('patients').select('id, name, weight').not('weight', 'is', null)

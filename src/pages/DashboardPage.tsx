@@ -150,7 +150,7 @@ function anuriaToAlert(anuria: AnuriaAlert): AlertItem {
     id: `anuria-${anuria.patientId}`,
     severity: 'critical',
     title: `Anuria — ${anuria.patientName}`,
-    detail: `${anuria.rateMlKgHr.toFixed(2)} mL/kg/hr, below the ${ANURIA_THRESHOLD_ML_KG_HR} mL/kg/hr anuria threshold (${toShamsi(anuria.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 1-2 mg/kg IV stat`,
+    detail: `${anuria.rateMlKgHr.toFixed(2)} mL/kg/hr, below the ${ANURIA_THRESHOLD_ML_KG_HR} mL/kg/hr anuria threshold (${toShamsi(anuria.recordedAt.slice(0, 10))}) — check bladder/Foley for obstruction; if not obstructive/dehydrated, Lasix 2-4 mg/kg IV stat`,
     to: `/patients/${anuria.patientId}`,
   }
 }
