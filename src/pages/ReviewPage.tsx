@@ -8,6 +8,7 @@ import {
   updateLibraryCardFsrs,
 } from '../lib/api/library'
 import { getChapterFigureSignedUrl } from '../lib/storage'
+import { isolateLatinRuns } from '../lib/bidiText'
 import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
@@ -282,7 +283,8 @@ export function ReviewPage() {
                   return (
                     <Link key={g.card.id} to={`/academy/reader/${g.card.chapterId}${g.card.sectionNumber ? `#s${g.card.sectionNumber}` : ''}`}>
                       <span style={{ flex: 1 }}>
-                        {chapter ? `Ch ${chapter.chapterNumber}` : ''} {g.card.sectionNumber ? `§ ${g.card.sectionNumber}` : ''} · {g.card.front.slice(0, 40)}
+                        {chapter ? `Ch ${chapter.chapterNumber}` : ''} {g.card.sectionNumber ? `§ ${g.card.sectionNumber}` : ''} ·{' '}
+                        {isolateLatinRuns(g.card.front.slice(0, 40))}
                       </span>
                       <span style={{ color: '#A9C6FF' }}>{g.card.page ? `p. ${g.card.page}` : ''}</span>
                     </Link>
@@ -369,7 +371,7 @@ export function ReviewPage() {
               {current.kind === 'mcq' && isMcqOptions(current.options) ? (
                 <>
                   <p className="q" dir="rtl">
-                    {current.front}
+                    {isolateLatinRuns(current.front)}
                   </p>
                   <div className="opts" dir="rtl">
                     {current.options.choices.map((choice, i) => {
@@ -384,7 +386,7 @@ export function ReviewPage() {
                       return (
                         <button key={i} className={cls} disabled={mcqChoice != null} onClick={() => handleMcqPick(i, choice.correct)}>
                           <span className="k">{choice.label}</span>
-                          <span className="tx">{choice.text}</span>
+                          <span className="tx">{isolateLatinRuns(choice.text)}</span>
                         </button>
                       )
                     })}
@@ -392,7 +394,7 @@ export function ReviewPage() {
                   {revealed && current.options.explanation && (
                     <div className="expl on" dir="rtl">
                       <span className="h">EXPLANATION</span>
-                      {current.options.explanation}
+                      {isolateLatinRuns(current.options.explanation)}
                     </div>
                   )}
                 </>
@@ -401,17 +403,17 @@ export function ReviewPage() {
                   <p className="q" dir="rtl">
                     {current.kind === 'cloze' ? (
                       <>
-                        {before}
-                        <span className="blank">{current.back}</span>
-                        {after}
+                        {isolateLatinRuns(before)}
+                        <span className="blank">{isolateLatinRuns(current.back)}</span>
+                        {isolateLatinRuns(after)}
                       </>
                     ) : (
-                      current.front
+                      isolateLatinRuns(current.front)
                     )}
                   </p>
                   {current.kind !== 'cloze' && revealed && (
                     <p className="ctx" dir="rtl">
-                      {current.back}
+                      {isolateLatinRuns(current.back)}
                     </p>
                   )}
                   {revealed && current.figureKey && figureUrls[current.figureKey] && (
