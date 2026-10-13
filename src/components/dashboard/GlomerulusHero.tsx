@@ -71,7 +71,11 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
   container.prepend(renderer.domElement)
 
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100)
+  // Narrower FOV than the original prototype (32 -> 20): a longer "lens"
+  // compresses perspective and crops in tight on the capillary tuft, closer
+  // to the macro photography look of the reference stills (coiled tubes
+  // filling the frame) instead of showing the whole small corpuscle.
+  const camera = new THREE.PerspectiveCamera(20, 1, 0.1, 100)
   camera.position.set(0, 0, 9)
   const root = new THREE.Group()
   scene.add(root)
@@ -106,7 +110,7 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
     scene.environment = envRT.texture
     pmrem.dispose()
   }
-  const key = new THREE.DirectionalLight(0xfff0e6, 2.2)
+  const key = new THREE.DirectionalLight(0xfff0e6, 2.6)
   key.position.set(4, 5, 6)
   scene.add(key)
   const rim = new THREE.DirectionalLight(0x6fa8ff, 1.8)
@@ -129,11 +133,11 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
     512,
     128,
     (g, w, h) => {
-      g.fillStyle = '#9e4438'
+      g.fillStyle = '#b9714a'
       g.fillRect(0, 0, w, h)
       for (let i = 0; i < 3200; i++) {
-        const l = 28 + Math.random() * 30,
-          hue = 2 + Math.random() * 14
+        const l = 34 + Math.random() * 32,
+          hue = 10 + Math.random() * 16
         g.fillStyle = `hsla(${hue},${45 + Math.random() * 20}%,${l}%,.35)`
         g.beginPath()
         g.ellipse(Math.random() * w, Math.random() * h, 1 + Math.random() * 5, 1 + Math.random() * 2.5, 0, 0, 6.3)
@@ -177,13 +181,13 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
       map: fleshMap,
       bumpMap: fleshBump,
       bumpScale: 0.025,
-      roughness: 0.52,
-      clearcoat: 0.55,
-      clearcoatRoughness: 0.35,
+      roughness: 0.38,
+      clearcoat: 0.78,
+      clearcoatRoughness: 0.22,
       side: THREE.DoubleSide,
-      emissive: new THREE.Color(0x3a0805),
-      emissiveIntensity: 0.4,
-      envMapIntensity: 0.9,
+      emissive: new THREE.Color(0x42230f),
+      emissiveIntensity: 0.32,
+      envMapIntensity: 1.1,
     })
   )
   const fresnel = (color: string, power: number, intensity: number, base: number, side = THREE.DoubleSide) =>
@@ -581,9 +585,13 @@ function mountGlomerulusScene(THREE: ThreeModule, container: HTMLElement, motion
     camera.updateProjectionMatrix()
     const visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
     const visW = visH * camera.aspect
-    const s = Math.min(1.15, visW / 8)
+    // Bigger scale cap + a smaller rightward offset than the original
+    // prototype crops in tighter on the capillary tuft (per the reference
+    // macro photos) instead of showing the whole small corpuscle in the
+    // corner of the banner.
+    const s = Math.min(1.7, visW / 5.2)
     corpuscle.scale.setScalar(s)
-    corpuscle.position.set(visW / 2 - 2.4 * s, 0.3 * s, 0)
+    corpuscle.position.set(visW / 2 - 1.7 * s, 0.15 * s, 0)
     const pxScale = (H * DPR) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)))
     sparkMats.forEach((m) => (m.uniforms.uScale.value = pxScale))
   }
