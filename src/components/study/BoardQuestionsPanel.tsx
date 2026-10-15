@@ -4,12 +4,13 @@ import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQ
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
 import { addFlashcard } from '../../lib/api/flashcards'
 import { addReadingItemFromQuestion } from '../../lib/api/readingItems'
+import { addKnowledgeGap, listKnowledgeGaps } from '../../lib/api/knowledgeGaps'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
 import { TopicPicker } from './TopicPicker'
 import { MockExamPanel } from './MockExamPanel'
-import type { BoardQuestion, BoardQuestionAttempt } from '../../types/domain'
+import type { BoardQuestion, BoardQuestionAttempt, KnowledgeGap } from '../../types/domain'
 
 type Mode = 'practice' | 'mockExam' | 'progress' | 'manage'
 
@@ -57,6 +58,7 @@ export function BoardQuestionsPanel() {
   const [mode, setMode] = useState<Mode>('practice')
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
   const [attempts, setAttempts] = useState<BoardQuestionAttempt[]>([])
+  const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,10 +88,11 @@ export function BoardQuestionsPanel() {
 
   function refresh() {
     setLoading(true)
-    Promise.all([listBoardQuestions(), listBoardQuestionAttempts()])
-      .then(([q, a]) => {
+    Promise.all([listBoardQuestions(), listBoardQuestionAttempts(), listKnowledgeGaps()])
+      .then(([q, a, g]) => {
         setQuestions(q)
         setAttempts(a)
+        setKnowledgeGaps(g)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load question bank'))
       .finally(() => setLoading(false))
@@ -117,21 +120,42 @@ export function BoardQuestionsPanel() {
     setReviewSavedFor(null)
   }
 
-  async function recordAttempt(questionId: string, isCorrect: boolean, selectedIndex = NO_SELECTED_INDEX) {
+  async function recordAttempt(q: BoardQuestion, isCorrect: boolean, selectedIndex = NO_SELECTED_INDEX) {
     setSubmitted(true)
     setSessionScore((prev) => ({ correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 }))
     try {
-      const attempt = await addBoardQuestionAttempt({ questionId, selectedIndex, isCorrect })
+      const attempt = await addBoardQuestionAttempt({ questionId: q.id, selectedIndex, isCorrect })
       setAttempts((prev) => [...prev, attempt])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to record attempt')
+    }
+    if (!isCorrect) await recordKnowledgeGap(q)
+  }
+
+  // A wrong answer on a practice question opens (or reuses) a Knowledge Gap
+  // so misses surface there automatically, without flooding the list when
+  // the same question is missed again in a later session.
+  async function recordKnowledgeGap(q: BoardQuestion) {
+    const alreadyOpen = knowledgeGaps.some((g) => g.status !== 'resolved' && g.topic === q.topic && g.description === q.question)
+    if (alreadyOpen) return
+    try {
+      const gap = await addKnowledgeGap({
+        topic: q.topic,
+        description: q.question,
+        date: new Date().toISOString().slice(0, 10),
+        priority: 'medium',
+        status: 'open',
+      })
+      setKnowledgeGaps((prev) => [gap, ...prev])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to record knowledge gap')
     }
   }
 
   async function handleSubmitMcqAnswer() {
     if (!queue || selectedIndex == null) return
     const q = queue[queueIndex]
-    await recordAttempt(q.id, selectedIndex === q.correctIndex, selectedIndex)
+    await recordAttempt(q, selectedIndex === q.correctIndex, selectedIndex)
   }
 
   async function handleSubmitMatchingAnswer() {
@@ -139,19 +163,19 @@ export function BoardQuestionsPanel() {
     const q = queue[queueIndex]
     const pairs = q.matchAnswer ?? []
     const isCorrect = pairs.length > 0 && pairs.every((p) => matchSelections[p.left] === p.right)
-    await recordAttempt(q.id, isCorrect)
+    await recordAttempt(q, isCorrect)
   }
 
   async function handleSelfGradeFillBlank(gotItRight: boolean) {
     if (!queue) return
     const q = queue[queueIndex]
-    await recordAttempt(q.id, gotItRight)
+    await recordAttempt(q, gotItRight)
   }
 
   async function handleSubmitTrueFalse(answer: boolean) {
     if (!queue) return
     const q = queue[queueIndex]
-    await recordAttempt(q.id, answer === q.correctBool)
+    await recordAttempt(q, answer === q.correctBool)
   }
 
   function handleNext() {
