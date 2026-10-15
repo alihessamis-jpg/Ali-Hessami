@@ -76,6 +76,7 @@ interface CardRow {
   topic: string | null
   high_yield: boolean
   figure_key: string | null
+  source: string | null
   created_at: string
 }
 
@@ -162,6 +163,7 @@ function cardToDomain(row: CardRow): LibraryCard {
     topic: row.topic,
     highYield: row.high_yield ?? false,
     figureKey: row.figure_key,
+    source: row.source,
     createdAt: row.created_at,
   }
 }

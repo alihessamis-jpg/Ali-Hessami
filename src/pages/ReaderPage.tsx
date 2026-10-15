@@ -32,8 +32,11 @@ import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
 import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
+import { requestChapterSuggestions } from '../lib/api/aiSuggestions'
+import { approveBoardQuestionSuggestion, listPendingBoardQuestions, rejectBoardQuestionSuggestion } from '../lib/api/boardQuestions'
 import type {
   AcademyTopic,
+  BoardQuestion,
   FsrsRating,
   LibraryCard,
   LibraryChapter,
@@ -169,6 +172,8 @@ export function ReaderPage() {
   const [importing, setImporting] = useState(false)
   const [reviewQueue, setReviewQueue] = useState<string[] | null>(null)
   const [reviewIndex, setReviewIndex] = useState(0)
+  const [pendingQuestions, setPendingQuestions] = useState<BoardQuestion[]>([])
+  const [suggesting, setSuggesting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [figurePanelOpen, setFigurePanelOpen] = useState(false)
 
@@ -230,15 +235,17 @@ export function ReaderPage() {
   async function reload() {
     if (!id) return
     try {
-      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows] = await Promise.all([
+      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows, pendingQuestionRows] = await Promise.all([
         getLibraryChapter(id),
         listLibraryCardsForChapter(id),
         listLibraryHighlights(id),
         listTopicIdsForChapter(id),
         ensureLibraryBookSeeded().catch(() => null),
         listLibraryChapterFigures(id).catch(() => []),
+        listPendingBoardQuestions(id).catch(() => []),
       ])
       setOfflineFallback(false)
+      setPendingQuestions(pendingQuestionRows)
       if (!chapterRow) {
         setChapter(null)
         setCards([])
@@ -470,6 +477,45 @@ export function ReaderPage() {
     if (url) setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
   }
 
+  // Step 4: asks the suggest-chapter-content Edge Function for new
+  // AI-suggested board questions/flashcards/high-yield points for this
+  // chapter. Everything it writes lands pending/suggested -- reload()
+  // picks up the new pending board questions here, and the new suggested
+  // library_cards flow into the existing suggested-cards review below
+  // (tagged source: 'ai_suggested', same approve/reject actions).
+  async function handleSuggestWithAi() {
+    if (!chapter) return
+    setSuggesting(true)
+    try {
+      const result = await requestChapterSuggestions(chapter.id)
+      setMessage(`AI suggested ${result.questions} questions · ${result.flashcards} flashcards · ${result.highYield} high-yield points — review below`)
+      setTimeout(() => setMessage(null), 6000)
+      await reload()
+    } catch (err) {
+      setError(describeError(err, 'Failed to generate AI suggestions'))
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
+  async function handleApproveQuestionSuggestion(questionId: string) {
+    try {
+      await approveBoardQuestionSuggestion(questionId)
+      setPendingQuestions((prev) => prev.filter((q) => q.id !== questionId))
+    } catch (err) {
+      setError(describeError(err, 'Failed to approve question'))
+    }
+  }
+
+  async function handleRejectQuestionSuggestion(questionId: string) {
+    try {
+      await rejectBoardQuestionSuggestion(questionId)
+      setPendingQuestions((prev) => prev.filter((q) => q.id !== questionId))
+    } catch (err) {
+      setError(describeError(err, 'Failed to reject question'))
+    }
+  }
+
   async function handleApproveAllSuggested(cardIds: string[]) {
     try {
       await approveLibraryCards(cardIds)
@@ -612,6 +658,16 @@ export function ReaderPage() {
                   Add figure images{missingFigures.length > 0 ? ` (${missingFigures.length})` : ''}
                 </button>
               )}
+              <button
+                type="button"
+                className="np-btn ghost sm"
+                disabled={suggesting}
+                onClick={() => void handleSuggestWithAi()}
+                title="Generate AI-suggested questions/flashcards/high-yield points for this chapter -- all go to review before counting anywhere"
+                style={{ marginInlineStart: 8 }}
+              >
+                {suggesting ? 'Generating…' : 'Suggest with AI'}
+              </button>
             </span>
           </div>
           <div className="rhead-title">
@@ -655,6 +711,11 @@ export function ReaderPage() {
             {suggestedCount > 0 && (
               <span className="chip2" style={{ color: '#5131B5', borderColor: '#E2D9FB' }}>
                 {suggestedCount} suggested · {approvedCards.length} approved
+              </span>
+            )}
+            {pendingQuestions.length > 0 && (
+              <span className="chip2" style={{ color: '#93590B', borderColor: '#F3E0B8' }}>
+                {pendingQuestions.length} AI question{pendingQuestions.length > 1 ? 's' : ''} awaiting review
               </span>
             )}
             {masteryPct != null && (
@@ -796,6 +857,42 @@ export function ReaderPage() {
                   Approve
                 </button>
               </div>
+            </section>
+          )}
+
+          {pendingQuestions.length > 0 && (
+            <section className="np-card np-fade" style={{ gap: 12 }}>
+              <div className="np-head">
+                <h2>AI-suggested questions</h2>
+                <span className="np-small">{pendingQuestions.length} awaiting review</span>
+              </div>
+              {pendingQuestions.map((q) => (
+                <div key={q.id} style={{ borderTop: '1px solid #EDF1F7', paddingTop: 12 }}>
+                  <p dir="rtl" style={{ lineHeight: 1.9, whiteSpace: 'pre-line' }}>
+                    {q.question}
+                  </p>
+                  <ul dir="rtl" className="np-small" style={{ lineHeight: 1.7, paddingInlineStart: 18 }}>
+                    {q.options.map((o, i) => (
+                      <li key={i} style={i === q.correctIndex ? { fontWeight: 700, color: '#17663A' } : undefined}>
+                        {o}
+                      </li>
+                    ))}
+                  </ul>
+                  {q.explanation && (
+                    <p dir="rtl" className="np-small" style={{ color: '#5B6B82' }}>
+                      {q.explanation}
+                    </p>
+                  )}
+                  <div className="endrow">
+                    <button type="button" className="np-btn ghost sm" onClick={() => void handleRejectQuestionSuggestion(q.id)}>
+                      Reject
+                    </button>
+                    <button type="button" className="np-btn sm" onClick={() => void handleApproveQuestionSuggestion(q.id)}>
+                      Approve
+                    </button>
+                  </div>
+                </div>
+              ))}
             </section>
           )}
 

@@ -26,6 +26,7 @@ interface BoardQuestionRow {
   source_date: string | null
   answer_verified: boolean
   import_key: string | null
+  review_status: 'pending' | 'approved' | 'rejected'
 }
 
 function toDomain(row: BoardQuestionRow): BoardQuestion {
@@ -54,6 +55,7 @@ function toDomain(row: BoardQuestionRow): BoardQuestion {
     sourceDate: row.source_date,
     answerVerified: row.answer_verified,
     importKey: row.import_key,
+    reviewStatus: row.review_status ?? 'approved',
   }
 }
 
@@ -81,19 +83,59 @@ function toRow(draft: BoardQuestionDraft) {
     source_date: draft.sourceDate ?? null,
     answer_verified: draft.answerVerified ?? true,
     import_key: draft.importKey ?? null,
+    review_status: draft.reviewStatus ?? 'approved',
   }
 }
 
+// Only approved questions -- this is "the bank" everywhere (practice,
+// Manage questions, Board Readiness/examReadiness, chapter counts). AI
+// suggestions sit in review_status='pending' until approved and are never
+// mixed in here; see listPendingBoardQuestions for the review queue.
 export async function listBoardQuestions(): Promise<BoardQuestion[]> {
-  const { data, error } = await supabase.from('board_questions').select('*').order('topic')
+  const { data, error } = await supabase.from('board_questions').select('*').eq('review_status', 'approved').order('topic')
   if (error) throw error
   return (data as BoardQuestionRow[]).map(toDomain)
 }
 
 export async function listBoardQuestionsForChapter(chapterId: string): Promise<BoardQuestion[]> {
-  const { data, error } = await supabase.from('board_questions').select('*').eq('chapter_id', chapterId).order('created_at')
+  const { data, error } = await supabase
+    .from('board_questions')
+    .select('*')
+    .eq('chapter_id', chapterId)
+    .eq('review_status', 'approved')
+    .order('created_at')
   if (error) throw error
   return (data as BoardQuestionRow[]).map(toDomain)
+}
+
+export async function listPendingBoardQuestions(chapterId: string): Promise<BoardQuestion[]> {
+  const { data, error } = await supabase
+    .from('board_questions')
+    .select('*')
+    .eq('chapter_id', chapterId)
+    .eq('review_status', 'pending')
+    .order('created_at')
+  if (error) throw error
+  return (data as BoardQuestionRow[]).map(toDomain)
+}
+
+// Approving an AI suggestion also marks its answer verified -- the human
+// reviewing it just confirmed the correct answer themselves, same as
+// saving an edit to an imported question does.
+export async function approveBoardQuestionSuggestion(id: string): Promise<BoardQuestion> {
+  const { data, error } = await supabase
+    .from('board_questions')
+    .update({ review_status: 'approved', answer_verified: true })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return toDomain(data as BoardQuestionRow)
+}
+
+export async function rejectBoardQuestionSuggestion(id: string): Promise<void> {
+  const { error } = await supabase.from('board_questions').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function addBoardQuestion(draft: BoardQuestionDraft): Promise<BoardQuestion> {

@@ -435,6 +435,8 @@ export interface LibraryCard extends FsrsCardState {
   highYield: boolean
   /** v1.3: a LibraryChapterFigure.figureKey, for cards in a "شکل" exam group. */
   figureKey?: string | null
+  /** Step 4: 'ai_suggested' for AI-generated cards, so they can be told apart from textbook-import suggestions in review, even though both reuse status 'suggested'/'approved'. Null for manually-added cards. */
+  source?: string | null
   createdAt: string
 }
 
@@ -442,7 +444,7 @@ export type LibraryCardDraft = Pick<
   LibraryCard,
   'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
 > &
-  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags' | 'topic' | 'highYield' | 'figureKey'>>
+  Partial<Pick<LibraryCard, 'status' | 'importKey' | 'tags' | 'topic' | 'highYield' | 'figureKey' | 'source'>>
 
 export type LibraryHighlightKind = 'highlight' | 'note'
 
@@ -574,8 +576,13 @@ export interface BoardQuestion {
   answerVerified: boolean
   /** Stable "<chapterId>:<sourceFile>:<number>" key so re-importing the same file never duplicates rows. */
   importKey?: string | null
+  /** 'pending' (AI-suggested, awaiting approval) is hidden from the real bank/practice/readiness everywhere until approved. Manual entries and file imports default to 'approved'. */
+  reviewStatus: 'pending' | 'approved' | 'rejected'
 }
-export type BoardQuestionDraft = Omit<BoardQuestion, 'id' | 'createdAt' | 'answerVerified'> & { answerVerified?: boolean }
+export type BoardQuestionDraft = Omit<BoardQuestion, 'id' | 'createdAt' | 'answerVerified' | 'reviewStatus'> & {
+  answerVerified?: boolean
+  reviewStatus?: 'pending' | 'approved' | 'rejected'
+}
 
 export interface BoardQuestionAttempt {
   id: string
