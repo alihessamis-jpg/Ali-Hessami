@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
@@ -54,8 +54,18 @@ function shuffle<T>(arr: T[]): T[] {
   return copy
 }
 
-export function BoardQuestionsPanel() {
+interface BoardQuestionsPanelProps {
+  // Set when arriving from a chapter's "Practice this chapter's questions"
+  // link (Library -> /study?tab=boardQuestions&chapterId=...): scopes the
+  // practice pool to that chapter and starts a session automatically,
+  // instead of the usual topic-picker flow.
+  initialChapterId?: string | null
+}
+
+export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsPanelProps = {}) {
   const [mode, setMode] = useState<Mode>('practice')
+  const [chapterFilterId, setChapterFilterId] = useState<string | null>(null)
+  const autoStartedRef = useRef(false)
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
   const [attempts, setAttempts] = useState<BoardQuestionAttempt[]>([])
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
@@ -86,6 +96,15 @@ export function BoardQuestionsPanel() {
     refresh()
   }, [])
 
+  useEffect(() => {
+    if (!initialChapterId || autoStartedRef.current || questions.length === 0) return
+    autoStartedRef.current = true
+    setMode('practice')
+    setChapterFilterId(initialChapterId)
+    startPractice(initialChapterId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChapterId, questions])
+
   function refresh() {
     setLoading(true)
     Promise.all([listBoardQuestions(), listBoardQuestionAttempts(), listKnowledgeGaps()])
@@ -105,9 +124,15 @@ export function BoardQuestionsPanel() {
     return counts
   }, [questions])
   const countForTopic = (t: string) => topicCounts.get(t) ?? 0
+  const wrongQuestionIds = useMemo(() => new Set(attempts.filter((a) => !a.isCorrect).map((a) => a.questionId)), [attempts])
 
-  function startPractice() {
-    const pool = practiceTopic === 'All' ? questions : questions.filter((q) => q.topic === practiceTopic)
+  function startPractice(chapterId: string | null = chapterFilterId, onlyWrong = false) {
+    const basePool = chapterId
+      ? questions.filter((q) => q.chapterId === chapterId)
+      : practiceTopic === 'All'
+        ? questions
+        : questions.filter((q) => q.topic === practiceTopic)
+    const pool = onlyWrong ? basePool.filter((q) => wrongQuestionIds.has(q.id)) : basePool
     setQueue(shuffle(pool))
     setQueueIndex(0)
     setSelectedIndex(null)
@@ -317,21 +342,43 @@ export function BoardQuestionsPanel() {
           <div className="dash-card-header">
             <h2 className="dash-card-title">Practice</h2>
           </div>
+          {chapterFilterId && (
+            <p className="patient-meta">
+              Practicing this chapter's questions only.{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  setChapterFilterId(null)
+                  setQueue(null)
+                }}
+              >
+                Practice all topics instead
+              </button>
+            </p>
+          )}
           {questions.length === 0 ? (
             <p className="empty-state">No questions yet — add some under "Manage questions" first.</p>
           ) : !queue ? (
             <div className="form-actions">
-              <TopicPicker
-                topics={topics}
-                value={practiceTopic}
-                onChange={setPracticeTopic}
-                countFor={countForTopic}
-                totalCount={questions.length}
-                allLabel="All topics"
-              />
-              <button type="button" onClick={startPractice}>
+              {!chapterFilterId && (
+                <TopicPicker
+                  topics={topics}
+                  value={practiceTopic}
+                  onChange={setPracticeTopic}
+                  countFor={countForTopic}
+                  totalCount={questions.length}
+                  allLabel="All topics"
+                />
+              )}
+              <button type="button" onClick={() => startPractice()}>
                 Start
               </button>
+              {wrongQuestionIds.size > 0 && (
+                <button type="button" className="button-secondary" onClick={() => startPractice(chapterFilterId, true)}>
+                  Review my wrong answers
+                </button>
+              )}
             </div>
           ) : queueIndex >= queue.length ? (
             <div>
@@ -340,7 +387,7 @@ export function BoardQuestionsPanel() {
                 {sessionScore.total > 0 ? Math.round((sessionScore.correct / sessionScore.total) * 100) : 0}%)
               </p>
               <div className="form-actions">
-                <button type="button" onClick={startPractice}>
+                <button type="button" onClick={() => startPractice()}>
                   Practice again
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setQueue(null)}>

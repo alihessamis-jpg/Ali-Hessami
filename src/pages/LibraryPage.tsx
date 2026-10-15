@@ -8,13 +8,14 @@ import {
 import { listAcademyCardsForTopic } from '../lib/api/academyCards'
 import { listAcademyTopics } from '../lib/api/academy'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
+import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
 import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
-import type { AcademyTopic, BoardQuestion, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
+import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics'
 
@@ -45,6 +46,7 @@ export function LibraryPage() {
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
   const [cards, setCards] = useState<LibraryCard[]>([])
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
+  const [questionAttempts, setQuestionAttempts] = useState<BoardQuestionAttempt[]>([])
   const [importOpen, setImportOpen] = useState(false)
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
@@ -111,12 +113,17 @@ export function LibraryPage() {
       console.error('Board questions failed to load', err)
       return [] as BoardQuestion[]
     })
+    const attemptsPromise = listBoardQuestionAttempts().catch((err) => {
+      console.error('Board question attempts failed to load', err)
+      return [] as BoardQuestionAttempt[]
+    })
 
-    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null), questionsPromise])
-      .then(([{ topicRows, counts }, bookResult, settings, questionRows]) => {
+    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null), questionsPromise, attemptsPromise])
+      .then(([{ topicRows, counts }, bookResult, settings, questionRows, attemptRows]) => {
         setTopics(topicRows)
         setTopicCardCounts(counts)
         setQuestions(questionRows)
+        setQuestionAttempts(attemptRows)
         setBookUnavailable(!bookResult.ok)
         setOfflineFallback(bookResult.offline)
         if (bookResult.ok && bookResult.seeded) {
@@ -164,6 +171,24 @@ export function LibraryPage() {
     }
     return map
   }, [questions])
+
+  // Practice score per chapter, from every recorded attempt on that
+  // chapter's questions (not just the most recent session) -- shown next to
+  // the "N questions" badge on the chapter row.
+  const scoreByChapter = useMemo(() => {
+    const questionToChapter = new Map<string, string>()
+    for (const [chapterId, qs] of questionsByChapter) for (const q of qs) questionToChapter.set(q.id, chapterId)
+    const map = new Map<string, { correct: number; total: number }>()
+    for (const a of questionAttempts) {
+      const chapterId = questionToChapter.get(a.questionId)
+      if (!chapterId) continue
+      const stat = map.get(chapterId) ?? { correct: 0, total: 0 }
+      stat.total += 1
+      if (a.isCorrect) stat.correct += 1
+      map.set(chapterId, stat)
+    }
+    return map
+  }, [questionsByChapter, questionAttempts])
 
   const now = new Date()
   const dueByChapter = useMemo(() => {
@@ -400,33 +425,43 @@ export function LibraryPage() {
                         {partChapters.map((c) => {
                           const cardCount = cardsByChapter.get(c.id)?.length ?? 0
                           const questionCount = questionsByChapter.get(c.id)?.length ?? 0
+                          const score = scoreByChapter.get(c.id)
+                          const scorePct = score && score.total > 0 ? Math.round((score.correct / score.total) * 100) : null
                           const due = dueByChapter.get(c.id) ?? 0
                           const colors = STATUS_COLORS[c.status]
                           return (
-                            <Link className="ch" to={`/academy/reader/${c.id}`} key={c.id}>
-                              <span className="cn">{c.chapterNumber}</span>
-                              <span>
-                                <span className="ct">{c.title}</span>
-                                <span className="cm">
-                                  <span>
-                                    p. {c.startPage}–{c.endPage} · {c.pages} pp
-                                  </span>
-                                  {c.status === 'reading' && (
-                                    <span className="mini">
-                                      <i style={{ width: `${c.readingPct}%` }} />
+                            <div className="ch" key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Link to={`/academy/reader/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
+                                <span className="cn">{c.chapterNumber}</span>
+                                <span>
+                                  <span className="ct">{c.title}</span>
+                                  <span className="cm">
+                                    <span>
+                                      p. {c.startPage}–{c.endPage} · {c.pages} pp
                                     </span>
-                                  )}
-                                  {cardCount > 0 && <span>{cardCount} cards</span>}
-                                  {questionCount > 0 && <span>{questionCount} questions</span>}
+                                    {c.status === 'reading' && (
+                                      <span className="mini">
+                                        <i style={{ width: `${c.readingPct}%` }} />
+                                      </span>
+                                    )}
+                                    {cardCount > 0 && <span>{cardCount} cards</span>}
+                                    {questionCount > 0 && <span>{questionCount} questions</span>}
+                                    {scorePct != null && <span>{scorePct}% score</span>}
+                                  </span>
                                 </span>
-                              </span>
+                              </Link>
                               <span className="right">
                                 <span className="pill" style={colors}>
                                   {c.status === 'reading' ? `Reading ${c.readingPct}%` : STATUS_LABEL[c.status]}
                                 </span>
                                 {due > 0 && <span className="due">{due} due</span>}
+                                {questionCount > 0 && (
+                                  <Link to={`/study?tab=boardQuestions&chapterId=${c.id}`} className="pill" style={{ color: '#5131B5', background: '#ECE6FD' }}>
+                                    Practice
+                                  </Link>
+                                )}
                               </span>
-                            </Link>
+                            </div>
                           )
                         })}
                       </div>

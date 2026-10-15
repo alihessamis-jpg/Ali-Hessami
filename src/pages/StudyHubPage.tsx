@@ -1,5 +1,5 @@
 import { useState, type ComponentType, type SVGProps } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { StudyNotesPanel } from '../components/study/StudyNotesPanel'
 import { FlashcardsPanel } from '../components/study/FlashcardsPanel'
 import { ReasoningCasesPanel } from '../components/study/ReasoningCasesPanel'
@@ -51,7 +51,10 @@ const TABS: Array<{ id: Tab; label: string; icon: ComponentType<SVGProps<SVGSVGE
 
 export function StudyHubPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('notes')
+  const [params] = useSearchParams()
+  const initialTab = (params.get('tab') as Tab | null) ?? 'notes'
+  const [tab, setTab] = useState<Tab>(TABS.some((t) => t.id === initialTab) ? initialTab : 'notes')
+  const chapterIdParam = params.get('chapterId')
 
   return (
     <div className="np-page">
@@ -91,7 +94,7 @@ export function StudyHubPage() {
         {tab === 'reasoning' && <ReasoningCasesPanel />}
         {tab === 'labChallenges' && <LabChallengesPanel />}
         {tab === 'imagingChallenges' && <ImagingChallengesPanel />}
-        {tab === 'boardQuestions' && <BoardQuestionsPanel />}
+        {tab === 'boardQuestions' && <BoardQuestionsPanel initialChapterId={chapterIdParam} />}
         {tab === 'consults' && <AttendingConsultsPanel />}
         {tab === 'gaps' && <KnowledgeGapsPanel />}
         {tab === 'cases' && <PersonalCasesPanel />}

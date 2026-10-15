@@ -70,7 +70,20 @@ export function computeTopicReadiness(
     return g
   }
 
+  // Chapter-linked board questions (Academy v2 "Import questions") are
+  // folded in by their chapter_id, not by matching the free-text topic
+  // string -- the same join library_cards below uses for chapter cards --
+  // so an import whose topic label drifts from the chapter's own title
+  // still lands in that chapter's group instead of starting a stray one.
+  const chapterIdToKey = new Map<string, string>()
+  for (const c of libraryChapters) chapterIdToKey.set(c.id, normalizeTopic(c.title))
+
   for (const q of questions) {
+    if (q.chapterId && chapterIdToKey.has(q.chapterId)) {
+      const chapter = libraryChapters.find((c) => c.id === q.chapterId)
+      groupFor(chapterIdToKey.get(q.chapterId) as string, chapter?.title ?? q.topic).questionIds.add(q.id)
+      continue
+    }
     if (!q.topic || !q.topic.trim()) continue
     const key = normalizeTopic(q.topic)
     groupFor(key, q.topic).questionIds.add(q.id)
@@ -128,9 +141,8 @@ export function computeTopicReadiness(
   // Academy v2's book cards are linked to a chapter, not a topic — fold
   // them into the same "card confidence" pool, grouped by the chapter's own
   // title (creating a new group for chapters with no matching topic/question
-  // name, the same way flashcard decks do above).
-  const chapterIdToKey = new Map<string, string>()
-  for (const c of libraryChapters) chapterIdToKey.set(c.id, normalizeTopic(c.title))
+  // name, the same way flashcard decks do above). chapterIdToKey was built
+  // above, alongside the chapter-linked board-question grouping.
   for (const card of libraryCards) {
     const chapter = libraryChapters.find((c) => c.id === card.chapterId)
     if (!chapter) continue
