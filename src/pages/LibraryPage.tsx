@@ -7,12 +7,14 @@ import {
 } from '../lib/api/library'
 import { listAcademyCardsForTopic } from '../lib/api/academyCards'
 import { listAcademyTopics } from '../lib/api/academy'
+import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
-import { AcademyIcon, BookIcon, QuizIcon, SearchIcon } from '../components/icons'
+import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { AcademyTopic, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
+import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
+import type { AcademyTopic, BoardQuestion, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics'
 
@@ -42,6 +44,8 @@ export function LibraryPage() {
   const [book, setBook] = useState<LibraryBook | null>(null)
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
   const [cards, setCards] = useState<LibraryCard[]>([])
+  const [questions, setQuestions] = useState<BoardQuestion[]>([])
+  const [importOpen, setImportOpen] = useState(false)
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
   const [dailyGoal, setDailyGoal] = useState(10)
@@ -103,10 +107,16 @@ export function LibraryPage() {
         }
       })
 
-    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null)])
-      .then(([{ topicRows, counts }, bookResult, settings]) => {
+    const questionsPromise = listBoardQuestions().catch((err) => {
+      console.error('Board questions failed to load', err)
+      return [] as BoardQuestion[]
+    })
+
+    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null), questionsPromise])
+      .then(([{ topicRows, counts }, bookResult, settings, questionRows]) => {
         setTopics(topicRows)
         setTopicCardCounts(counts)
+        setQuestions(questionRows)
         setBookUnavailable(!bookResult.ok)
         setOfflineFallback(bookResult.offline)
         if (bookResult.ok && bookResult.seeded) {
@@ -139,6 +149,21 @@ export function LibraryPage() {
     }
     return map
   }, [cards])
+
+  // Imported exam questions are linked to a chapter the same way cards are
+  // (chapterId), but a question also carries a free-text topic -- older
+  // manually-entered questions never set chapterId, so only chapter-linked
+  // ones count here.
+  const questionsByChapter = useMemo(() => {
+    const map = new Map<string, BoardQuestion[]>()
+    for (const q of questions) {
+      if (!q.chapterId) continue
+      const list = map.get(q.chapterId) ?? []
+      list.push(q)
+      map.set(q.chapterId, list)
+    }
+    return map
+  }, [questions])
 
   const now = new Date()
   const dueByChapter = useMemo(() => {
@@ -312,6 +337,10 @@ export function LibraryPage() {
                 My topics
               </button>
             </div>
+            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setImportOpen(true)}>
+              <UploadIcon width={16} height={16} />
+              Import questions
+            </button>
           </div>
 
           {tab === 'book' && bookUnavailable ? (
@@ -370,6 +399,7 @@ export function LibraryPage() {
                       <div className="chs">
                         {partChapters.map((c) => {
                           const cardCount = cardsByChapter.get(c.id)?.length ?? 0
+                          const questionCount = questionsByChapter.get(c.id)?.length ?? 0
                           const due = dueByChapter.get(c.id) ?? 0
                           const colors = STATUS_COLORS[c.status]
                           return (
@@ -387,6 +417,7 @@ export function LibraryPage() {
                                     </span>
                                   )}
                                   {cardCount > 0 && <span>{cardCount} cards</span>}
+                                  {questionCount > 0 && <span>{questionCount} questions</span>}
                                 </span>
                               </span>
                               <span className="right">
@@ -521,6 +552,13 @@ export function LibraryPage() {
           </div>
         </>
       )}
+
+      <QuestionImportPanel
+        open={importOpen}
+        chapters={chapters}
+        onClose={() => setImportOpen(false)}
+        onImported={(imported) => setQuestions((prev) => [...prev.filter((q) => !imported.some((n) => n.importKey === q.importKey)), ...imported])}
+      />
     </div>
   )
 }

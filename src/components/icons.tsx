@@ -274,6 +274,15 @@ export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function UploadIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 15.5V4M7.5 8.5L12 4l4.5 4.5" />
+      <path d="M4.5 17v2a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5v-2" />
+    </Icon>
+  )
+}
+
 export function GrowthIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

@@ -67,6 +67,7 @@ export function BoardQuestionsPanel() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [matchSelections, setMatchSelections] = useState<Record<string, string>>({})
   const [fillRevealed, setFillRevealed] = useState(false)
+  const [essayRevealed, setEssayRevealed] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [sessionScore, setSessionScore] = useState({ correct: 0, total: 0 })
   const [flashcardSavedFor, setFlashcardSavedFor] = useState<string | null>(null)
@@ -75,6 +76,7 @@ export function BoardQuestionsPanel() {
   // Manage state
   const [draft, setDraft] = useState(emptyDraft)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingQuestion, setEditingQuestion] = useState<BoardQuestion | null>(null)
   const [manageTopicFilter, setManageTopicFilter] = useState('All')
   const [manageSearch, setManageSearch] = useState('')
 
@@ -108,6 +110,7 @@ export function BoardQuestionsPanel() {
     setSelectedIndex(null)
     setMatchSelections({})
     setFillRevealed(false)
+    setEssayRevealed(false)
     setSubmitted(false)
     setSessionScore({ correct: 0, total: 0 })
     setFlashcardSavedFor(null)
@@ -145,12 +148,19 @@ export function BoardQuestionsPanel() {
     await recordAttempt(q.id, gotItRight)
   }
 
+  async function handleSubmitTrueFalse(answer: boolean) {
+    if (!queue) return
+    const q = queue[queueIndex]
+    await recordAttempt(q.id, answer === q.correctBool)
+  }
+
   function handleNext() {
     if (!queue) return
     setQueueIndex((i) => i + 1)
     setSelectedIndex(null)
     setMatchSelections({})
     setFillRevealed(false)
+    setEssayRevealed(false)
     setSubmitted(false)
     setFlashcardSavedFor(null)
     setReviewSavedFor(null)
@@ -189,12 +199,26 @@ export function BoardQuestionsPanel() {
         options,
         correctIndex: draft.correctIndex,
         explanation: draft.explanation || null,
+        // Carry forward fields the plain mcq form doesn't edit (chapter
+        // link, import source/key) so saving an imported question here
+        // doesn't silently detach it from its chapter. Editing and saving
+        // here is also how the fellow confirms an answer_verified:false
+        // guessed answer (e.g. Q13/Q14) -- it flips to true on save.
+        chapterId: editingQuestion?.chapterId ?? null,
+        correctBool: null,
+        modelAnswer: null,
+        source: editingQuestion?.source ?? null,
+        sourceFile: editingQuestion?.sourceFile ?? null,
+        sourceDate: editingQuestion?.sourceDate ?? null,
+        answerVerified: true,
+        importKey: editingQuestion?.importKey ?? null,
       }
       if (editingId) {
         const updated = await updateBoardQuestion(editingId, payload)
         setQuestions((prev) => prev.map((q) => (q.id === editingId ? updated : q)))
         setDraft({ ...emptyDraft, topic: draft.topic })
         setEditingId(null)
+        setEditingQuestion(null)
       } else {
         const created = await addBoardQuestion(payload)
         setQuestions((prev) => [...prev, created])
@@ -207,6 +231,7 @@ export function BoardQuestionsPanel() {
 
   function handleEditQuestion(q: BoardQuestion) {
     if (q.type !== 'mcq') return
+    setEditingQuestion(q)
     setDraft({
       topic: q.topic,
       question: q.question,
@@ -221,6 +246,7 @@ export function BoardQuestionsPanel() {
   function handleCancelEditQuestion() {
     setDraft({ ...emptyDraft, topic: draft.topic })
     setEditingId(null)
+    setEditingQuestion(null)
   }
 
   async function handleDeleteQuestion(id: string) {
@@ -303,8 +329,13 @@ export function BoardQuestionsPanel() {
               <p className="patient-meta">
                 {queue[queueIndex].topic} · Question {queueIndex + 1} / {queue.length} · Session score: {sessionScore.correct}/
                 {sessionScore.total}
+                {queue[queueIndex].answerVerified === false && (
+                  <span style={{ color: '#93590B', background: '#FDF0D5', padding: '1px 8px', borderRadius: 999, marginInlineStart: 8 }}>
+                    answer not verified
+                  </span>
+                )}
               </p>
-              <p>
+              <p dir="auto" style={{ whiteSpace: 'pre-line' }}>
                 <strong>{queue[queueIndex].question}</strong>
               </p>
 
@@ -398,6 +429,53 @@ export function BoardQuestionsPanel() {
                       <p className="patient-meta">
                         Answer{(queue[queueIndex].fillAnswers?.length ?? 0) > 1 ? 's' : ''}:{' '}
                         <strong>{(queue[queueIndex].fillAnswers ?? []).join(' · ')}</strong>
+                      </p>
+                      {!submitted && (
+                        <div className="form-actions">
+                          <button type="button" onClick={() => void handleSelfGradeFillBlank(true)}>
+                            I got it right
+                          </button>
+                          <button type="button" className="button-secondary" onClick={() => void handleSelfGradeFillBlank(false)}>
+                            I got it wrong
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {queue[queueIndex].type === 'true_false' && (
+                <>
+                  {!submitted ? (
+                    <div className="form-actions">
+                      <button type="button" onClick={() => void handleSubmitTrueFalse(true)}>
+                        True
+                      </button>
+                      <button type="button" className="button-secondary" onClick={() => void handleSubmitTrueFalse(false)}>
+                        False
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="patient-meta">
+                      Correct answer: <strong>{queue[queueIndex].correctBool ? 'True' : 'False'}</strong>
+                    </p>
+                  )}
+                </>
+              )}
+
+              {queue[queueIndex].type === 'essay' && (
+                <>
+                  {!essayRevealed ? (
+                    <div className="form-actions">
+                      <button type="button" onClick={() => setEssayRevealed(true)}>
+                        Show model answer
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="patient-meta" dir="auto" style={{ whiteSpace: 'pre-line' }}>
+                        <strong>{queue[queueIndex].modelAnswer}</strong>
                       </p>
                       {!submitted && (
                         <div className="form-actions">
@@ -624,6 +702,11 @@ export function BoardQuestionsPanel() {
                 <li key={q.id}>
                   <div className="note-header">
                     <strong>{q.question}</strong>
+                    {q.answerVerified === false && (
+                      <span style={{ color: '#93590B', background: '#FDF0D5', padding: '1px 8px', borderRadius: 999, fontSize: 12 }}>
+                        answer not verified
+                      </span>
+                    )}
                     {q.type === 'mcq' && (
                       <button className="link-button" onClick={() => handleEditQuestion(q)}>
                         Edit
@@ -638,6 +721,7 @@ export function BoardQuestionsPanel() {
                     {q.type === 'mcq' && q.correctIndex != null && ` · Correct: ${q.options[q.correctIndex]}`}
                     {q.type === 'fill_blank' && q.fillAnswers && ` · Answer: ${q.fillAnswers.join(' · ')}`}
                     {q.type === 'matching' && q.matchAnswer && ` · ${q.matchAnswer.length} pairs`}
+                    {q.type === 'true_false' && q.correctBool != null && ` · Correct: ${q.correctBool ? 'True' : 'False'}`}
                   </p>
                 </li>
               ))}

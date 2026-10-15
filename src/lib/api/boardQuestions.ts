@@ -18,6 +18,14 @@ interface BoardQuestionRow {
   taxonomy: number | null
   explanation: string | null
   created_at: string
+  chapter_id: string | null
+  correct_bool: boolean | null
+  model_answer: string | null
+  source: string | null
+  source_file: string | null
+  source_date: string | null
+  answer_verified: boolean
+  import_key: string | null
 }
 
 function toDomain(row: BoardQuestionRow): BoardQuestion {
@@ -38,6 +46,14 @@ function toDomain(row: BoardQuestionRow): BoardQuestion {
     taxonomy: row.taxonomy,
     explanation: row.explanation,
     createdAt: row.created_at,
+    chapterId: row.chapter_id,
+    correctBool: row.correct_bool,
+    modelAnswer: row.model_answer,
+    source: row.source,
+    sourceFile: row.source_file,
+    sourceDate: row.source_date,
+    answerVerified: row.answer_verified,
+    importKey: row.import_key,
   }
 }
 
@@ -57,11 +73,25 @@ function toRow(draft: BoardQuestionDraft) {
     difficulty: draft.difficulty ?? null,
     taxonomy: draft.taxonomy ?? null,
     explanation: draft.explanation,
+    chapter_id: draft.chapterId ?? null,
+    correct_bool: draft.correctBool ?? null,
+    model_answer: draft.modelAnswer ?? null,
+    source: draft.source ?? null,
+    source_file: draft.sourceFile ?? null,
+    source_date: draft.sourceDate ?? null,
+    answer_verified: draft.answerVerified ?? true,
+    import_key: draft.importKey ?? null,
   }
 }
 
 export async function listBoardQuestions(): Promise<BoardQuestion[]> {
   const { data, error } = await supabase.from('board_questions').select('*').order('topic')
+  if (error) throw error
+  return (data as BoardQuestionRow[]).map(toDomain)
+}
+
+export async function listBoardQuestionsForChapter(chapterId: string): Promise<BoardQuestion[]> {
+  const { data, error } = await supabase.from('board_questions').select('*').eq('chapter_id', chapterId).order('created_at')
   if (error) throw error
   return (data as BoardQuestionRow[]).map(toDomain)
 }
@@ -94,4 +124,49 @@ export async function updateBoardQuestion(id: string, draft: BoardQuestionDraft)
 export async function deleteBoardQuestion(id: string): Promise<void> {
   const { error } = await supabase.from('board_questions').delete().eq('id', id)
   if (error) throw error
+}
+
+// Idempotent bulk import: each draft must carry a stable `importKey`
+// ("<chapterId>:<sourceFile>:<number>"). Re-importing the same file
+// upserts on that key instead of duplicating rows (owner_id + import_key
+// has a unique index -- see board_questions_chapter_link_and_types.sql).
+export async function importBoardQuestions(drafts: BoardQuestionDraft[]): Promise<{ imported: number }> {
+  if (drafts.length === 0) return { imported: 0 }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // Not a plain supabase-js .upsert(): the owner_id+import_key unique index
+  // is partial (WHERE import_key IS NOT NULL, since manually-created
+  // questions never set one), and upsert()'s onConflict can't express a
+  // partial index's WHERE clause -- so re-importing would fail with
+  // "no unique or exclusion constraint matching the ON CONFLICT
+  // specification". Doing the existing/new split ourselves works with
+  // that same partial index without needing to change it.
+  const keys = drafts.map((d) => d.importKey).filter((k): k is string => !!k)
+  const existingByKey = new Map<string, string>()
+  if (keys.length > 0) {
+    const { data: existing, error: existingError } = await supabase
+      .from('board_questions')
+      .select('id, import_key')
+      .eq('owner_id', user.id)
+      .in('import_key', keys)
+    if (existingError) throw existingError
+    for (const row of existing as Array<{ id: string; import_key: string }>) existingByKey.set(row.import_key, row.id)
+  }
+
+  const toInsert = drafts.filter((d) => !d.importKey || !existingByKey.has(d.importKey)).map((d) => ({ ...toRow(d), owner_id: user.id }))
+  const toUpdate = drafts.filter((d) => d.importKey && existingByKey.has(d.importKey))
+
+  if (toInsert.length > 0) {
+    const { error } = await supabase.from('board_questions').insert(toInsert)
+    if (error) throw error
+  }
+  for (const d of toUpdate) {
+    const id = existingByKey.get(d.importKey as string) as string
+    const { error } = await supabase.from('board_questions').update(toRow(d)).eq('id', id)
+    if (error) throw error
+  }
+  return { imported: drafts.length }
 }

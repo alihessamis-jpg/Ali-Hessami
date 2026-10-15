@@ -530,7 +530,7 @@ export interface KnowledgeGap {
 
 export type KnowledgeGapDraft = Omit<KnowledgeGap, 'id'>
 
-export type BoardQuestionType = 'mcq' | 'fill_blank' | 'matching'
+export type BoardQuestionType = 'mcq' | 'fill_blank' | 'matching' | 'true_false' | 'essay'
 
 export interface BoardQuestionMatchItem {
   key: string
@@ -559,8 +559,23 @@ export interface BoardQuestion {
   taxonomy?: number | null
   explanation?: string | null
   createdAt: string
+  /** Links this question to an Academy v2 chapter (library_chapters.id), same as library_cards.chapterId. */
+  chapterId?: string | null
+  /** true_false type's answer. */
+  correctBool?: boolean | null
+  /** essay type: shown after self-grading, no auto-grading. */
+  modelAnswer?: string | null
+  /** e.g. "آزمون درون‌بخشی" -- lets department-exam imports be filtered separately from other question sources. */
+  source?: string | null
+  /** Original file name, for traceability and the idempotent-import key. */
+  sourceFile?: string | null
+  sourceDate?: string | null
+  /** false when the import's answer key didn't mark a clear answer (a guessed "correct" needs human confirmation). */
+  answerVerified: boolean
+  /** Stable "<chapterId>:<sourceFile>:<number>" key so re-importing the same file never duplicates rows. */
+  importKey?: string | null
 }
-export type BoardQuestionDraft = Omit<BoardQuestion, 'id' | 'createdAt'>
+export type BoardQuestionDraft = Omit<BoardQuestion, 'id' | 'createdAt' | 'answerVerified'> & { answerVerified?: boolean }
 
 export interface BoardQuestionAttempt {
   id: string
