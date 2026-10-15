@@ -440,6 +440,14 @@ export async function addLibraryChapterFigure(
   return figureToDomain(data as FigureRow)
 }
 
+// Deletes a figure's library_chapter_figures row (its storage file is
+// removed separately -- see deleteChapterFigureFile -- since this is just
+// the DB half of "Remove image").
+export async function deleteLibraryChapterFigure(id: string): Promise<void> {
+  const { error } = await supabase.from('library_chapter_figures').delete().eq('id', id)
+  if (error) throw error
+}
+
 // --- Chapter-note import (NEPHRON_CHAPTER_FORMAT.md v1) -------------------
 
 export interface ImportChapterNoteResult {

@@ -8,6 +8,7 @@ import {
   addLibraryHighlight,
   approveLibraryCard,
   approveLibraryCards,
+  deleteLibraryChapterFigure,
   ensureLibraryBookSeeded,
   getLibraryChapter,
   importChapterNote,
@@ -20,7 +21,8 @@ import {
   updateLibraryChapter,
   type ChapterNoteImageInput,
 } from '../lib/api/library'
-import { cacheChapterBundle, getCachedChapterBundle, resolveFigureUrl } from '../lib/offlineCache'
+import { deleteChapterFigureFile } from '../lib/storage'
+import { cacheChapterBundle, evictCachedFigure, getCachedChapterBundle, resolveFigureUrl } from '../lib/offlineCache'
 import { listAcademyTopics } from '../lib/api/academy'
 import { listPatientIdsForTopic } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
@@ -157,6 +159,7 @@ export function ReaderPage() {
   const [cards, setCards] = useState<LibraryCard[]>([])
   const [highlights, setHighlights] = useState<LibraryHighlight[]>([])
   const [figureUrls, setFigureUrls] = useState<Record<string, string>>({})
+  const [figureRecords, setFigureRecords] = useState<LibraryChapterFigure[]>([])
   const [linkedTopics, setLinkedTopics] = useState<AcademyTopic[]>([])
   const [linkedPatients, setLinkedPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
@@ -212,6 +215,7 @@ export function ReaderPage() {
     setChapter(chapterRow)
     setCards(cardRows)
     setHighlights(highlightRows)
+    setFigureRecords(figureRows)
     const urlEntries = await Promise.all(
       figureRows.map(async (f) => [f.figureKey, await resolveFigureUrl(f.figureKey, f.storagePath)] as const)
     )
@@ -251,6 +255,7 @@ export function ReaderPage() {
         setCards([])
         setHighlights([])
         setFigureUrls({})
+        setFigureRecords([])
         return
       }
       await applyChapterCore(chapterRow, cardRows, highlightRows, figureRows)
@@ -466,15 +471,41 @@ export function ReaderPage() {
   }
 
   // v1.3: uploads one figure's image (from the per-figure "Add image" button
-  // on a missing-figure card, or from the "Add figure images" panel) and
-  // shows it immediately -- no re-import needed. Errors are surfaced by the
-  // caller (FigureCard / MissingFigureRow own their upload state), not here.
+  // on a missing-figure card, the "Add figure images" panel, or "Replace
+  // image" on an existing figure) and shows it immediately -- no re-import
+  // needed. addLibraryChapterFigure upserts by (chapter, figureKey), so a
+  // replace overwrites the same storage path/row in place rather than
+  // duplicating. Errors are surfaced by the caller (FigureCard /
+  // MissingFigureRow own their upload state), not here.
   async function handleUploadFigure(figureKey: string, file: File) {
     if (!chapter) return
     const caption = noteFigures.find((f) => f.id === figureKey)?.caption ?? null
     const figure = await addLibraryChapterFigure(chapter.id, chapter.chapterNumber, figureKey, caption, file)
+    // The offline cache is keyed by figureKey and never expires on its own --
+    // without evicting it first, a replace would keep showing the old image
+    // (resolveFigureUrl returns the cached blob before ever touching storage).
+    await evictCachedFigure(figureKey)
     const url = await resolveFigureUrl(figureKey, figure.storagePath)
     if (url) setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
+    setFigureRecords((prev) => (prev.some((f) => f.figureKey === figureKey) ? prev.map((f) => (f.figureKey === figureKey ? figure : f)) : [...prev, figure]))
+  }
+
+  // "Remove image": deletes the storage file and the figure row, evicts the
+  // cached blob, and drops it from figureUrls -- ChapterProse then renders
+  // that block as a "Missing figure" card again (the note's `.figure`
+  // reference itself is untouched, so "Add image" still works afterward).
+  async function handleRemoveFigure(figureKey: string) {
+    const record = figureRecords.find((f) => f.figureKey === figureKey)
+    if (!record) return
+    await deleteChapterFigureFile(record.storagePath)
+    await deleteLibraryChapterFigure(record.id)
+    await evictCachedFigure(figureKey)
+    setFigureUrls((prev) => {
+      const next = { ...prev }
+      delete next[figureKey]
+      return next
+    })
+    setFigureRecords((prev) => prev.filter((f) => f.figureKey !== figureKey))
   }
 
   // Step 4: asks the suggest-chapter-content Edge Function for new
@@ -808,6 +839,7 @@ export function ReaderPage() {
                 chapterNumberToId={chapterNumberToId}
                 figures={figureUrls}
                 onUploadFigure={handleUploadFigure}
+                onRemoveFigure={handleRemoveFigure}
               />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>

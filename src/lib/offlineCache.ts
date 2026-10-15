@@ -92,6 +92,19 @@ export async function getCachedLibrarySnapshot(): Promise<{ book: LibraryBook; c
   }
 }
 
+// Drops a figure's cached blob so the next resolveFigureUrl() re-downloads
+// it instead of returning stale bytes -- needed whenever the underlying
+// storage file changes or is removed (replace/remove image in the Reader),
+// since the cache never expires on its own.
+export async function evictCachedFigure(figureKey: string): Promise<void> {
+  try {
+    const db = await getDb()
+    await db.delete('figureBlobs', figureKey)
+  } catch {
+    // best-effort
+  }
+}
+
 async function getCachedFigureObjectUrl(figureKey: string): Promise<string | null> {
   try {
     const db = await getDb()

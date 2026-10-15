@@ -146,3 +146,8 @@ export async function getChapterFigureSignedUrl(path: string): Promise<string> {
   if (error) throw error
   return data.signedUrl
 }
+
+export async function deleteChapterFigureFile(path: string): Promise<void> {
+  const { error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).remove([path])
+  if (error) throw error
+}

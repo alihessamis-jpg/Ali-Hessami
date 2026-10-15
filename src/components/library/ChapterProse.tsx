@@ -39,8 +39,10 @@ interface Props {
   chapterNumberToId?: Record<number, string>
   /** v1.3: figureKey -> signed image URL, for `.figure` blocks. */
   figures?: Record<string, string>
-  /** v1.3: upload an image for a figure the import had no file for. */
+  /** v1.3: upload an image for a figure the import had no file for -- also used to replace an existing figure's image. */
   onUploadFigure?: (figureKey: string, file: File) => Promise<void>
+  /** Deletes an existing figure's image/row, turning it back into a "Missing figure" card. */
+  onRemoveFigure?: (figureKey: string) => Promise<void>
 }
 
 function renderBdi(text: string, keyBase: string): ReactNode[] {
@@ -329,6 +331,7 @@ function FigureCard({
   file,
   onOpen,
   onUploadFigure,
+  onRemoveFigure,
 }: {
   id: string
   src: string | null
@@ -336,10 +339,16 @@ function FigureCard({
   file: string
   onOpen: () => void
   onUploadFigure?: (figureKey: string, file: File) => Promise<void>
+  onRemoveFigure?: (figureKey: string) => Promise<void>
 }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [removeError, setRemoveError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(picked: File) {
     if (!onUploadFigure) return
@@ -354,12 +363,100 @@ function FigureCard({
     }
   }
 
+  async function handleRemove() {
+    if (!onRemoveFigure) return
+    setRemoving(true)
+    setRemoveError(null)
+    try {
+      await onRemoveFigure(id)
+      setConfirmingRemove(false)
+    } catch (err) {
+      setRemoveError(describeError(err, 'Failed to remove image'))
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   return (
     <figure className="bookfig" id={id}>
       {src ? (
-        <button type="button" className="bookfig-btn" onClick={onOpen} aria-label="Open figure full screen">
-          <img src={src} alt={caption} loading="lazy" />
-        </button>
+        <div className="bookfig-wrap">
+          <button type="button" className="bookfig-btn" onClick={onOpen} aria-label="Open figure full screen">
+            <img src={src} alt={caption} loading="lazy" />
+          </button>
+          {(onUploadFigure || onRemoveFigure) && (
+            <div className="bookfig-menu">
+              <button
+                type="button"
+                className="bookfig-menu-btn"
+                aria-label="Figure options"
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div className="bookfig-menu-pop" role="menu">
+                  {onUploadFigure && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        replaceInputRef.current?.click()
+                      }}
+                    >
+                      Replace image
+                    </button>
+                  )}
+                  {onRemoveFigure && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="danger"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        setConfirmingRemove(true)
+                      }}
+                    >
+                      Remove image
+                    </button>
+                  )}
+                </div>
+              )}
+              {onUploadFigure && (
+                <input
+                  ref={replaceInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const picked = e.target.files?.[0]
+                    e.target.value = ''
+                    if (picked) void handleFile(picked)
+                  }}
+                />
+              )}
+            </div>
+          )}
+          {uploading && <span className="bookfig-status">Uploading…</span>}
+          {uploadError && <span className="bookfig-err">{uploadError}</span>}
+          {confirmingRemove && (
+            <div className="bookfig-confirm">
+              <span>Remove this image? The figure will show as missing until you add a new one.</span>
+              <div className="endrow">
+                <button type="button" className="np-btn ghost sm" disabled={removing} onClick={() => setConfirmingRemove(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="np-btn sm danger" disabled={removing} onClick={() => void handleRemove()}>
+                  {removing ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
+              {removeError && <span className="bookfig-err">{removeError}</span>}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="bookfig-missing">
           <span>Missing figure: {file.split('/').pop() ?? file}</span>
@@ -485,6 +582,7 @@ export function ChapterProse({
   chapterNumberToId,
   figures,
   onUploadFigure,
+  onRemoveFigure,
 }: Props) {
   const chartIndexRef = useRef(0)
   chartIndexRef.current = 0
@@ -778,6 +876,7 @@ export function ChapterProse({
           file={block.file}
           onOpen={() => url && setViewerFigure({ src: url, caption: block.caption })}
           onUploadFigure={onUploadFigure}
+          onRemoveFigure={onRemoveFigure}
         />
       )
       continue
