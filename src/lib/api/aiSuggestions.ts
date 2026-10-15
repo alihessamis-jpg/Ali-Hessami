@@ -28,10 +28,20 @@ export async function requestChapterSuggestions(chapterId: string, counts: Chapt
     },
   })
   if (error) {
-    // supabase-js swallows the function's own JSON error body on a non-2xx
-    // response -- fall back to its generic message when context isn't set.
-    const context = (error as { context?: { error?: string } }).context
-    throw new Error(context?.error ?? error.message ?? 'Failed to generate AI suggestions')
+    // On a non-2xx response, supabase-js's FunctionsHttpError carries the
+    // raw Response in `context` (not parsed) -- the function's own JSON
+    // error body ({ error: "..." }) has to be read out of it explicitly,
+    // or every failure just shows the generic "non-2xx status code".
+    const context = (error as { context?: Response }).context
+    if (context && typeof context.json === 'function') {
+      try {
+        const body = await context.json()
+        if (body?.error) throw new Error(body.error as string)
+      } catch {
+        // fall through to the generic message below
+      }
+    }
+    throw new Error(error.message ?? 'Failed to generate AI suggestions')
   }
   if (data?.error) throw new Error(data.error as string)
   return data as ChapterSuggestionResult

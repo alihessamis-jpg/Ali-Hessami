@@ -192,6 +192,7 @@ Respond with ONLY a single JSON object, no prose before or after, no markdown fe
     )
     if (!geminiRes.ok) {
       const errText = await geminiRes.text()
+      console.error('Gemini API error', geminiRes.status, errText)
       return jsonResponse({ error: `Gemini API error: ${errText}` }, 502)
     }
     const geminiJson = await geminiRes.json()
@@ -212,6 +213,7 @@ Respond with ONLY a single JSON object, no prose before or after, no markdown fe
     })
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text()
+      console.error('Anthropic API error', anthropicRes.status, errText)
       return jsonResponse({ error: `Anthropic API error: ${errText}` }, 502)
     }
     const anthropicJson = await anthropicRes.json()
