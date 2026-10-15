@@ -19,13 +19,17 @@
 //     for textbook-import-suggested cards.
 // No images or files are generated or stored -- text only.
 //
-// Env vars (Supabase secrets), set via the dashboard:
-//   ANTHROPIC_API_KEY - from console.anthropic.com
+// Env vars (Supabase secrets), set via the dashboard -- set ONE of these:
+//   GEMINI_API_KEY    - free, no billing required: aistudio.google.com/apikey
+//   ANTHROPIC_API_KEY - from console.anthropic.com (needs billing set up)
+// If both are set, Gemini is tried first.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 const ANTHROPIC_MODEL = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-5-20250929'
 
@@ -79,9 +83,12 @@ function extractJson(text: string): GeneratedPayload {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders() })
 
-  if (!ANTHROPIC_API_KEY) {
+  if (!GEMINI_API_KEY && !ANTHROPIC_API_KEY) {
     return jsonResponse(
-      { error: 'ANTHROPIC_API_KEY is not set. Add it under Supabase project settings -> Edge Functions -> Secrets.' },
+      {
+        error:
+          'No AI provider configured. Add a GEMINI_API_KEY (free, aistudio.google.com/apikey) or ANTHROPIC_API_KEY secret under Supabase project settings -> Edge Functions -> Secrets.',
+      },
       500
     )
   }
@@ -170,27 +177,46 @@ Respond with ONLY a single JSON object, no prose before or after, no markdown fe
   "high_yield": [{"front": "", "back": "..."}]
 }`
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-
-  if (!anthropicRes.ok) {
-    const text = await anthropicRes.text()
-    return jsonResponse({ error: `Anthropic API error: ${text}` }, 502)
+  let text: string
+  if (GEMINI_API_KEY) {
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      }
+    )
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text()
+      return jsonResponse({ error: `Gemini API error: ${errText}` }, 502)
+    }
+    const geminiJson = await geminiRes.json()
+    text = (geminiJson.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('')
+  } else {
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!anthropicRes.ok) {
+      const errText = await anthropicRes.text()
+      return jsonResponse({ error: `Anthropic API error: ${errText}` }, 502)
+    }
+    const anthropicJson = await anthropicRes.json()
+    text = (anthropicJson.content ?? []).map((b: { text?: string }) => b.text ?? '').join('')
   }
-
-  const anthropicJson = await anthropicRes.json()
-  const text = (anthropicJson.content ?? []).map((b: { text?: string }) => b.text ?? '').join('')
 
   let payload: GeneratedPayload
   try {
