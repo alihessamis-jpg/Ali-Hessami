@@ -73,6 +73,7 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
             <div className="bsw-cover-shadow" />
             <div className="bsw-cover-float">
               <img className="bsw-cover-img" src={coverSrc} alt="" loading="lazy" />
+              <div className="bsw-cover-shine" />
             </div>
           </div>
         ) : (
