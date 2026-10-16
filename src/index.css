@@ -168,7 +168,10 @@ th {
   .status-badge--renal-yes,
   .status-badge--alert,
   .bsw-cover-float,
-  .bsw-cover-shadow {
+  .bsw-cover-shadow,
+  .bsw-petals,
+  .bsw-rings circle,
+  .bsw-dots circle {
     animation: none !important;
   }
   .bsw-cover-float {
@@ -211,7 +214,10 @@ html.force-reduced-motion .dh-neph-beat,
 html.force-reduced-motion .dh-neph-flow,
 html.force-reduced-motion .dh-week .now,
 html.force-reduced-motion .bsw-cover-float,
-html.force-reduced-motion .bsw-cover-shadow {
+html.force-reduced-motion .bsw-cover-shadow,
+html.force-reduced-motion .bsw-petals,
+html.force-reduced-motion .bsw-rings circle,
+html.force-reduced-motion .bsw-dots circle {
   animation: none !important;
 }
 html.force-reduced-motion .bsw-cover-float {
@@ -3514,7 +3520,7 @@ select.pt-ward:focus {
   gap: 16px;
 }
 
-.np-hero > *:not(.hero-scene):not(.hero-scrim) {
+.np-hero > *:not(.hero-scene):not(.hero-scrim):not(.bsw-backdrop) {
   position: relative;
   z-index: 2;
 }
@@ -3525,6 +3531,97 @@ select.pt-ward:focus {
    this just orders them under the hero's text/stats. */
 .hero-scene {
   z-index: 0;
+}
+
+/* Library header card's themed backdrop (components/library/BookBackdrop.tsx)
+   -- same slot as .hero-scene above, SVG/CSS instead of WebGL so it can be
+   recolored per book without a custom shader. */
+.bsw-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bsw-backdrop svg {
+  width: 150%;
+  height: 150%;
+  opacity: 0.5;
+}
+
+.bsw-petals {
+  transform-origin: center;
+  transform-box: fill-box;
+  fill: none;
+  stroke: var(--card-accent, #5b9dff);
+  stroke-width: 1.4;
+  opacity: 0.55;
+  animation: bsw-backdrop-rotate 60s linear infinite;
+}
+
+@keyframes bsw-backdrop-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bsw-rings {
+  fill: none;
+  stroke: var(--card-accent, #5b9dff);
+  stroke-width: 1;
+}
+
+.bsw-rings circle {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: bsw-backdrop-ring 4.5s ease-in-out infinite;
+}
+
+.bsw-rings circle:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.bsw-rings circle:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes bsw-backdrop-ring {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+.bsw-dots {
+  fill: var(--card-dot, #ff6b6b);
+}
+
+.bsw-dots circle {
+  animation: bsw-backdrop-dot 7s ease-in-out infinite;
+}
+
+.bsw-dots circle:nth-child(odd) {
+  animation-direction: reverse;
+  animation-duration: 9s;
+}
+
+@keyframes bsw-backdrop-dot {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(4px, -6px);
+  }
 }
 
 .hero-scrim {
