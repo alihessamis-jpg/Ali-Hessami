@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { useElementWidth } from '../../hooks/useElementWidth'
+import { useBookTheme } from '../../hooks/useBookTheme'
 import { BookBackdrop } from './BookBackdrop'
 import { getBookCover, getFallbackTheme } from '../../lib/bookCovers'
 import type { LibraryBook } from '../../types/domain'
@@ -63,7 +64,7 @@ interface HeroCardProps {
 function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEditGoal, onTitleClick }: HeroCardProps) {
   const goalPct = Math.min(100, Math.round((todayPages / Math.max(1, dailyGoal)) * 100))
   const coverSrc = getBookCover(book.title)
-  const theme = getFallbackTheme(book.title)
+  const theme = useBookTheme(coverSrc, getFallbackTheme(book.title))
   return (
     <section className="np-hero np-fade" style={{ gap: 18, background: theme.bg }}>
       {active && <BookBackdrop theme={theme} />}
