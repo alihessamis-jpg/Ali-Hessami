@@ -166,8 +166,17 @@ th {
   }
   .nephron-illustration *,
   .status-badge--renal-yes,
-  .status-badge--alert {
+  .status-badge--alert,
+  .bsw-cover-float,
+  .bsw-cover-shadow,
+  .bsw-petals,
+  .bsw-rings circle,
+  .bsw-dots circle,
+  .bsw-cover-entering {
     animation: none !important;
+  }
+  .bsw-cover-float {
+    transform: rotate(-7deg);
   }
 }
 
@@ -204,8 +213,17 @@ html.force-reduced-motion .dh-hero-glow,
 html.force-reduced-motion .dh-hero-glow2,
 html.force-reduced-motion .dh-neph-beat,
 html.force-reduced-motion .dh-neph-flow,
-html.force-reduced-motion .dh-week .now {
+html.force-reduced-motion .dh-week .now,
+html.force-reduced-motion .bsw-cover-float,
+html.force-reduced-motion .bsw-cover-shadow,
+html.force-reduced-motion .bsw-petals,
+html.force-reduced-motion .bsw-rings circle,
+html.force-reduced-motion .bsw-dots circle,
+html.force-reduced-motion .bsw-cover-entering {
   animation: none !important;
+}
+html.force-reduced-motion .bsw-cover-float {
+  transform: rotate(-7deg);
 }
 
 /* The UI shell is English/LTR, but most clinical content is typed in
@@ -3504,7 +3522,7 @@ select.pt-ward:focus {
   gap: 16px;
 }
 
-.np-hero > *:not(.hero-scene):not(.hero-scrim) {
+.np-hero > *:not(.hero-scene):not(.hero-scrim):not(.bsw-backdrop) {
   position: relative;
   z-index: 2;
 }
@@ -3515,6 +3533,97 @@ select.pt-ward:focus {
    this just orders them under the hero's text/stats. */
 .hero-scene {
   z-index: 0;
+}
+
+/* Library header card's themed backdrop (components/library/BookBackdrop.tsx)
+   -- same slot as .hero-scene above, SVG/CSS instead of WebGL so it can be
+   recolored per book without a custom shader. */
+.bsw-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bsw-backdrop svg {
+  width: 150%;
+  height: 150%;
+  opacity: 0.5;
+}
+
+.bsw-petals {
+  transform-origin: center;
+  transform-box: fill-box;
+  fill: none;
+  stroke: var(--card-accent, #5b9dff);
+  stroke-width: 1.4;
+  opacity: 0.55;
+  animation: bsw-backdrop-rotate 60s linear infinite;
+}
+
+@keyframes bsw-backdrop-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bsw-rings {
+  fill: none;
+  stroke: var(--card-accent, #5b9dff);
+  stroke-width: 1;
+}
+
+.bsw-rings circle {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: bsw-backdrop-ring 4.5s ease-in-out infinite;
+}
+
+.bsw-rings circle:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.bsw-rings circle:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes bsw-backdrop-ring {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+.bsw-dots {
+  fill: var(--card-dot, #ff6b6b);
+}
+
+.bsw-dots circle {
+  animation: bsw-backdrop-dot 7s ease-in-out infinite;
+}
+
+.bsw-dots circle:nth-child(odd) {
+  animation-direction: reverse;
+  animation-duration: 9s;
+}
+
+@keyframes bsw-backdrop-dot {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(4px, -6px);
+  }
 }
 
 .hero-scrim {
@@ -6260,6 +6369,168 @@ select.pt-ward:focus {
   font-family: Georgia, serif;
   font-size: 8px;
   color: #a9c6ff;
+}
+
+/* Library book header card -- real cover art thumbnail (replaces the
+   text-only .cover placeholder above when a cover image is mapped). */
+.bsw-cover {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 74px;
+  height: 100px;
+  perspective: 500px;
+  touch-action: none;
+}
+
+/* Drag target for the touch-parallax JS (BookCoverArt.tsx) -- separate
+   from .bsw-cover-float so the idle-float CSS animation and the pointer-
+   driven tilt each own their own transform instead of fighting over one. */
+.bsw-cover-tilt {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Plays once per real book switch (BookCoverArt.tsx), not on first paint --
+   the cover rises in with a short fade and slight overshoot, then the
+   always-on float/shadow/shine on its children carry on underneath. */
+.bsw-cover-entering {
+  animation: bsw-cover-enter 0.45s cubic-bezier(0.2, 0.9, 0.25, 1.3) both;
+}
+
+@keyframes bsw-cover-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bsw-cover-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 52px;
+  height: 11px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  filter: blur(5px);
+  background: rgba(0, 0, 0, 0.5);
+  animation: bsw-cover-shadow 4.5s ease-in-out infinite;
+}
+
+/* Synced to .bsw-cover-float's 4.5s loop: the shadow shrinks/fades as the
+   book rises (float's midpoint, translateY(-4px)) and grows back as it
+   settles -- same duration/easing so the two never drift apart. */
+@keyframes bsw-cover-shadow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.32;
+    transform: translateX(-50%) scale(0.82);
+  }
+}
+
+.bsw-cover-float {
+  position: absolute;
+  inset: 0;
+  animation: bsw-float 4.5s ease-in-out infinite;
+}
+
+@keyframes bsw-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-6deg);
+  }
+}
+
+.bsw-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.bsw-cover-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 9px;
+  pointer-events: none;
+}
+
+.bsw-cover-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: bsw-cover-shine 8s ease-in-out infinite;
+}
+
+@keyframes bsw-cover-shine {
+  0% {
+    transform: translateX(-160%) skewX(-12deg);
+  }
+  18%,
+  100% {
+    transform: translateX(360%) skewX(-12deg);
+  }
+}
+
+/* Reading-progress ring around the cover (replaces the plain "X% read"
+   text that used to sit in the card subtitle -- see BookSwitcher.tsx). */
+.bsw-cover-ring {
+  position: absolute;
+  inset: -9px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.bsw-cover-ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 3;
+}
+
+.bsw-cover-ring-fill {
+  fill: none;
+  stroke: var(--card-accent, #ffc46b);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dasharray 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bsw-cover-ring-pct {
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .lstats {

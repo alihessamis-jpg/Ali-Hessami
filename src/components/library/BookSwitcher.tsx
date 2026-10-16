@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { useElementWidth } from '../../hooks/useElementWidth'
-import { HeroScene } from '../hero/HeroScene'
+import { useBookTheme } from '../../hooks/useBookTheme'
+import { BookBackdrop } from './BookBackdrop'
+import { BookCoverArt } from './BookCoverArt'
+import { getBookCover, getFallbackTheme } from '../../lib/bookCovers'
 import type { LibraryBook } from '../../types/domain'
 
 export interface LibraryBookStats {
@@ -61,15 +64,35 @@ interface HeroCardProps {
 
 function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEditGoal, onTitleClick }: HeroCardProps) {
   const goalPct = Math.min(100, Math.round((todayPages / Math.max(1, dailyGoal)) * 100))
+  const coverSrc = getBookCover(book.title)
+  const theme = useBookTheme(coverSrc, getFallbackTheme(book.title))
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  function handleTilt(x: number, y: number) {
+    const el = backdropRef.current
+    if (el) el.style.transform = `translate(${-x * 0.6}px, ${y * 0.6}px)`
+  }
+
+  const heroStyle = {
+    gap: 18,
+    background: theme.bg,
+    '--card-accent': theme.accent,
+    '--card-dot': theme.dot,
+  } as CSSProperties
+
   return (
-    <section className="np-hero np-fade" style={{ gap: 18 }}>
-      {active && <HeroScene scene="glomerulus" page="library" className="hero-scene" />}
+    <section className="np-hero np-fade" style={heroStyle}>
+      {active && <BookBackdrop ref={backdropRef} theme={theme} />}
       <div className="hero-scrim" />
       <div className="libhero">
-        <div className="cover" aria-hidden="true">
-          <i>{book.edition} ed.</i>
-          <b>{book.title}</b>
-        </div>
+        {coverSrc ? (
+          <BookCoverArt coverSrc={coverSrc} active={active} pctRead={stat.pctRead} onTilt={active ? handleTilt : undefined} />
+        ) : (
+          <div className="cover" aria-hidden="true">
+            <i>{book.edition} ed.</i>
+            <b>{book.title}</b>
+          </div>
+        )}
         <div className="np-txt">
           <span className="eyebrow">ACADEMY · LIBRARY</span>
           {onTitleClick ? (
@@ -84,7 +107,9 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
           )}
           <p className="np-sub">
             {book.edition} ed. · {stat.partsCount} parts · {stat.chaptersCount} chapters
-            {stat.totalPages > 0 ? ` · ${stat.totalPages.toLocaleString()} pages` : ''} · {stat.pctRead}% read
+            {stat.totalPages > 0 ? ` · ${stat.totalPages.toLocaleString()} pages` : ''}
+            {/* % read is shown on the progress ring around the cover when there is one */}
+            {!coverSrc ? ` · ${stat.pctRead}% read` : ''}
           </p>
         </div>
       </div>
