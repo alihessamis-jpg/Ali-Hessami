@@ -61,7 +61,7 @@ export function BookCoverArt({ coverSrc, active, pctRead, onTilt }: BookCoverArt
       cur.x += (target.x - cur.x) * SPRING_FACTOR
       cur.y += (target.y - cur.y) * SPRING_FACTOR
       const tilt = tiltRef.current
-      if (tilt) tilt.style.transform = `rotateY(${cur.x}deg) rotateX(${cur.y}deg)`
+      if (tilt) tilt.style.transform = `perspective(500px) rotateY(${cur.x}deg) rotateX(${cur.y}deg)`
       onTiltRef.current?.(cur.x, cur.y)
       const dx = Math.abs(target.x - cur.x)
       const dy = Math.abs(target.y - cur.y)

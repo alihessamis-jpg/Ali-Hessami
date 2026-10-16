@@ -6379,18 +6379,27 @@ select.pt-ward:focus {
   flex-shrink: 0;
   width: 74px;
   height: 100px;
-  perspective: 500px;
   touch-action: none;
 }
 
 /* Drag target for the touch-parallax JS (BookCoverArt.tsx) -- separate
    from .bsw-cover-float so the idle-float CSS animation and the pointer-
-   driven tilt each own their own transform instead of fighting over one. */
+   driven tilt each own their own transform instead of fighting over one.
+   The perspective lives IN the transform (perspective(500px) ...), set
+   from JS, rather than as a `perspective` property on the .bsw-cover
+   parent above: a `perspective`-establishing ancestor combined with the
+   .np-hero card's own `overflow: hidden` triggers a long-standing
+   WebKit/Safari bug where the subtree renders translucent until
+   something forces a repaint (confirmed on iPad Safari landscape, where
+   this card hits the desktop sidebar layout -- the only layout that
+   mounts a single long-lived instance instead of swapping DOM nodes on
+   every switch, so nothing ever forces that repaint on its own). */
 .bsw-cover-tilt {
   width: 100%;
   height: 100%;
-  transform-style: preserve-3d;
-  will-change: transform;
+  transform: perspective(500px) rotateY(0deg) rotateX(0deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* Plays once per real book switch (BookCoverArt.tsx), not on first paint --
