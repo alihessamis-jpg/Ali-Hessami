@@ -27,6 +27,8 @@ interface BookSwitcherProps {
   onEditGoal: () => void
 }
 
+type Layout = 'phone' | 'tablet' | 'desktop'
+
 const TABLET_MIN = 768
 // The page shell (.np-page) caps content width at 1100px total, so a
 // container here never reaches 1100px on its own -- this picks the sidebar
@@ -34,9 +36,41 @@ const TABLET_MIN = 768
 // while narrower containers (iPad portrait, phones) keep the carousel.
 const DESKTOP_MIN = 860
 
+// A container sitting right at one of the breakpoints above can measure a
+// few px on either side from one ResizeObserver callback to the next (a
+// cover image finishing its load, a font swapping in, anything that
+// nudges layout) -- without a dead zone that flips the layout every time,
+// which on a real device reads as the whole switcher flickering between
+// two different layouts. HYSTERESIS px of slack in the direction the
+// container is already in absorbs that noise: crossing a breakpoint by a
+// little isn't enough, only clearing it by HYSTERESIS px is.
+const HYSTERESIS = 24
+
+function pickLayout(width: number, prev: Layout): Layout {
+  if (width === 0) return prev
+  const tabletEnter = TABLET_MIN + HYSTERESIS
+  const tabletExit = TABLET_MIN - HYSTERESIS
+  const desktopEnter = DESKTOP_MIN + HYSTERESIS
+  const desktopExit = DESKTOP_MIN - HYSTERESIS
+
+  if (prev === 'desktop') {
+    if (width >= desktopExit) return 'desktop'
+    return width >= tabletExit ? 'tablet' : 'phone'
+  }
+  if (prev === 'tablet') {
+    if (width >= desktopEnter) return 'desktop'
+    return width >= tabletExit ? 'tablet' : 'phone'
+  }
+  // prev === 'phone'
+  if (width >= desktopEnter) return 'desktop'
+  return width >= tabletEnter ? 'tablet' : 'phone'
+}
+
 export function BookSwitcher(props: BookSwitcherProps) {
   const [wrapRef, width] = useElementWidth<HTMLDivElement>()
-  const layout = width === 0 ? 'phone' : width < TABLET_MIN ? 'phone' : width < DESKTOP_MIN ? 'tablet' : 'desktop'
+  const layoutRef = useRef<Layout>('phone')
+  layoutRef.current = pickLayout(width, layoutRef.current)
+  const layout = layoutRef.current
 
   if (props.books.length === 0) return null
 
