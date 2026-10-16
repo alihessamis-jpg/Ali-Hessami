@@ -10,6 +10,7 @@ import type {
   LibraryCardDraft,
   LibraryChapter,
   LibraryChapterFigure,
+  LibraryChapterPart,
   LibraryChapterSeed,
   LibraryChapterStatus,
   LibraryHighlight,
@@ -77,6 +78,24 @@ interface CardRow {
   high_yield: boolean
   figure_key: string | null
   source: string | null
+  created_at: string
+  chapter_part: number | null
+}
+
+interface ChapterPartRow {
+  id: string
+  chapter_id: string
+  part_number: number
+  title: string | null
+  subtitle: string | null
+  note: string | null
+  note_format: string | null
+  language: string | null
+  direction: string | null
+  status: LibraryChapterStatus
+  reading_pct: number
+  last_section: string | null
+  imported_at: string | null
   created_at: string
 }
 
@@ -164,6 +183,26 @@ function cardToDomain(row: CardRow): LibraryCard {
     highYield: row.high_yield ?? false,
     figureKey: row.figure_key,
     source: row.source,
+    createdAt: row.created_at,
+    chapterPart: row.chapter_part,
+  }
+}
+
+function chapterPartToDomain(row: ChapterPartRow): LibraryChapterPart {
+  return {
+    id: row.id,
+    chapterId: row.chapter_id,
+    partNumber: row.part_number,
+    title: row.title,
+    subtitle: row.subtitle,
+    note: row.note,
+    noteFormat: row.note_format,
+    language: row.language,
+    direction: row.direction,
+    status: row.status,
+    readingPct: row.reading_pct,
+    lastSection: row.last_section,
+    importedAt: row.imported_at,
     createdAt: row.created_at,
   }
 }
@@ -455,6 +494,24 @@ export interface ImportChapterNoteResult {
   suggestedCardCount: number
   /** v1.3: figure filenames the note references but weren't among `images`. */
   missingFigures: string[]
+  /** v1.4: set when the file had a `chapter_part:` -- the part row that was created/updated. */
+  part: LibraryChapterPart | null
+}
+
+const DEFAULT_BOOK_SLUG = 'pediatric-nephrology-8e'
+
+// v1.4: resolves a chapter-note's front-matter `book_id:` slug (missing =
+// the original bundled textbook) to the real library_books.id -- the slug
+// is a stable identifier a note author can type, the UUID is the DB's.
+async function resolveBookId(slug: string | null): Promise<string> {
+  const { data, error } = await supabase
+    .from('library_books')
+    .select('id')
+    .eq('slug', slug ?? DEFAULT_BOOK_SLUG)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error(`No book with slug "${slug ?? DEFAULT_BOOK_SLUG}" -- add it to Library first`)
+  return (data as { id: string }).id
 }
 
 // One image file supplied alongside the .md at import time, keyed by its
@@ -484,30 +541,67 @@ export interface ChapterNoteImageInput {
 export async function importChapterNote(raw: string, images: ChapterNoteImageInput[] = []): Promise<ImportChapterNoteResult> {
   const userId = await currentUserId()
   const parsed = parseChapterNoteForImport(raw)
+  const bookId = await resolveBookId(parsed.meta.bookId)
 
   const { data: existingRow, error: findError } = await supabase
     .from('library_chapters')
     .select('*')
+    .eq('book_id', bookId)
     .eq('chapter_number', parsed.meta.chapter)
     .maybeSingle()
   if (findError) throw findError
-  if (!existingRow) throw new Error(`No chapter ${parsed.meta.chapter} found -- seed the Library first`)
-  const chapterId = (existingRow as ChapterRow).id
+  if (!existingRow) throw new Error(`No chapter ${parsed.meta.chapter} found in this book -- seed the Library first`)
+  const chapterRow = existingRow as ChapterRow
+  const chapterId = chapterRow.id
+  const chapterPart = parsed.meta.chapterPart
 
-  const { data: updatedRow, error: updateError } = await supabase
-    .from('library_chapters')
-    .update({
-      note: parsed.body,
-      subtitle: parsed.meta.subtitle,
-      language: parsed.meta.language,
-      direction: parsed.meta.direction,
-      note_format: parsed.meta.format ?? 'nephron-chapter-note/1',
-      imported_at: new Date().toISOString(),
-    })
-    .eq('id', chapterId)
-    .select()
-    .single()
-  if (updateError) throw updateError
+  // v1.4: a file with `chapter_part:` is one of several independent notes
+  // for this chapter -- it goes to its own library_chapter_parts row
+  // (upserted by chapter_id+part_number, so re-import replaces only that
+  // part) instead of the chapter's own note/subtitle/etc. columns, which a
+  // legacy single-note file (no chapter_part) still updates directly,
+  // unchanged from v1-v1.3 behavior.
+  let partRow: ChapterPartRow | null = null
+  let resultChapterRow = chapterRow
+  if (chapterPart != null) {
+    const { data, error: partError } = await supabase
+      .from('library_chapter_parts')
+      .upsert(
+        {
+          owner_id: userId,
+          chapter_id: chapterId,
+          part_number: chapterPart,
+          title: parsed.meta.partTitle ?? parsed.meta.partTitleEn,
+          subtitle: parsed.meta.subtitle,
+          note: parsed.body,
+          note_format: parsed.meta.format ?? 'nephron-chapter-note/1.4',
+          language: parsed.meta.language,
+          direction: parsed.meta.direction,
+          imported_at: new Date().toISOString(),
+        },
+        { onConflict: 'chapter_id,part_number' }
+      )
+      .select()
+      .single()
+    if (partError) throw partError
+    partRow = data as ChapterPartRow
+  } else {
+    const { data: updatedRow, error: updateError } = await supabase
+      .from('library_chapters')
+      .update({
+        note: parsed.body,
+        subtitle: parsed.meta.subtitle,
+        language: parsed.meta.language,
+        direction: parsed.meta.direction,
+        note_format: parsed.meta.format ?? 'nephron-chapter-note/1',
+        imported_at: new Date().toISOString(),
+      })
+      .eq('id', chapterId)
+      .select()
+      .single()
+    if (updateError) throw updateError
+    resultChapterRow = updatedRow as ChapterRow
+  }
 
   const clozeUpserts = parsed.suggestedCards.map((c) => ({
     owner_id: userId,
@@ -521,6 +615,7 @@ export async function importChapterNote(raw: string, images: ChapterNoteImageInp
     topic: c.topic,
     high_yield: c.highYield,
     figure_key: c.figureKey,
+    chapter_part: chapterPart,
   }))
   const mcqUpserts = parsed.suggestedMcqCards.map((c) => ({
     owner_id: userId,
@@ -535,6 +630,7 @@ export async function importChapterNote(raw: string, images: ChapterNoteImageInp
     topic: null,
     high_yield: false,
     figure_key: null,
+    chapter_part: chapterPart,
   }))
   const cardUpserts = [...clozeUpserts, ...mcqUpserts]
 
@@ -557,10 +653,39 @@ export async function importChapterNote(raw: string, images: ChapterNoteImageInp
   }
 
   return {
-    chapter: chapterToDomain(updatedRow as ChapterRow),
+    chapter: chapterToDomain(resultChapterRow),
     suggestedCardCount: parsed.suggestedCards.length + parsed.suggestedMcqCards.length,
     missingFigures,
+    part: partRow ? chapterPartToDomain(partRow) : null,
   }
+}
+
+// v1.4: parts for a chapter, in part-number order; empty for a chapter
+// that only ever got a legacy single-note import.
+export async function listLibraryChapterParts(chapterId: string): Promise<LibraryChapterPart[]> {
+  const { data, error } = await supabase
+    .from('library_chapter_parts')
+    .select('*')
+    .eq('chapter_id', chapterId)
+    .order('part_number')
+  if (error) throw error
+  return (data as ChapterPartRow[]).map(chapterPartToDomain)
+}
+
+export interface LibraryChapterPartProgressPatch {
+  status?: LibraryChapterStatus
+  readingPct?: number
+  lastSection?: string | null
+}
+
+export async function updateLibraryChapterPart(id: string, patch: LibraryChapterPartProgressPatch): Promise<LibraryChapterPart> {
+  const row: Record<string, unknown> = {}
+  if (patch.status !== undefined) row.status = patch.status
+  if (patch.readingPct !== undefined) row.reading_pct = patch.readingPct
+  if (patch.lastSection !== undefined) row.last_section = patch.lastSection
+  const { data, error } = await supabase.from('library_chapter_parts').update(row).eq('id', id).select().single()
+  if (error) throw error
+  return chapterPartToDomain(data as ChapterPartRow)
 }
 
 // --- Highlights / notes --------------------------------------------------

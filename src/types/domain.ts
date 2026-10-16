@@ -355,6 +355,29 @@ export type LibraryChapterSeed = Pick<
   'bookId' | 'partRoman' | 'partTitle' | 'chapterNumber' | 'title' | 'startPage' | 'endPage' | 'pages'
 >
 
+// v1.4: a chapter imported in multiple independently-replaceable notes
+// (`chapter_part:` in front matter) -- e.g. a textbook chapter covered by
+// several atlas sessions. Each part has its own note/sections/progress;
+// re-importing one replaces only that row (matched on chapter_id +
+// partNumber). A chapter with no rows here behaves exactly as before
+// (its note/readingPct/etc. live directly on LibraryChapter).
+export interface LibraryChapterPart {
+  id: string
+  chapterId: string
+  partNumber: number
+  title?: string | null
+  subtitle?: string | null
+  note?: string | null
+  noteFormat?: string | null
+  language?: string | null
+  direction?: string | null
+  status: LibraryChapterStatus
+  readingPct: number
+  lastSection?: string | null
+  importedAt?: string | null
+  createdAt: string
+}
+
 // v1.3: one book figure (`![caption](figures/ch49-fig1.jpg){#ch49-fig1 .figure}`)
 // uploaded to the `chapter-figures` Storage bucket. `figureKey` is the stable
 // id so re-import replaces the same row/file instead of duplicating.
@@ -435,6 +458,8 @@ export interface LibraryCard extends FsrsCardState {
   highYield: boolean
   /** v1.3: a LibraryChapterFigure.figureKey, for cards in a "شکل" exam group. */
   figureKey?: string | null
+  /** v1.4: the chapter_part this card was imported from, if the chapter has parts. */
+  chapterPart?: number | null
   /** Step 4: 'ai_suggested' for AI-generated cards, so they can be told apart from textbook-import suggestions in review, even though both reuse status 'suggested'/'approved'. Null for manually-added cards. */
   source?: string | null
   createdAt: string

@@ -14,11 +14,13 @@ import {
   importChapterNote,
   listLibraryCardsForChapter,
   listLibraryChapterFigures,
+  listLibraryChapterParts,
   listLibraryHighlights,
   listTopicIdsForChapter,
   logPagesRead,
   updateLibraryCardFsrs,
   updateLibraryChapter,
+  updateLibraryChapterPart,
   type ChapterNoteImageInput,
 } from '../lib/api/library'
 import { deleteChapterFigureFile } from '../lib/storage'
@@ -43,6 +45,7 @@ import type {
   LibraryCard,
   LibraryChapter,
   LibraryChapterFigure,
+  LibraryChapterPart,
   LibraryHighlight,
   McqOptions,
   Patient,
@@ -168,6 +171,14 @@ export function ReaderPage() {
   const [chapterNumberToId, setChapterNumberToId] = useState<Record<number, string>>({})
   const [offlineFallback, setOfflineFallback] = useState(false)
 
+  // v1.4: a chapter with chapter_part imports (see NEPHRON_CHAPTER_FORMAT.md
+  // section 7) holds several independent notes here instead of one on the
+  // chapter itself; empty for every chapter that only ever got a legacy
+  // single-note import, which keeps reading chapter.note directly below.
+  const [parts, setParts] = useState<LibraryChapterPart[]>([])
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(null)
+  const selectedPart = parts.find((p) => p.id === selectedPartId) ?? null
+
   const [quickCheck, setQuickCheck] = useState<QuickCheckQuestion[]>([])
   const [qcIndex, setQcIndex] = useState(0)
   const [qcAnswer, setQcAnswer] = useState<number | null>(null)
@@ -185,15 +196,24 @@ export function ReaderPage() {
   const furthestSectionIndexRef = useRef(-1)
   const [furthestSectionIndex, setFurthestSectionIndex] = useState(-1)
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1)
+  const selectedPartIdRef = useRef<string | null>(null)
+  selectedPartIdRef.current = selectedPartId
 
-  const sections = useMemo(() => parseSections(chapter?.note), [chapter?.note])
+  // The note actually being read -- the selected part's, if this chapter
+  // has parts, otherwise the chapter's own (the v1-v1.3 behavior, for every
+  // chapter that only ever got a legacy single-note import).
+  const activeNote = selectedPart ? selectedPart.note : chapter?.note
+  const activeReadingPct = selectedPart ? selectedPart.readingPct : (chapter?.readingPct ?? 0)
+  const activeStatus = selectedPart ? selectedPart.status : chapter?.status
+
+  const sections = useMemo(() => parseSections(activeNote), [activeNote])
 
   // v1.3: every `.figure` the chapter note references, vs. the ones that
   // actually have an uploaded image (figureUrls) -- the gap is what "Add
   // figure images" lets the reader fill in one by one.
   const noteFigures = useMemo(
-    () => splitNoteBlocks(chapter?.note ?? '').filter((b): b is Extract<NoteBlock, { kind: 'figure' }> => b.kind === 'figure'),
-    [chapter?.note]
+    () => splitNoteBlocks(activeNote ?? '').filter((b): b is Extract<NoteBlock, { kind: 'figure' }> => b.kind === 'figure'),
+    [activeNote]
   )
   const missingFigures = noteFigures.filter((f) => !figureUrls[f.id])
 
@@ -203,6 +223,16 @@ export function ReaderPage() {
     setFurthestSectionIndex(idx)
   }
 
+  function selectPart(part: LibraryChapterPart) {
+    if (part.id === selectedPartId) return
+    setSelectedPartId(part.id)
+    const freshSections = parseSections(part.note)
+    const initialIdx = freshSections.findIndex((s) => s.number === part.lastSection)
+    furthestSectionIndexRef.current = initialIdx
+    setFurthestSectionIndex(initialIdx)
+    setCurrentSectionIndex(initialIdx)
+  }
+
   // Renders a chapter's core reading state (note/cards/highlights/figures)
   // from whichever source reload() found -- Supabase or the offline cache --
   // so both paths drive the same section/quick-check setup exactly once.
@@ -210,18 +240,26 @@ export function ReaderPage() {
     chapterRow: LibraryChapter,
     cardRows: LibraryCard[],
     highlightRows: LibraryHighlight[],
-    figureRows: LibraryChapterFigure[]
+    figureRows: LibraryChapterFigure[],
+    partRows: LibraryChapterPart[] = []
   ) {
     setChapter(chapterRow)
     setCards(cardRows)
     setHighlights(highlightRows)
     setFigureRecords(figureRows)
+    setParts(partRows)
+    // Keep whichever part was already open across a reload/re-import; fall
+    // back to the first part for a first load.
+    const nextPart = partRows.find((p) => p.id === selectedPartIdRef.current) ?? partRows[0] ?? null
+    setSelectedPartId(nextPart?.id ?? null)
     const urlEntries = await Promise.all(
       figureRows.map(async (f) => [f.figureKey, await resolveFigureUrl(f.figureKey, f.storagePath)] as const)
     )
     setFigureUrls(Object.fromEntries(urlEntries.filter((e): e is [string, string] => e[1] !== null)))
-    const freshSections = parseSections(chapterRow.note)
-    const initialIdx = freshSections.findIndex((s) => s.number === chapterRow.lastSection)
+    const initialNote = nextPart ? nextPart.note : chapterRow.note
+    const initialLastSection = nextPart ? nextPart.lastSection : chapterRow.lastSection
+    const freshSections = parseSections(initialNote)
+    const initialIdx = freshSections.findIndex((s) => s.number === initialLastSection)
     furthestSectionIndexRef.current = initialIdx
     setFurthestSectionIndex(initialIdx)
     setCurrentSectionIndex(initialIdx)
@@ -239,7 +277,7 @@ export function ReaderPage() {
   async function reload() {
     if (!id) return
     try {
-      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows, pendingQuestionRows] = await Promise.all([
+      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows, pendingQuestionRows, partRows] = await Promise.all([
         getLibraryChapter(id),
         listLibraryCardsForChapter(id),
         listLibraryHighlights(id),
@@ -247,6 +285,7 @@ export function ReaderPage() {
         ensureLibraryBookSeeded().catch(() => null),
         listLibraryChapterFigures(id).catch(() => []),
         listPendingBoardQuestions(id).catch(() => []),
+        listLibraryChapterParts(id).catch(() => []),
       ])
       setOfflineFallback(false)
       setPendingQuestions(pendingQuestionRows)
@@ -256,9 +295,10 @@ export function ReaderPage() {
         setHighlights([])
         setFigureUrls({})
         setFigureRecords([])
+        setParts([])
         return
       }
-      await applyChapterCore(chapterRow, cardRows, highlightRows, figureRows)
+      await applyChapterCore(chapterRow, cardRows, highlightRows, figureRows, partRows)
       void cacheChapterBundle({ chapterId: id, chapter: chapterRow, cards: cardRows, highlights: highlightRows, figures: figureRows })
       if (seeded) {
         setChapterNumberToId(Object.fromEntries(seeded.chapters.map((c) => [c.chapterNumber, c.id])))
@@ -342,16 +382,35 @@ export function ReaderPage() {
 
   // Persist the furthest section reached as reading_pct/last_section --
   // never regresses, and logs the equivalent page count toward the daily
-  // goal.
+  // goal. Targets the selected part's own row when this chapter has parts
+  // (each part tracks its own progress independently), otherwise the
+  // chapter's, exactly as before v1.4.
   useEffect(() => {
     if (!chapter || sections.length === 0 || furthestSectionIndex < 0) return
     const pct = Math.round(((furthestSectionIndex + 1) / sections.length) * 100)
-    if (pct <= chapter.readingPct) return
+    if (pct <= activeReadingPct) return
+    const lastSection = sections[furthestSectionIndex].number
+    const promotesToReading = activeStatus === 'unread'
+
+    if (selectedPart) {
+      updateLibraryChapterPart(selectedPart.id, {
+        readingPct: pct,
+        lastSection,
+        status: promotesToReading ? 'reading' : undefined,
+      })
+        .then((updated) => {
+          setParts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+        })
+        .catch(() => {
+          // best-effort — reading progress isn't critical path
+        })
+      return
+    }
+
     const deltaPages = chapter.pages ? Math.round(((pct - chapter.readingPct) / 100) * chapter.pages) : 0
-    const promotesToReading = chapter.status === 'unread'
     updateLibraryChapter(chapter.id, {
       readingPct: pct,
-      lastSection: sections[furthestSectionIndex].number,
+      lastSection,
       status: promotesToReading ? 'reading' : undefined,
     })
       .then((updated) => {
@@ -456,7 +515,9 @@ export function ReaderPage() {
       }
 
       const result = await importChapterNote(raw, images)
-      let msg = `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
+      let msg = result.part
+        ? `Imported note · chapter ${result.chapter.chapterNumber} part ${result.part.partNumber} · ${result.suggestedCardCount} suggested cards`
+        : `Imported note · chapter ${result.chapter.chapterNumber} · ${result.suggestedCardCount} suggested cards`
       if (result.missingFigures.length > 0) {
         msg += ` · missing figure${result.missingFigures.length > 1 ? 's' : ''}: ${result.missingFigures.join(', ')} — use "Add figure images"`
       }
@@ -621,6 +682,11 @@ export function ReaderPage() {
       const scored = cards.filter((c) => c.status === 'approved')
       const allMastered = scored.length > 0 && scored.every((c) => isCardMastered(c))
       const nextStatus = allMastered ? 'mastered' : scored.length > 0 ? 'carded' : 'read'
+      if (selectedPart) {
+        const updated = await updateLibraryChapterPart(selectedPart.id, { status: nextStatus, readingPct: 100 })
+        setParts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+        return
+      }
       const updated = await updateLibraryChapter(chapter.id, { status: nextStatus, readingPct: 100 })
       setChapter(updated)
     } catch (err) {
@@ -628,7 +694,7 @@ export function ReaderPage() {
     }
   }
 
-  const minutesLeft = useMemo(() => estimateMinutesLeft(chapter?.note, chapter?.readingPct ?? 0), [chapter?.note, chapter?.readingPct])
+  const minutesLeft = useMemo(() => estimateMinutesLeft(activeNote, activeReadingPct), [activeNote, activeReadingPct])
   const approvedCards = cards.filter((c) => c.status === 'approved')
   const suggestedCount = cards.length - approvedCards.length
   const dueCount = approvedCards.filter((c) => c.reps > 0 && new Date(c.due) <= new Date()).length
@@ -760,8 +826,8 @@ export function ReaderPage() {
               </span>
             )}
           </div>
-          <div className="prog" aria-label={`${chapter.readingPct}% of chapter read`}>
-            <i style={{ width: `${chapter.readingPct}%` }} />
+          <div className="prog" aria-label={`${activeReadingPct}% read`}>
+            <i style={{ width: `${activeReadingPct}%` }} />
           </div>
           {currentSectionIndex >= 0 && currentSectionIndex > furthestSectionIndex && (
             <button
@@ -774,6 +840,24 @@ export function ReaderPage() {
             </button>
           )}
         </header>
+
+        {parts.length > 0 && (
+          <div className="chapter-parts np-fade" role="tablist" aria-label="Chapter parts">
+            {parts.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={p.id === selectedPartId}
+                className={p.id === selectedPartId ? 'on' : undefined}
+                onClick={() => selectPart(p)}
+              >
+                بخش {p.partNumber}
+                {p.title ? `: ${p.title}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
 
         {sections.length > 0 && (
           <>
@@ -826,9 +910,9 @@ export function ReaderPage() {
               </p>
             )}
             {message && <p className="patient-meta">{message}</p>}
-            {chapter.note ? (
+            {activeNote ? (
               <ChapterProse
-                note={chapter.note}
+                note={activeNote}
                 cards={cards}
                 highlights={highlights}
                 onMakeCard={handleMakeCard}

@@ -18,6 +18,12 @@ export interface ChapterNoteFrontMatter {
   language: string | null
   direction: string | null
   sections: number | null
+  /** v1.4: `book_id:` slug (e.g. "renal-pathology-atlas"); null = pediatric-nephrology-8e. */
+  bookId: string | null
+  /** v1.4: `chapter_part:` -- this file is one of several notes for the chapter; null = legacy single-note chapter. */
+  chapterPart: number | null
+  partTitle: string | null
+  partTitleEn: string | null
 }
 
 export interface ImportedSuggestedCard {
@@ -88,6 +94,10 @@ export function parseChapterNoteFile(raw: string): { meta: ChapterNoteFrontMatte
       language: fields.language ?? null,
       direction: fields.direction ?? null,
       sections: fields.sections ? Number(fields.sections) : null,
+      bookId: fields.book_id ?? null,
+      chapterPart: fields.chapter_part ? Number(fields.chapter_part) : null,
+      partTitle: fields.part_title ?? null,
+      partTitleEn: fields.part_title_en ?? null,
     },
     body,
   }

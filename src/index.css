@@ -6867,6 +6867,37 @@ select.pt-ward:focus {
   background: #dce6f5;
 }
 
+/* Chapter-part tabs (Reader, v1.4) -- unlike .seg, a chapter can have any
+   number of parts with long titles, so this scrolls horizontally instead
+   of forcing equal-width columns. */
+.chapter-parts {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+}
+
+.chapter-parts button {
+  flex-shrink: 0;
+  height: 36px;
+  border: 1px solid var(--line, #d5e2f6);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 14px;
+  border-radius: 18px;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.chapter-parts button.on {
+  background: var(--navy-800, #12357a);
+  border-color: var(--navy-800, #12357a);
+  color: #fff;
+}
+
 .seg button {
   height: 40px;
   border: 0;
