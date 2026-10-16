@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 interface BookCoverArtProps {
   coverSrc: string
+  active: boolean
   onTilt?: (x: number, y: number) => void
 }
+
+const ENTRANCE_MS = 450
 
 const MAX_TILT_DEG = 10
 const SPRING_FACTOR = 0.18
@@ -15,7 +18,7 @@ const SETTLE_EPSILON = 0.05
 // springs back on release. Pointer handling and the tilt itself run
 // through refs + requestAnimationFrame, never React state, so dragging
 // never triggers a re-render.
-export function BookCoverArt({ coverSrc, onTilt }: BookCoverArtProps) {
+export function BookCoverArt({ coverSrc, active, onTilt }: BookCoverArtProps) {
   const clusterRef = useRef<HTMLDivElement>(null)
   const tiltRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -23,6 +26,24 @@ export function BookCoverArt({ coverSrc, onTilt }: BookCoverArtProps) {
   const currentRef = useRef({ x: 0, y: 0 })
   const onTiltRef = useRef(onTilt)
   onTiltRef.current = onTilt
+
+  // Entrance: plays whenever this card becomes/stays the active one on a
+  // real book switch, but not for the book shown by default on first
+  // paint. The carousel keeps one persistent instance per book (so a
+  // switch toggles `active`); the desktop sidebar keeps one instance for
+  // the whole switcher (so a switch instead changes `coverSrc` while
+  // `active` stays true) -- skipping only the very first effect run
+  // covers both without telling them apart.
+  const isFirstRunRef = useRef(true)
+  const [entering, setEntering] = useState(false)
+  useEffect(() => {
+    const wasFirstRun = isFirstRunRef.current
+    isFirstRunRef.current = false
+    if (!active || wasFirstRun) return
+    setEntering(true)
+    const t = window.setTimeout(() => setEntering(false), ENTRANCE_MS)
+    return () => window.clearTimeout(t)
+  }, [active, coverSrc])
 
   useEffect(() => {
     return () => {
@@ -82,7 +103,7 @@ export function BookCoverArt({ coverSrc, onTilt }: BookCoverArtProps) {
 
   return (
     <div
-      className="bsw-cover"
+      className={entering ? 'bsw-cover bsw-cover-entering' : 'bsw-cover'}
       aria-hidden="true"
       ref={clusterRef}
       onPointerDown={onPointerDown}

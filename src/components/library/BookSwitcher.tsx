@@ -79,7 +79,7 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
       <div className="hero-scrim" />
       <div className="libhero">
         {coverSrc ? (
-          <BookCoverArt coverSrc={coverSrc} onTilt={active ? handleTilt : undefined} />
+          <BookCoverArt coverSrc={coverSrc} active={active} onTilt={active ? handleTilt : undefined} />
         ) : (
           <div className="cover" aria-hidden="true">
             <i>{book.edition} ed.</i>

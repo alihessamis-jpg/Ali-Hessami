@@ -171,7 +171,8 @@ th {
   .bsw-cover-shadow,
   .bsw-petals,
   .bsw-rings circle,
-  .bsw-dots circle {
+  .bsw-dots circle,
+  .bsw-cover-entering {
     animation: none !important;
   }
   .bsw-cover-float {
@@ -217,7 +218,8 @@ html.force-reduced-motion .bsw-cover-float,
 html.force-reduced-motion .bsw-cover-shadow,
 html.force-reduced-motion .bsw-petals,
 html.force-reduced-motion .bsw-rings circle,
-html.force-reduced-motion .bsw-dots circle {
+html.force-reduced-motion .bsw-dots circle,
+html.force-reduced-motion .bsw-cover-entering {
   animation: none !important;
 }
 html.force-reduced-motion .bsw-cover-float {
@@ -6389,6 +6391,27 @@ select.pt-ward:focus {
   height: 100%;
   transform-style: preserve-3d;
   will-change: transform;
+}
+
+/* Plays once per real book switch (BookCoverArt.tsx), not on first paint --
+   the cover rises in with a short fade and slight overshoot, then the
+   always-on float/shadow/shine on its children carry on underneath. */
+.bsw-cover-entering {
+  animation: bsw-cover-enter 0.45s cubic-bezier(0.2, 0.9, 0.25, 1.3) both;
+}
+
+@keyframes bsw-cover-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .bsw-cover-shadow {
