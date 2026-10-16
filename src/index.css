@@ -6262,6 +6262,27 @@ select.pt-ward:focus {
   color: #a9c6ff;
 }
 
+/* Library book header card -- real cover art thumbnail (replaces the
+   text-only .cover placeholder above when a cover image is mapped). */
+.bsw-cover {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 74px;
+  height: 100px;
+}
+
+.bsw-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  transform: rotate(-8deg);
+}
+
 .lstats {
   position: relative;
   z-index: 2;
