@@ -167,7 +167,8 @@ th {
   .nephron-illustration *,
   .status-badge--renal-yes,
   .status-badge--alert,
-  .bsw-cover-float {
+  .bsw-cover-float,
+  .bsw-cover-shadow {
     animation: none !important;
   }
   .bsw-cover-float {
@@ -209,7 +210,8 @@ html.force-reduced-motion .dh-hero-glow2,
 html.force-reduced-motion .dh-neph-beat,
 html.force-reduced-motion .dh-neph-flow,
 html.force-reduced-motion .dh-week .now,
-html.force-reduced-motion .bsw-cover-float {
+html.force-reduced-motion .bsw-cover-float,
+html.force-reduced-motion .bsw-cover-shadow {
   animation: none !important;
 }
 html.force-reduced-motion .bsw-cover-float {
@@ -6278,6 +6280,34 @@ select.pt-ward:focus {
   flex-shrink: 0;
   width: 74px;
   height: 100px;
+}
+
+.bsw-cover-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 52px;
+  height: 11px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  filter: blur(5px);
+  background: rgba(0, 0, 0, 0.5);
+  animation: bsw-cover-shadow 4.5s ease-in-out infinite;
+}
+
+/* Synced to .bsw-cover-float's 4.5s loop: the shadow shrinks/fades as the
+   book rises (float's midpoint, translateY(-4px)) and grows back as it
+   settles -- same duration/easing so the two never drift apart. */
+@keyframes bsw-cover-shadow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.32;
+    transform: translateX(-50%) scale(0.82);
+  }
 }
 
 .bsw-cover-float {
