@@ -166,8 +166,12 @@ th {
   }
   .nephron-illustration *,
   .status-badge--renal-yes,
-  .status-badge--alert {
+  .status-badge--alert,
+  .bsw-cover-float {
     animation: none !important;
+  }
+  .bsw-cover-float {
+    transform: rotate(-7deg);
   }
 }
 
@@ -204,8 +208,12 @@ html.force-reduced-motion .dh-hero-glow,
 html.force-reduced-motion .dh-hero-glow2,
 html.force-reduced-motion .dh-neph-beat,
 html.force-reduced-motion .dh-neph-flow,
-html.force-reduced-motion .dh-week .now {
+html.force-reduced-motion .dh-week .now,
+html.force-reduced-motion .bsw-cover-float {
   animation: none !important;
+}
+html.force-reduced-motion .bsw-cover-float {
+  transform: rotate(-7deg);
 }
 
 /* The UI shell is English/LTR, but most clinical content is typed in
@@ -6272,6 +6280,22 @@ select.pt-ward:focus {
   height: 100px;
 }
 
+.bsw-cover-float {
+  position: absolute;
+  inset: 0;
+  animation: bsw-float 4.5s ease-in-out infinite;
+}
+
+@keyframes bsw-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-6deg);
+  }
+}
+
 .bsw-cover-img {
   display: block;
   width: 100%;
@@ -6280,7 +6304,6 @@ select.pt-ward:focus {
   border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
-  transform: rotate(-8deg);
 }
 
 .lstats {
