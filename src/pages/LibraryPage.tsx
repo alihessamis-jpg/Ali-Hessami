@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ensureLibraryBookSeeded,
@@ -15,11 +15,13 @@ import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
-import { HeroScene } from '../components/hero/HeroScene'
 import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
+import { BookSwitcher, type LibraryBookStats } from '../components/library/BookSwitcher'
 import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics'
+
+const LAST_BOOK_KEY = 'np-library-last-book-id'
 
 const STATUS_LABEL: Record<LibraryChapter['status'], string> = {
   unread: 'Unread',
@@ -103,7 +105,14 @@ export function LibraryPage() {
           chaptersByBookId[b.id] = otherChapters[i]
         })
         const books = allBooks.length > 0 ? allBooks : [seeded.book]
-        return { ok: true as const, books, chaptersByBookId, selectedBookId: seeded.book.id, cardRows, log, offline: false }
+        let selectedBookId = seeded.book.id
+        try {
+          const saved = window.localStorage.getItem(LAST_BOOK_KEY)
+          if (saved && books.some((b) => b.id === saved)) selectedBookId = saved
+        } catch {
+          // ignore storage errors
+        }
+        return { ok: true as const, books, chaptersByBookId, selectedBookId, cardRows, log, offline: false }
       })
       .catch(async (err) => {
         console.error('Academy v2 (Library) data failed to load', err)
@@ -177,6 +186,11 @@ export function LibraryPage() {
     setSelectedBookId(bookId)
     setOpenParts(new Set())
     setSearch('')
+    try {
+      window.localStorage.setItem(LAST_BOOK_KEY, bookId)
+    } catch {
+      // ignore storage errors
+    }
   }
 
   const cardsByChapter = useMemo(() => {
@@ -248,11 +262,33 @@ export function LibraryPage() {
     return map
   }, [chapters])
 
-  const totalCards = cards.length
-  const dueTotal = cards.filter((c) => c.status === 'approved' && c.reps > 0 && new Date(c.due) <= now).length
-  const chaptersRead = chapters.filter((c) => c.status !== 'unread').length
-  const bookPct = chapters.length > 0 ? Math.round(chapters.reduce((sum, c) => sum + effectivePct(c), 0) / chapters.length) : 0
-  const totalPages = book?.totalPages ?? chapters.reduce((sum, c) => sum + (c.pages ?? 0), 0)
+  const statsByBookId = useMemo(() => {
+    const map: Record<string, LibraryBookStats> = {}
+    for (const b of books) {
+      const bChapters = chaptersByBookId[b.id] ?? []
+      const parts = new Set(bChapters.map((c) => c.partRoman))
+      const totalCards = bChapters.reduce((sum, c) => sum + (cardsByChapter.get(c.id)?.length ?? 0), 0)
+      const dueToday = bChapters.reduce((sum, c) => {
+        const list = cardsByChapter.get(c.id) ?? []
+        return sum + list.filter((card) => card.status === 'approved' && card.reps > 0 && new Date(card.due) <= now).length
+      }, 0)
+      const chaptersRead = bChapters.filter((c) => c.status !== 'unread').length
+      const pctRead = bChapters.length > 0 ? Math.round(bChapters.reduce((sum, c) => sum + effectivePct(c), 0) / bChapters.length) : 0
+      const totalPages = b.totalPages ?? bChapters.reduce((sum, c) => sum + (c.pages ?? 0), 0)
+      map[b.id] = {
+        partsCount: parts.size,
+        chaptersCount: bChapters.length,
+        totalPages,
+        chaptersRead,
+        totalCards,
+        dueToday,
+        pctRead,
+      }
+    }
+    return map
+  }, [books, chaptersByBookId, cardsByChapter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dueTotal = selectedBookId ? statsByBookId[selectedBookId]?.dueToday ?? 0 : 0
 
   const continueReading = chapters.find((c) => c.status === 'reading') ?? null
 
@@ -269,7 +305,6 @@ export function LibraryPage() {
   if (loading) return <p>Loading…</p>
   if (error) return <p className="form-error">{error}</p>
 
-  const goalPct = Math.min(100, Math.round((todayPages / Math.max(1, dailyGoal)) * 100))
   const q = search.trim().toLowerCase()
 
   return (
@@ -287,82 +322,20 @@ export function LibraryPage() {
         </p>
       )}
 
-      {books.length > 1 && (
-        <div className="seg np-fade" style={{ alignSelf: 'flex-start' }}>
-          {books.map((b) => (
-            <button key={b.id} type="button" className={b.id === selectedBookId ? 'on' : ''} onClick={() => selectBook(b.id)}>
-              {b.title}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {book && (
-        <section className="np-hero np-fade" style={{ gap: 18 }}>
-          <HeroScene scene="glomerulus" page="library" className="hero-scene" />
-          <div className="hero-scrim" />
-          <div className="libhero">
-            <div className="cover" aria-hidden="true">
-              <i>{book.edition} ed.</i>
-              <b>{book.title}</b>
-            </div>
-            <div className="np-txt">
-              <span className="eyebrow">ACADEMY · LIBRARY</span>
-              <h1 style={{ fontSize: 24, lineHeight: 1.2 }}>{book.title}</h1>
-              <p className="np-sub">
-                {book.edition} ed. · {partsOrder.length} parts · {chapters.length} chapters
-                {totalPages > 0 ? ` · ${totalPages.toLocaleString()} pages` : ''} · {bookPct}% read
-              </p>
-            </div>
-          </div>
-          <div className="lstats" style={{ '--n': 3 } as CSSProperties}>
-            <div>
-              <b>
-                {chaptersRead}
-                <span style={{ fontSize: 14, color: '#A9C6FF' }}> / {chapters.length}</span>
-              </b>
-              <span>chapters read</span>
-            </div>
-            <div>
-              <b>{totalCards}</b>
-              <span>cards made</span>
-            </div>
-            <div>
-              <b style={{ color: '#FFC46B' }}>{dueTotal}</b>
-              <span>due today</span>
-            </div>
-          </div>
-          <div className="goal">
-            <div className="np-head">
-              <b style={{ fontSize: 13 }}>Today's goal</b>
-              <span style={{ fontSize: 12, color: '#C9DAF8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                {todayPages} / {dailyGoal} pages · {streak}-day streak
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGoalDraft(String(dailyGoal))
-                    setGoalSheetOpen(true)
-                  }}
-                  style={{
-                    background: 'rgba(255,255,255,.12)',
-                    border: 'none',
-                    borderRadius: 6,
-                    color: '#fff',
-                    padding: '2px 8px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Edit
-                </button>
-              </span>
-            </div>
-            <div className="gbar">
-              <i style={{ width: `${goalPct}%` }} />
-            </div>
-          </div>
-        </section>
+      {book && selectedBookId && (
+        <BookSwitcher
+          books={books}
+          stats={statsByBookId}
+          selectedBookId={selectedBookId}
+          onSelect={selectBook}
+          dailyGoal={dailyGoal}
+          todayPages={todayPages}
+          streak={streak}
+          onEditGoal={() => {
+            setGoalDraft(String(dailyGoal))
+            setGoalSheetOpen(true)
+          }}
+        />
       )}
 
       {continueReading && (
