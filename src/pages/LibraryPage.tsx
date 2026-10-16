@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   ensureLibraryBookSeeded,
   listAllLibraryCards,
+  listLibraryBooks,
+  listLibraryChapters,
   listReadingLog,
 } from '../lib/api/library'
 import { listAcademyCardsForTopic } from '../lib/api/academyCards'
@@ -42,8 +44,9 @@ function effectivePct(chapter: LibraryChapter): number {
 }
 
 export function LibraryPage() {
-  const [book, setBook] = useState<LibraryBook | null>(null)
-  const [chapters, setChapters] = useState<LibraryChapter[]>([])
+  const [books, setBooks] = useState<LibraryBook[]>([])
+  const [chaptersByBookId, setChaptersByBookId] = useState<Record<string, LibraryChapter[]>>({})
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null)
   const [cards, setCards] = useState<LibraryCard[]>([])
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
   const [questionAttempts, setQuestionAttempts] = useState<BoardQuestionAttempt[]>([])
@@ -86,10 +89,21 @@ export function LibraryPage() {
         return { topicRows: [] as AcademyTopic[], counts: {} as Record<string, { total: number; due: number }> }
       })
 
-    const bookPromise = Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listReadingLog()])
-      .then(([seeded, cardRows, log]) => {
+    // The bundled textbook (book #1) is seeded/ensured as before; any other
+    // books the user has added (e.g. a second handbook, chapters added by
+    // hand) are just listed and their chapters fetched alongside it, so the
+    // page can offer a book switcher instead of assuming a single book.
+    const bookPromise = Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listReadingLog(), listLibraryBooks()])
+      .then(async ([seeded, cardRows, log, allBooks]) => {
         void cacheLibrarySnapshot(seeded.book, seeded.chapters)
-        return { ok: true as const, seeded, cardRows, log, offline: false }
+        const chaptersByBookId: Record<string, LibraryChapter[]> = { [seeded.book.id]: seeded.chapters }
+        const otherBooks = allBooks.filter((b) => b.id !== seeded.book.id)
+        const otherChapters = await Promise.all(otherBooks.map((b) => listLibraryChapters(b.id).catch(() => [] as LibraryChapter[])))
+        otherBooks.forEach((b, i) => {
+          chaptersByBookId[b.id] = otherChapters[i]
+        })
+        const books = allBooks.length > 0 ? allBooks : [seeded.book]
+        return { ok: true as const, books, chaptersByBookId, selectedBookId: seeded.book.id, cardRows, log, offline: false }
       })
       .catch(async (err) => {
         console.error('Academy v2 (Library) data failed to load', err)
@@ -98,11 +112,21 @@ export function LibraryPage() {
         // of silently dropping to the Topics tab.
         const cached = await getCachedLibrarySnapshot()
         if (cached) {
-          return { ok: true as const, seeded: cached, cardRows: [] as LibraryCard[], log: [] as ReadingLogEntry[], offline: true }
+          return {
+            ok: true as const,
+            books: [cached.book],
+            chaptersByBookId: { [cached.book.id]: cached.chapters },
+            selectedBookId: cached.book.id,
+            cardRows: [] as LibraryCard[],
+            log: [] as ReadingLogEntry[],
+            offline: true,
+          }
         }
         return {
           ok: false as const,
-          seeded: null as { book: LibraryBook; chapters: LibraryChapter[] } | null,
+          books: [] as LibraryBook[],
+          chaptersByBookId: {} as Record<string, LibraryChapter[]>,
+          selectedBookId: null as string | null,
           cardRows: [] as LibraryCard[],
           log: [] as ReadingLogEntry[],
           offline: false,
@@ -126,18 +150,17 @@ export function LibraryPage() {
         setQuestionAttempts(attemptRows)
         setBookUnavailable(!bookResult.ok)
         setOfflineFallback(bookResult.offline)
-        if (bookResult.ok && bookResult.seeded) {
-          setBook(bookResult.seeded.book)
-          setChapters(bookResult.seeded.chapters)
+        if (bookResult.ok && bookResult.selectedBookId) {
+          setBooks(bookResult.books)
+          setChaptersByBookId(bookResult.chaptersByBookId)
+          setSelectedBookId(bookResult.selectedBookId)
           setCards(bookResult.cardRows)
           const today = new Date().toISOString().slice(0, 10)
           setTodayPages(bookResult.log.find((l) => l.logDate === today)?.pagesRead ?? 0)
           setStreak(computeReadingStreak(bookResult.log))
-          const readingChapter = bookResult.seeded.chapters.find((c) => c.status === 'reading')
-          if (readingChapter) {
-            const part = bookResult.seeded.chapters.find((c) => c.id === readingChapter.id)?.partRoman
-            if (part) setOpenParts(new Set([part]))
-          }
+          const selectedChapters = bookResult.chaptersByBookId[bookResult.selectedBookId] ?? []
+          const readingChapter = selectedChapters.find((c) => c.status === 'reading')
+          if (readingChapter) setOpenParts(new Set([readingChapter.partRoman]))
         } else {
           setTab('topics')
         }
@@ -146,6 +169,15 @@ export function LibraryPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load the Library'))
       .finally(() => setLoading(false))
   }, [])
+
+  const book = books.find((b) => b.id === selectedBookId) ?? null
+  const chapters = useMemo(() => (selectedBookId && chaptersByBookId[selectedBookId]) || [], [selectedBookId, chaptersByBookId])
+
+  function selectBook(bookId: string) {
+    setSelectedBookId(bookId)
+    setOpenParts(new Set())
+    setSearch('')
+  }
 
   const cardsByChapter = useMemo(() => {
     const map = new Map<string, LibraryCard[]>()
@@ -255,6 +287,16 @@ export function LibraryPage() {
         </p>
       )}
 
+      {books.length > 1 && (
+        <div className="seg np-fade" style={{ alignSelf: 'flex-start' }}>
+          {books.map((b) => (
+            <button key={b.id} type="button" className={b.id === selectedBookId ? 'on' : ''} onClick={() => selectBook(b.id)}>
+              {b.title}
+            </button>
+          ))}
+        </div>
+      )}
+
       {book && (
         <section className="np-hero np-fade" style={{ gap: 18 }}>
           <HeroScene scene="glomerulus" page="library" className="hero-scene" />
@@ -268,8 +310,8 @@ export function LibraryPage() {
               <span className="eyebrow">ACADEMY · LIBRARY</span>
               <h1 style={{ fontSize: 24, lineHeight: 1.2 }}>{book.title}</h1>
               <p className="np-sub">
-                {book.edition} ed. · {partsOrder.length} parts · {chapters.length} chapters · {totalPages.toLocaleString()} pages ·{' '}
-                {bookPct}% read
+                {book.edition} ed. · {partsOrder.length} parts · {chapters.length} chapters
+                {totalPages > 0 ? ` · ${totalPages.toLocaleString()} pages` : ''} · {bookPct}% read
               </p>
             </div>
           </div>
@@ -436,9 +478,12 @@ export function LibraryPage() {
                                 <span>
                                   <span className="ct">{c.title}</span>
                                   <span className="cm">
-                                    <span>
-                                      p. {c.startPage}–{c.endPage} · {c.pages} pp
-                                    </span>
+                                    {c.startPage != null && (
+                                      <span>
+                                        p. {c.startPage}–{c.endPage}
+                                        {c.pages != null ? ` · ${c.pages} pp` : ''}
+                                      </span>
+                                    )}
                                     {c.status === 'reading' && (
                                       <span className="mini">
                                         <i style={{ width: `${c.readingPct}%` }} />
