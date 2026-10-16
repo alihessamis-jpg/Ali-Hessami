@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } f
 import { useElementWidth } from '../../hooks/useElementWidth'
 import { useBookTheme } from '../../hooks/useBookTheme'
 import { BookBackdrop } from './BookBackdrop'
+import { BookCoverArt } from './BookCoverArt'
 import { getBookCover, getFallbackTheme } from '../../lib/bookCovers'
 import type { LibraryBook } from '../../types/domain'
 
@@ -65,19 +66,20 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
   const goalPct = Math.min(100, Math.round((todayPages / Math.max(1, dailyGoal)) * 100))
   const coverSrc = getBookCover(book.title)
   const theme = useBookTheme(coverSrc, getFallbackTheme(book.title))
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  function handleTilt(x: number, y: number) {
+    const el = backdropRef.current
+    if (el) el.style.transform = `translate(${-x * 0.6}px, ${y * 0.6}px)`
+  }
+
   return (
     <section className="np-hero np-fade" style={{ gap: 18, background: theme.bg }}>
-      {active && <BookBackdrop theme={theme} />}
+      {active && <BookBackdrop ref={backdropRef} theme={theme} />}
       <div className="hero-scrim" />
       <div className="libhero">
         {coverSrc ? (
-          <div className="bsw-cover" aria-hidden="true">
-            <div className="bsw-cover-shadow" />
-            <div className="bsw-cover-float">
-              <img className="bsw-cover-img" src={coverSrc} alt="" loading="lazy" />
-              <div className="bsw-cover-shine" />
-            </div>
-          </div>
+          <BookCoverArt coverSrc={coverSrc} onTilt={active ? handleTilt : undefined} />
         ) : (
           <div className="cover" aria-hidden="true">
             <i>{book.edition} ed.</i>

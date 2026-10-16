@@ -6377,6 +6377,18 @@ select.pt-ward:focus {
   flex-shrink: 0;
   width: 74px;
   height: 100px;
+  perspective: 500px;
+  touch-action: none;
+}
+
+/* Drag target for the touch-parallax JS (BookCoverArt.tsx) -- separate
+   from .bsw-cover-float so the idle-float CSS animation and the pointer-
+   driven tilt each own their own transform instead of fighting over one. */
+.bsw-cover-tilt {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .bsw-cover-shadow {

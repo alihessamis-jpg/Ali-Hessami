@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import type { BookTheme } from '../../lib/bookCovers'
 
 interface BookBackdropProps {
@@ -22,14 +22,18 @@ const DOTS: Array<[number, number, number]> = [
 // smooth without a three.js render loop, and recolors per book without a
 // custom shader). Pediatric Nephrology's navy look comes from its own
 // fallback theme in bookCovers.ts, not from special-casing here.
-export function BookBackdrop({ theme }: BookBackdropProps) {
+//
+// Forwards a ref to the root div so BookCoverArt's touch-parallax loop can
+// shift it a few px opposite the cover tilt by writing style.transform
+// directly, same as the cover's own tilt -- no React re-renders.
+export const BookBackdrop = forwardRef<HTMLDivElement, BookBackdropProps>(function BookBackdrop({ theme }, ref) {
   const style = {
     '--card-accent': theme.accent,
     '--card-dot': theme.dot,
   } as CSSProperties
 
   return (
-    <div className="bsw-backdrop" style={style} aria-hidden="true">
+    <div className="bsw-backdrop" style={style} aria-hidden="true" ref={ref}>
       <svg viewBox="0 0 200 200">
         <g className="bsw-petals">
           {PETAL_ANGLES.map((deg) => (
@@ -49,4 +53,4 @@ export function BookBackdrop({ theme }: BookBackdropProps) {
       </svg>
     </div>
   )
-}
+})
