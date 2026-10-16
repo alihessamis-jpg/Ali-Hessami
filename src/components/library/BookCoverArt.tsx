@@ -4,6 +4,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 interface BookCoverArtProps {
   coverSrc: string
   active: boolean
+  pctRead: number
   onTilt?: (x: number, y: number) => void
 }
 
@@ -18,7 +19,8 @@ const SETTLE_EPSILON = 0.05
 // springs back on release. Pointer handling and the tilt itself run
 // through refs + requestAnimationFrame, never React state, so dragging
 // never triggers a re-render.
-export function BookCoverArt({ coverSrc, active, onTilt }: BookCoverArtProps) {
+export function BookCoverArt({ coverSrc, active, pctRead, onTilt }: BookCoverArtProps) {
+  const pct = Math.max(0, Math.min(100, Math.round(pctRead)))
   const clusterRef = useRef<HTMLDivElement>(null)
   const tiltRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -119,6 +121,20 @@ export function BookCoverArt({ coverSrc, active, onTilt }: BookCoverArtProps) {
           <div className="bsw-cover-shine" />
         </div>
       </div>
+      <svg className="bsw-cover-ring" viewBox="0 0 92 118">
+        <rect className="bsw-cover-ring-track" x="2" y="2" width="88" height="114" rx="11" pathLength={100} />
+        <rect
+          className="bsw-cover-ring-fill"
+          x="2"
+          y="2"
+          width="88"
+          height="114"
+          rx="11"
+          pathLength={100}
+          strokeDasharray={`${pct} 100`}
+        />
+      </svg>
+      <span className="bsw-cover-ring-pct">{pct}%</span>
     </div>
   )
 }

@@ -73,13 +73,20 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
     if (el) el.style.transform = `translate(${-x * 0.6}px, ${y * 0.6}px)`
   }
 
+  const heroStyle = {
+    gap: 18,
+    background: theme.bg,
+    '--card-accent': theme.accent,
+    '--card-dot': theme.dot,
+  } as CSSProperties
+
   return (
-    <section className="np-hero np-fade" style={{ gap: 18, background: theme.bg }}>
+    <section className="np-hero np-fade" style={heroStyle}>
       {active && <BookBackdrop ref={backdropRef} theme={theme} />}
       <div className="hero-scrim" />
       <div className="libhero">
         {coverSrc ? (
-          <BookCoverArt coverSrc={coverSrc} active={active} onTilt={active ? handleTilt : undefined} />
+          <BookCoverArt coverSrc={coverSrc} active={active} pctRead={stat.pctRead} onTilt={active ? handleTilt : undefined} />
         ) : (
           <div className="cover" aria-hidden="true">
             <i>{book.edition} ed.</i>
@@ -100,7 +107,9 @@ function BookHeroCard({ book, stat, active, dailyGoal, todayPages, streak, onEdi
           )}
           <p className="np-sub">
             {book.edition} ed. · {stat.partsCount} parts · {stat.chaptersCount} chapters
-            {stat.totalPages > 0 ? ` · ${stat.totalPages.toLocaleString()} pages` : ''} · {stat.pctRead}% read
+            {stat.totalPages > 0 ? ` · ${stat.totalPages.toLocaleString()} pages` : ''}
+            {/* % read is shown on the progress ring around the cover when there is one */}
+            {!coverSrc ? ` · ${stat.pctRead}% read` : ''}
           </p>
         </div>
       </div>
