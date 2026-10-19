@@ -8246,17 +8246,35 @@ select.pt-ward:focus {
 @media (min-width: 1100px) {
   .rd {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
-    gap: 20px;
+    /* Named areas, not DOM-order auto-placement -- content is always the
+       wide 1fr column and the section list a fixed narrow one, however
+       many optional header rows (.chapter-parts, etc.) sit between them
+       in markup. An unused "parts" row collapses to 0 height. */
+    grid-template-columns: minmax(0, 1fr) 240px;
+    grid-template-areas:
+      'head head'
+      'parts parts'
+      'content toc';
+    gap: 24px;
     align-items: start;
   }
   .rhead {
-    grid-column: 1 / -1;
+    grid-area: head;
+  }
+  .chapter-parts {
+    grid-area: parts;
+  }
+  .stack {
+    grid-area: content;
+    min-width: 0;
   }
   .toc {
+    grid-area: toc;
     display: block;
     position: sticky;
     top: 28px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
   }
   .tocchips {
     display: none;
@@ -8265,9 +8283,14 @@ select.pt-ward:focus {
 
 @media (min-width: 1440px) {
   .rd {
-    grid-template-columns: 230px minmax(0, 1fr) 260px;
+    grid-template-columns: minmax(0, 1fr) 260px 260px;
+    grid-template-areas:
+      'head head head'
+      'parts parts parts'
+      'content toc side';
   }
   .side-r {
+    grid-area: side;
     display: flex;
     flex-direction: column;
     gap: 14px;
