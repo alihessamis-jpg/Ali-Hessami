@@ -80,6 +80,7 @@ interface CardRow {
   source: string | null
   created_at: string
   chapter_part: number | null
+  board_question_id: string | null
 }
 
 interface ChapterPartRow {
@@ -185,6 +186,7 @@ function cardToDomain(row: CardRow): LibraryCard {
     source: row.source,
     createdAt: row.created_at,
     chapterPart: row.chapter_part,
+    boardQuestionId: row.board_question_id,
   }
 }
 

@@ -12,7 +12,7 @@ import { getChapterFigureSignedUrl } from '../lib/storage'
 import { isolateLatinRuns } from '../lib/bidiText'
 import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
-import { fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
+import { DEFAULT_REQUEST_RETENTION, fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
 import { HeroScene } from '../components/hero/HeroScene'
 import type { FsrsRating, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
 
@@ -75,6 +75,7 @@ export function ReviewPage() {
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
   const [figureUrls, setFigureUrls] = useState<Record<string, string>>({})
   const [streak, setStreak] = useState(0)
+  const [targetRetention, setTargetRetention] = useState(DEFAULT_REQUEST_RETENTION)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hyOnly, setHyOnly] = useState(false)
@@ -125,6 +126,7 @@ export function ReviewPage() {
         setAllDue([...dueCards, ...alreadyIntroduced, ...freshNew])
         setChapters(seeded.chapters)
         setStreak(computeReadingStreak(log))
+        setTargetRetention(settings.targetRetention)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load review queue'))
       .finally(() => setLoading(false))
@@ -139,7 +141,7 @@ export function ReviewPage() {
 
   const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters])
   const current = cards[index]
-  const preview: FsrsPreviewMap | null = current ? fsrsPreviewAll(current) : null
+  const preview: FsrsPreviewMap | null = current ? fsrsPreviewAll(current, new Date(), targetRetention) : null
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -166,7 +168,7 @@ export function ReviewPage() {
 
   async function handleGrade(rating: FsrsRating) {
     if (!current) return
-    const { next } = scheduleFsrs(current, rating)
+    const { next } = scheduleFsrs(current, rating, new Date(), targetRetention)
     try {
       await updateLibraryCardFsrs(current.id, next)
     } catch {

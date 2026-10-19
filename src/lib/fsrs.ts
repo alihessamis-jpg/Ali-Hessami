@@ -29,7 +29,7 @@ export function emptyFsrsState(now = new Date()): FsrsCardState {
 // Hard penalty / Easy bonus multipliers on the success-growth formula.
 const W = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61]
 
-const REQUEST_RETENTION = 0.9
+export const DEFAULT_REQUEST_RETENTION = 0.9
 const RATING_INDEX: Record<FsrsRating, number> = { again: 1, hard: 2, good: 3, easy: 4 }
 
 function clamp(x: number, lo: number, hi: number): number {
@@ -45,7 +45,7 @@ function retrievability(elapsedDays: number, stability: number): number {
 
 // Inverse of retrievability(): the elapsed-day interval at which R first
 // drops to `targetRetention`, i.e. the next review date for a given stability.
-function intervalForStability(stability: number, targetRetention = REQUEST_RETENTION): number {
+function intervalForStability(stability: number, targetRetention: number): number {
   return Math.max(1, 9 * stability * (1 / targetRetention - 1))
 }
 
@@ -83,7 +83,12 @@ export interface FsrsScheduleResult {
   intervalDays: number
 }
 
-export function scheduleFsrs(state: FsrsCardState, rating: FsrsRating, now = new Date()): FsrsScheduleResult {
+export function scheduleFsrs(
+  state: FsrsCardState,
+  rating: FsrsRating,
+  now = new Date(),
+  targetRetention = DEFAULT_REQUEST_RETENTION
+): FsrsScheduleResult {
   const g = RATING_INDEX[rating]
   const lastReview = state.lastReview ? new Date(state.lastReview) : null
   const elapsedDays = lastReview ? Math.max(0, (now.getTime() - lastReview.getTime()) / 86_400_000) : 0
@@ -111,7 +116,7 @@ export function scheduleFsrs(state: FsrsCardState, rating: FsrsRating, now = new
     due = new Date(now.getTime() + AGAIN_RELEARN_MINUTES * 60_000)
   } else {
     nextState = FSRS_STATE.REVIEW
-    scheduledDays = intervalForStability(stability)
+    scheduledDays = intervalForStability(stability, targetRetention)
     due = new Date(now.getTime() + scheduledDays * 86_400_000)
   }
 
@@ -143,10 +148,14 @@ export type FsrsPreviewMap = Record<FsrsRating, { intervalDays: number; label: s
 
 // Computes the interval preview for all four grades without committing,
 // for the Review page's grade-button subtitles ("2 d", "14 d", ...).
-export function fsrsPreviewAll(state: FsrsCardState, now = new Date()): FsrsPreviewMap {
+export function fsrsPreviewAll(
+  state: FsrsCardState,
+  now = new Date(),
+  targetRetention = DEFAULT_REQUEST_RETENTION
+): FsrsPreviewMap {
   const ratings: FsrsRating[] = ['again', 'hard', 'good', 'easy']
   const entries = ratings.map((rating) => {
-    const { intervalDays } = scheduleFsrs(state, rating, now)
+    const { intervalDays } = scheduleFsrs(state, rating, now, targetRetention)
     return [rating, { intervalDays, label: formatFsrsInterval(intervalDays) }] as const
   })
   return Object.fromEntries(entries) as FsrsPreviewMap

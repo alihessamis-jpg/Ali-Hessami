@@ -460,6 +460,8 @@ export interface LibraryCard extends FsrsCardState {
   figureKey?: string | null
   /** v1.4: the chapter_part this card was imported from, if the chapter has parts. */
   chapterPart?: number | null
+  /** Review phase 1: set when this card mirrors a board_questions row (kept in sync by a DB trigger). */
+  boardQuestionId?: string | null
   /** Step 4: 'ai_suggested' for AI-generated cards, so they can be told apart from textbook-import suggestions in review, even though both reuse status 'suggested'/'approved'. Null for manually-added cards. */
   source?: string | null
   createdAt: string
@@ -1017,5 +1019,7 @@ export interface UserSettings {
   husLdhUpperLimit: number
   readingDailyGoal: number
   dailyNewCardLimit: number
+  /** FSRS target retention (0-1), e.g. 0.9 = schedule reviews to keep ~90% recall. */
+  targetRetention: number
   lastBackupAt?: string | null
 }

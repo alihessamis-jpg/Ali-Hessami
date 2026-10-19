@@ -33,7 +33,8 @@ import { PatientCaseCardForm } from '../components/library/PatientCaseCardForm'
 import { splitNoteBlocks, type NoteBlock } from '../lib/chapterNoteBlocks'
 import { describeError } from '../lib/describeError'
 import { parseSections, estimateMinutesLeft } from '../lib/libraryNote'
-import { scheduleFsrs, isCardMastered } from '../lib/fsrs'
+import { DEFAULT_REQUEST_RETENTION, scheduleFsrs, isCardMastered } from '../lib/fsrs'
+import { getUserSettings } from '../lib/api/settings'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
 import { requestChapterSuggestions } from '../lib/api/aiSuggestions'
@@ -198,6 +199,7 @@ export function ReaderPage() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(-1)
   const selectedPartIdRef = useRef<string | null>(null)
   selectedPartIdRef.current = selectedPartId
+  const [targetRetention, setTargetRetention] = useState(DEFAULT_REQUEST_RETENTION)
 
   // The note actually being read -- the selected part's, if this chapter
   // has parts, otherwise the chapter's own (the v1-v1.3 behavior, for every
@@ -334,6 +336,11 @@ export function ReaderPage() {
     reload()
       .catch((err) => setError(describeError(err, 'Failed to load chapter')))
       .finally(() => setLoading(false))
+    getUserSettings()
+      .then((s) => setTargetRetention(s.targetRetention))
+      .catch(() => {
+        // keep the default retention if settings fail to load
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -647,7 +654,7 @@ export function ReaderPage() {
     setQcAnswer(optionIndex)
     const q = quickCheck[qcIndex]
     const correct = optionIndex === q.correctIndex
-    const next = scheduleFsrs(q.card, correct ? 'good' : 'again')
+    const next = scheduleFsrs(q.card, correct ? 'good' : 'again', new Date(), targetRetention)
     void updateLibraryCardFsrs(q.card.id, next.next).then((updated) => {
       setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
     })
@@ -665,7 +672,7 @@ export function ReaderPage() {
         cards
           .filter((c) => c.status === 'approved')
           .map(async (c) => {
-            const next = scheduleFsrs(c, rating)
+            const next = scheduleFsrs(c, rating, new Date(), targetRetention)
             return updateLibraryCardFsrs(c.id, next.next)
           })
       )

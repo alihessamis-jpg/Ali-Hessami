@@ -18,6 +18,8 @@ interface FieldConfig {
   label: string
   step: string
   unit?: string
+  min?: string
+  max?: string
 }
 
 const ANEMIA_FIELDS: FieldConfig[] = [{ key: 'anemiaHbThreshold', label: 'Hemoglobin below', step: '0.1', unit: 'g/dL' }]
@@ -52,7 +54,16 @@ const BIOPSY_FIELDS: FieldConfig[] = [
 
 const HUS_FIELDS: FieldConfig[] = [{ key: 'husLdhUpperLimit', label: 'LDH upper limit of normal', step: '1', unit: 'U/L' }]
 
-const ACADEMY_FIELDS: FieldConfig[] = [{ key: 'dailyNewCardLimit', label: 'New cards per day', step: '1', unit: 'cards' }]
+const ACADEMY_FIELDS: FieldConfig[] = [
+  { key: 'dailyNewCardLimit', label: 'New cards per day', step: '1', unit: 'cards' },
+  {
+    key: 'targetRetention',
+    label: 'Target retention (FSRS) — higher means more frequent reviews',
+    step: '0.01',
+    min: '0.7',
+    max: '0.97',
+  },
+]
 
 const ALL_FIELDS = [
   ...ANEMIA_FIELDS,
@@ -96,7 +107,7 @@ export function SettingsPage() {
     setAnimationsEnabled(next)
   }
 
-  function renderField({ key, label, step, unit }: FieldConfig) {
+  function renderField({ key, label, step, unit, min, max }: FieldConfig) {
     return (
       <div className="np-field set-unit" key={key}>
         <label htmlFor={key}>{label}</label>
@@ -104,7 +115,8 @@ export function SettingsPage() {
           id={key}
           type="number"
           step={step}
-          min="0"
+          min={min ?? '0'}
+          max={max}
           inputMode="decimal"
           value={form[key]}
           onChange={(e) => setField(key, e.target.value)}
@@ -119,6 +131,10 @@ export function SettingsPage() {
     const parsed = Object.fromEntries(ALL_FIELDS.map((f) => [f.key, Number(form[f.key])])) as unknown as UserSettings
     if (Object.values(parsed).some((v) => Number.isNaN(v) || v <= 0)) {
       setError('Enter valid numbers above 0')
+      return
+    }
+    if (parsed.targetRetention < 0.7 || parsed.targetRetention > 0.97) {
+      setError('Target retention should be between 0.70 and 0.97')
       return
     }
     setSaving(true)
