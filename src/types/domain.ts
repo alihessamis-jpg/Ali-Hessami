@@ -413,7 +413,7 @@ export interface FsrsCardState {
   reviewHistory: FsrsReviewLogEntry[]
 }
 
-export type LibraryCardKind = 'cloze' | 'table_cell' | 'mcq' | 'patient_case' | 'basic'
+export type LibraryCardKind = 'cloze' | 'table_cell' | 'mcq' | 'patient_case' | 'basic' | 'clinical_scenario'
 
 export interface McqChoice {
   label: string
@@ -436,6 +436,20 @@ export interface PatientCaseVignette {
   stats: PatientCaseVignetteStat[]
 }
 
+// Phase 4: a case stem (card `front`) with step-by-step questions revealed
+// one at a time -- diagnosis -> workup -> management, or whatever labels
+// the import gives. `tags` on the card (e.g. "neonatal", "atypical") is how
+// several scenario cards share one `topic` as different presentations.
+export interface ClinicalScenarioStep {
+  label: string
+  question: string
+  answer: string
+}
+
+export interface ClinicalScenarioOptions {
+  steps: ClinicalScenarioStep[]
+}
+
 export type LibraryCardStatus = 'suggested' | 'approved'
 
 export interface LibraryCard extends FsrsCardState {
@@ -444,7 +458,7 @@ export interface LibraryCard extends FsrsCardState {
   kind: LibraryCardKind
   front: string
   back: string
-  options?: McqOptions | PatientCaseVignette | null
+  options?: McqOptions | PatientCaseVignette | ClinicalScenarioOptions | null
   sectionNumber?: string | null
   page?: number | null
   sourceText?: string | null

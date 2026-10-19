@@ -16,6 +16,7 @@ import { computeReadingStreak } from '../lib/libraryNote'
 import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
 import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
+import { BulkCardImportPanel } from '../components/library/BulkCardImportPanel'
 import { BookSwitcher, type LibraryBookStats } from '../components/library/BookSwitcher'
 import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
@@ -53,6 +54,7 @@ export function LibraryPage() {
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
   const [questionAttempts, setQuestionAttempts] = useState<BoardQuestionAttempt[]>([])
   const [importOpen, setImportOpen] = useState(false)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
   const [dailyGoal, setDailyGoal] = useState(10)
@@ -381,6 +383,10 @@ export function LibraryPage() {
               <UploadIcon width={16} height={16} />
               Import questions
             </button>
+            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setBulkImportOpen(true)}>
+              <UploadIcon width={16} height={16} />
+              Bulk import
+            </button>
           </div>
 
           {tab === 'book' && bookUnavailable ? (
@@ -639,6 +645,7 @@ export function LibraryPage() {
         onClose={() => setImportOpen(false)}
         onImported={(imported) => setQuestions((prev) => [...prev.filter((q) => !imported.some((n) => n.importKey === q.importKey)), ...imported])}
       />
+      <BulkCardImportPanel open={bulkImportOpen} onClose={() => setBulkImportOpen(false)} />
     </div>
   )
 }

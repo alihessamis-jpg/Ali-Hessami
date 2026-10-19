@@ -90,7 +90,9 @@ function buildQuickCheck(cards: LibraryCard[]): QuickCheckQuestion[] {
       return { card, options, correctIndex }
     })
   }
-  const pool = cards.filter((c) => c.kind !== 'patient_case' && c.kind !== 'table_cell' && c.kind !== 'mcq')
+  const pool = cards.filter(
+    (c) => c.kind !== 'patient_case' && c.kind !== 'table_cell' && c.kind !== 'mcq' && c.kind !== 'clinical_scenario'
+  )
   const picked = shuffle(pool).slice(0, QUICK_CHECK_SIZE)
   const allBacks = cards.map((c) => c.back)
   return picked.map((card) => {

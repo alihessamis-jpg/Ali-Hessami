@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient'
 import bookContents from '../../data/bookContents.json'
 import { parseChapterNoteForImport } from '../chapterImport'
 import { uploadChapterFigureFile } from '../storage'
+import type { BulkCardImportItem, BulkImportError } from '../libraryBulkImport'
 import type {
   FsrsCardState,
   LibraryBook,
@@ -401,11 +402,71 @@ export async function addLibraryCards(drafts: LibraryCardDraft[]): Promise<Libra
         page: draft.page ?? null,
         source_text: draft.sourceText ?? null,
         patient_id: draft.patientId ?? null,
+        status: draft.status ?? 'suggested',
+        import_key: draft.importKey ?? null,
+        tags: draft.tags ?? [],
+        topic: draft.topic ?? null,
+        high_yield: draft.highYield ?? false,
+        figure_key: draft.figureKey ?? null,
+        source: draft.source ?? null,
       }))
     )
     .select()
   if (error) throw error
   return (data as CardRow[]).map(cardToDomain)
+}
+
+// Phase 4: bulk-paste cards/questions/scenarios from JSON or CSV (see
+// lib/libraryBulkImport.ts for parsing). Each item resolves its own
+// (book, chapter_number) -- cached per batch so a 100-card file for one
+// chapter only looks the chapter up once -- and lands as a 'suggested'
+// card, same as every other import path, so it goes through Approve
+// before it's scheduled. Items whose chapter can't be resolved are
+// skipped and reported rather than failing the whole batch.
+export async function importBulkCards(items: BulkCardImportItem[]): Promise<{ created: LibraryCard[]; errors: BulkImportError[] }> {
+  const errors: BulkImportError[] = []
+  const chapterCache = new Map<string, LibraryChapter>()
+  const drafts: LibraryCardDraft[] = []
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const cacheKey = `${item.bookId ?? ''}|${item.chapterNumber}`
+    let chapter = chapterCache.get(cacheKey)
+    if (!chapter) {
+      try {
+        chapter = await resolveChapterByBookAndNumber(item.bookId, item.chapterNumber)
+        chapterCache.set(cacheKey, chapter)
+      } catch (err) {
+        errors.push({ index: i, message: err instanceof Error ? err.message : 'Chapter not found' })
+        continue
+      }
+    }
+
+    let options: LibraryCard['options'] = null
+    if (item.kind === 'mcq') options = { choices: item.choices ?? [], explanation: item.explanation }
+    else if (item.kind === 'patient_case') options = { stats: item.stats ?? [] }
+    else if (item.kind === 'clinical_scenario') options = { steps: item.steps ?? [] }
+
+    drafts.push({
+      chapterId: chapter.id,
+      kind: item.kind,
+      front: item.front,
+      back: item.back,
+      options,
+      sectionNumber: item.sectionNumber,
+      page: item.page,
+      sourceText: null,
+      patientId: null,
+      status: 'suggested',
+      tags: item.tags,
+      topic: item.topic,
+      highYield: item.highYield,
+      source: 'bulk_import',
+    })
+  }
+
+  const created = await addLibraryCards(drafts)
+  return { created, errors }
 }
 
 export async function updateLibraryCardFsrs(id: string, state: FsrsCardState): Promise<LibraryCard> {
@@ -523,6 +584,22 @@ async function resolveBookId(slug: string | null): Promise<string> {
   if (error) throw error
   if (!data) throw new Error(`No book with slug "${slug ?? DEFAULT_BOOK_SLUG}" -- add it to Library first`)
   return (data as { id: string }).id
+}
+
+// Shared by the bulk card/question/scenario importer -- same lookup
+// importChapterNote() does inline, exposed so it doesn't have to parse a
+// chapter-note file to find a chapter by (book, chapter number).
+export async function resolveChapterByBookAndNumber(bookSlug: string | null, chapterNumber: number): Promise<LibraryChapter> {
+  const bookId = await resolveBookId(bookSlug)
+  const { data, error } = await supabase
+    .from('library_chapters')
+    .select('*')
+    .eq('book_id', bookId)
+    .eq('chapter_number', chapterNumber)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error(`No chapter ${chapterNumber} found in this book -- seed the Library first`)
+  return chapterToDomain(data as ChapterRow)
 }
 
 // One image file supplied alongside the .md at import time, keyed by its

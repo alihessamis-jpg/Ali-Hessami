@@ -18,7 +18,16 @@ import { computeReadingStreak } from '../lib/libraryNote'
 import { DEFAULT_REQUEST_RETENTION, fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
 import { shuffle } from '../lib/reviewQueue'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { FsrsRating, LibraryBook, LibraryCard, LibraryChapter, McqOptions, MistakeReason, PatientCaseVignette } from '../types/domain'
+import type {
+  ClinicalScenarioOptions,
+  FsrsRating,
+  LibraryBook,
+  LibraryCard,
+  LibraryChapter,
+  McqOptions,
+  MistakeReason,
+  PatientCaseVignette,
+} from '../types/domain'
 
 type PracticeMode = 'chapter' | 'random' | 'mock'
 
@@ -28,6 +37,7 @@ const TYPE_FILTER_OPTIONS: Array<{ kind: LibraryCard['kind']; label: string }> =
   { kind: 'table_cell', label: 'Tables' },
   { kind: 'mcq', label: 'Board MCQ' },
   { kind: 'patient_case', label: 'Patient cases' },
+  { kind: 'clinical_scenario', label: 'Scenarios' },
 ]
 
 const MISTAKE_REASONS: Array<{ reason: MistakeReason; label: string }> = [
@@ -65,6 +75,7 @@ const TYPE_LABEL: Record<LibraryCard['kind'], string> = {
   mcq: 'BOARD MCQ',
   patient_case: 'PATIENT CASE',
   basic: 'CARD',
+  clinical_scenario: 'SCENARIO',
 }
 
 const TYPE_STYLE: Record<LibraryCard['kind'], { stripe: string; color: string; background: string }> = {
@@ -73,6 +84,7 @@ const TYPE_STYLE: Record<LibraryCard['kind'], { stripe: string; color: string; b
   mcq: { stripe: '#1E5BD8', color: '#1546A8', background: '#E3EDFD' },
   patient_case: { stripe: '#C2410C', color: '#9A3412', background: '#FDEBDD' },
   basic: { stripe: '#5B6B82', color: '#3B4A60', background: '#EEF2F8' },
+  clinical_scenario: { stripe: '#17663A', color: '#17663A', background: '#DDF3E6' },
 }
 
 function isMcqOptions(o: LibraryCard['options']): o is McqOptions {
@@ -80,6 +92,9 @@ function isMcqOptions(o: LibraryCard['options']): o is McqOptions {
 }
 function isVignette(o: LibraryCard['options']): o is PatientCaseVignette {
   return !!o && 'stats' in o
+}
+function isScenarioOptions(o: LibraryCard['options']): o is ClinicalScenarioOptions {
+  return !!o && 'steps' in o
 }
 
 function clozeParts(front: string): [string, string] {
@@ -118,6 +133,8 @@ export function ReviewPage() {
   const [startedAt] = useState(() => Date.now())
   const [pendingAgain, setPendingAgain] = useState(false)
   const [mockSecondsLeft, setMockSecondsLeft] = useState<number | null>(null)
+  const [scenarioStep, setScenarioStep] = useState(0)
+  const [scenarioStepAnswerShown, setScenarioStepAnswerShown] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -241,6 +258,13 @@ export function ReviewPage() {
         }
         return
       }
+      if (current.kind === 'clinical_scenario' && isScenarioOptions(current.options) && !revealed) {
+        if (e.code === 'Space') {
+          e.preventDefault()
+          handleScenarioStepAdvance(current.options.steps.length)
+        }
+        return
+      }
       if (e.code === 'Space' && !revealed) {
         e.preventDefault()
         setRevealed(true)
@@ -256,7 +280,7 @@ export function ReviewPage() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, revealed, mcqChoice, mcqCorrect, pendingAgain])
+  }, [current, revealed, mcqChoice, mcqCorrect, pendingAgain, scenarioStep, scenarioStepAnswerShown])
 
   async function handleGrade(rating: FsrsRating, mistakeReason?: MistakeReason) {
     if (!current) return
@@ -278,7 +302,24 @@ export function ReviewPage() {
     setMcqChoice(null)
     setMcqCorrect(null)
     setPendingAgain(false)
+    setScenarioStep(0)
+    setScenarioStepAnswerShown(false)
     setIndex((i) => i + 1)
+  }
+
+  // Clinical scenarios reveal their steps one at a time; once the last
+  // step's answer is shown, fall through to the normal grade controls.
+  function handleScenarioStepAdvance(totalSteps: number) {
+    if (!scenarioStepAnswerShown) {
+      setScenarioStepAnswerShown(true)
+      return
+    }
+    if (scenarioStep + 1 >= totalSteps) {
+      setRevealed(true)
+    } else {
+      setScenarioStep((s) => s + 1)
+      setScenarioStepAnswerShown(false)
+    }
   }
 
   // v1.2: tapping an option reveals right/wrong + the explanation; the
@@ -433,6 +474,7 @@ export function ReviewPage() {
   const style = TYPE_STYLE[current.kind]
   const [before, after] = current.kind === 'cloze' ? clozeParts(current.front) : ['', '']
   const activeFilterCount = (bookFilter ? 1 : 0) + (typeFilter ? 1 : 0)
+  const scenarioOptions = current.kind === 'clinical_scenario' && isScenarioOptions(current.options) ? current.options : null
 
   return (
     <div className="np-page">
@@ -624,6 +666,25 @@ export function ReviewPage() {
                     </div>
                   )}
                 </>
+              ) : scenarioOptions ? (
+                <>
+                  <p className="q" dir="rtl">
+                    {isolateLatinRuns(current.front)}
+                  </p>
+                  {scenarioOptions.steps.slice(0, scenarioStep + 1).map((step, i) => (
+                    <div className="scenario-step" key={i}>
+                      <span className="h">{step.label.toUpperCase()}</span>
+                      <p className="q" dir="rtl" style={{ fontSize: 15.5 }}>
+                        {isolateLatinRuns(step.question)}
+                      </p>
+                      {(i < scenarioStep || scenarioStepAnswerShown) && (
+                        <p className="ctx" dir="rtl">
+                          {isolateLatinRuns(step.answer)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </>
               ) : (
                 <>
                   <p className="q" dir="rtl">
@@ -674,6 +735,14 @@ export function ReviewPage() {
                   Continue <kbd>Space</kbd>
                 </button>
               )
+            ) : scenarioOptions && !revealed ? (
+              <button className="reveal" onClick={() => handleScenarioStepAdvance(scenarioOptions.steps.length)}>
+                {!scenarioStepAnswerShown
+                  ? 'Show answer'
+                  : scenarioStep + 1 >= scenarioOptions.steps.length
+                    ? 'Finish'
+                    : 'Next step'}
+              </button>
             ) : !revealed ? (
               <button className="reveal" onClick={() => setRevealed(true)}>
                 Show answer <kbd>Space</kbd>
