@@ -161,6 +161,15 @@ export function fsrsPreviewAll(
   return Object.fromEntries(entries) as FsrsPreviewMap
 }
 
+// Current recall probability for a card right now, for the per-chapter
+// retention stat -- same power curve scheduleFsrs() uses internally, just
+// exposed read-only. A card never reviewed has no retrievability yet.
+export function currentRetrievability(state: FsrsCardState, now = new Date()): number | null {
+  if (state.stability == null || !state.lastReview) return null
+  const elapsedDays = Math.max(0, (now.getTime() - new Date(state.lastReview).getTime()) / 86_400_000)
+  return retrievability(elapsedDays, state.stability)
+}
+
 // A card counts as "mastered" once its scheduled interval has reached 21
 // days — matches the Library's chapter-status legend.
 export const MASTERED_INTERVAL_DAYS = 21

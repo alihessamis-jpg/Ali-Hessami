@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { emptyFsrsState, formatFsrsInterval, fsrsPreviewAll, isCardMastered, scheduleFsrs, MASTERED_INTERVAL_DAYS } from './fsrs'
+import {
+  currentRetrievability,
+  emptyFsrsState,
+  formatFsrsInterval,
+  fsrsPreviewAll,
+  isCardMastered,
+  scheduleFsrs,
+  MASTERED_INTERVAL_DAYS,
+} from './fsrs'
 import type { FsrsCardState } from '../types/domain'
 
 const NOW = new Date('2026-01-01T00:00:00.000Z')
@@ -116,5 +124,22 @@ describe('isCardMastered', () => {
   it('is true at or above the mastered interval threshold', () => {
     const state = emptyFsrsState(NOW)
     expect(isCardMastered({ ...state, scheduledDays: MASTERED_INTERVAL_DAYS })).toBe(true)
+  })
+})
+
+describe('currentRetrievability', () => {
+  it('is null for a never-reviewed card', () => {
+    const state = emptyFsrsState(NOW)
+    expect(currentRetrievability(state, NOW)).toBeNull()
+  })
+
+  it('is close to 1 right after a review and decays as time passes', () => {
+    const { next } = scheduleFsrs(emptyFsrsState(NOW), 'good', NOW)
+    const justAfter = currentRetrievability(next, NOW)
+    const muchLater = currentRetrievability(next, new Date(NOW.getTime() + 365 * 86_400_000))
+    expect(justAfter).not.toBeNull()
+    expect(muchLater).not.toBeNull()
+    expect(justAfter as number).toBeGreaterThan(0.9)
+    expect(muchLater as number).toBeLessThan(justAfter as number)
   })
 })

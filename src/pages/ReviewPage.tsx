@@ -13,10 +13,14 @@ import {
 import { getChapterFigureSignedUrl } from '../lib/storage'
 import { isolateLatinRuns } from '../lib/bidiText'
 import { getUserSettings } from '../lib/api/settings'
+import { addLibraryCardMistake } from '../lib/api/libraryMistakes'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { DEFAULT_REQUEST_RETENTION, fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
+import { shuffle } from '../lib/reviewQueue'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { FsrsRating, LibraryBook, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
+import type { FsrsRating, LibraryBook, LibraryCard, LibraryChapter, McqOptions, MistakeReason, PatientCaseVignette } from '../types/domain'
+
+type PracticeMode = 'chapter' | 'random' | 'mock'
 
 const TYPE_FILTER_OPTIONS: Array<{ kind: LibraryCard['kind']; label: string }> = [
   { kind: 'basic', label: 'Cards' },
@@ -24,6 +28,13 @@ const TYPE_FILTER_OPTIONS: Array<{ kind: LibraryCard['kind']; label: string }> =
   { kind: 'table_cell', label: 'Tables' },
   { kind: 'mcq', label: 'Board MCQ' },
   { kind: 'patient_case', label: 'Patient cases' },
+]
+
+const MISTAKE_REASONS: Array<{ reason: MistakeReason; label: string }> = [
+  { reason: 'knowledge_gap', label: "Didn't know it" },
+  { reason: 'misread', label: 'Misread the question' },
+  { reason: 'confused_similar', label: 'Confused with similar' },
+  { reason: 'guessed', label: 'Guessed' },
 ]
 
 function todayStorageKey() {
@@ -80,6 +91,11 @@ function clozeParts(front: string): [string, string] {
 export function ReviewPage() {
   const [searchParams] = useSearchParams()
   const chapterScope = searchParams.get('chapter')
+  const modeParam = searchParams.get('mode')
+  const mode: PracticeMode | null = modeParam === 'chapter' || modeParam === 'random' || modeParam === 'mock' ? modeParam : null
+  const isPractice = mode !== null
+  const mockCount = Math.max(1, Number(searchParams.get('count')) || 20)
+  const mockTimerMinutes = Math.max(1, Number(searchParams.get('timer')) || 15)
 
   const [allDue, setAllDue] = useState<LibraryCard[]>([])
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
@@ -100,6 +116,8 @@ export function ReviewPage() {
   const [mcqCorrect, setMcqCorrect] = useState<boolean | null>(null)
   const [grades, setGrades] = useState<Array<{ card: LibraryCard; rating: FsrsRating }>>([])
   const [startedAt] = useState(() => Date.now())
+  const [pendingAgain, setPendingAgain] = useState(false)
+  const [mockSecondsLeft, setMockSecondsLeft] = useState<number | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -119,6 +137,27 @@ export function ReviewPage() {
         const now = new Date()
         let approved = cardRows.filter((c) => c.status === 'approved')
         if (chapterScope) approved = approved.filter((c) => c.chapterId === chapterScope)
+
+        if (mode) {
+          // Practice modes pull a fixed pool up front, out of band from the
+          // daily due/new queue and its introduced-today bookkeeping --
+          // grading still updates FSRS so practice still counts toward the
+          // schedule, it just isn't gated by what's due today.
+          let pool = approved
+          if (mode === 'mock') pool = pool.filter((c) => c.kind === 'mcq')
+          if (mode === 'chapter') {
+            pool = [...pool].sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity))
+          } else {
+            pool = shuffle(pool)
+          }
+          if (mode === 'mock') pool = pool.slice(0, mockCount)
+          setAllDue(pool)
+          setChapters(chapterRows)
+          setBooks(bookRows)
+          setStreak(computeReadingStreak(log))
+          setTargetRetention(settings.targetRetention)
+          return
+        }
 
         const dueCards = approved.filter((c) => c.reps > 0 && new Date(c.due) <= now)
         dueCards.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
@@ -148,16 +187,19 @@ export function ReviewPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load review queue'))
       .finally(() => setLoading(false))
-  }, [chapterScope])
+    // mockCount/mockTimerMinutes are read once per mount via searchParams, not re-read reactively
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapterScope, mode])
 
   const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters])
 
   const cards = useMemo(() => {
+    if (isPractice) return allDue
     let list = hyOnly ? allDue.filter((c) => c.highYield) : allDue
     if (bookFilter) list = list.filter((c) => chapterById.get(c.chapterId)?.bookId === bookFilter)
     if (typeFilter) list = list.filter((c) => c.kind === typeFilter)
     return list
-  }, [allDue, hyOnly, bookFilter, typeFilter, chapterById])
+  }, [allDue, hyOnly, bookFilter, typeFilter, chapterById, isPractice])
   const highYieldDueCount = useMemo(() => allDue.filter((c) => c.highYield).length, [allDue])
   const availableBooks = useMemo(() => {
     const ids = new Set(allDue.map((c) => chapterById.get(c.chapterId)?.bookId).filter((id): id is string => !!id))
@@ -169,6 +211,22 @@ export function ReviewPage() {
     setIndex(0)
   }, [hyOnly, bookFilter, typeFilter])
 
+  useEffect(() => {
+    if (mode !== 'mock' || allDue.length === 0) return
+    setMockSecondsLeft(mockTimerMinutes * 60)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, allDue.length])
+
+  useEffect(() => {
+    if (mockSecondsLeft === null || index >= cards.length) return
+    if (mockSecondsLeft <= 0) {
+      setIndex(cards.length)
+      return
+    }
+    const t = setTimeout(() => setMockSecondsLeft((s) => (s !== null ? s - 1 : s)), 1000)
+    return () => clearTimeout(t)
+  }, [mockSecondsLeft, cards.length, index])
+
   const current = cards[index]
   const preview: FsrsPreviewMap | null = current ? fsrsPreviewAll(current, new Date(), targetRetention) : null
 
@@ -178,14 +236,19 @@ export function ReviewPage() {
       if (current.kind === 'mcq') {
         if (e.code === 'Space' && mcqChoice != null) {
           e.preventDefault()
-          void handleGrade(mcqCorrect ? 'good' : 'again')
+          if (mcqCorrect) void handleGrade('good')
+          else setPendingAgain(true)
         }
         return
       }
       if (e.code === 'Space' && !revealed) {
         e.preventDefault()
         setRevealed(true)
-      } else if (/^[1-4]$/.test(e.key) && revealed) {
+      } else if (/^[1-4]$/.test(e.key) && revealed && !pendingAgain) {
+        if (e.key === '1') {
+          setPendingAgain(true)
+          return
+        }
         const ratings: FsrsRating[] = ['again', 'hard', 'good', 'easy']
         void handleGrade(ratings[Number(e.key) - 1])
       }
@@ -193,9 +256,9 @@ export function ReviewPage() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, revealed, mcqChoice, mcqCorrect])
+  }, [current, revealed, mcqChoice, mcqCorrect, pendingAgain])
 
-  async function handleGrade(rating: FsrsRating) {
+  async function handleGrade(rating: FsrsRating, mistakeReason?: MistakeReason) {
     if (!current) return
     const { next } = scheduleFsrs(current, rating, new Date(), targetRetention)
     try {
@@ -203,10 +266,18 @@ export function ReviewPage() {
     } catch {
       // keep the session moving even if persistence fails
     }
+    if (rating === 'again' && mistakeReason) {
+      try {
+        await addLibraryCardMistake(current.id, current.chapterId, mistakeReason)
+      } catch {
+        // tagging the reason is a bonus -- never block the session on it
+      }
+    }
     setGrades((prev) => [...prev, { card: { ...current, ...next }, rating }])
     setRevealed(false)
     setMcqChoice(null)
     setMcqCorrect(null)
+    setPendingAgain(false)
     setIndex((i) => i + 1)
   }
 
@@ -234,11 +305,13 @@ export function ReviewPage() {
           </div>
           <div className="np-card np-fade">
             <p className="empty-state">
-              {hyOnly || bookFilter || typeFilter
-                ? 'No cards match this filter right now.'
-                : 'Nothing due right now — nice work.'}
+              {isPractice
+                ? 'No cards match this practice session.'
+                : hyOnly || bookFilter || typeFilter
+                  ? 'No cards match this filter right now.'
+                  : 'Nothing due right now — nice work.'}
             </p>
-            {(hyOnly || bookFilter || typeFilter) && allDue.length > 0 ? (
+            {!isPractice && (hyOnly || bookFilter || typeFilter) && allDue.length > 0 ? (
               <button
                 type="button"
                 className="np-btn ghost"
@@ -251,8 +324,8 @@ export function ReviewPage() {
                 Show all due cards ({allDue.length})
               </button>
             ) : (
-              <Link className="np-btn" to="/academy">
-                Back to Library
+              <Link className="np-btn" to={isPractice ? '/academy/practice' : '/academy'}>
+                {isPractice ? 'Back to Practice' : 'Back to Library'}
               </Link>
             )}
           </div>
@@ -283,7 +356,7 @@ export function ReviewPage() {
             <div className="hero-scrim" />
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="eyebrow" style={{ color: '#B9A6F5' }}>
-                SESSION COMPLETE
+                {mode === 'mock' ? 'MOCK EXAM COMPLETE' : 'SESSION COMPLETE'}
               </span>
               <h1 style={{ fontSize: 26 }}>
                 {grades.length} cards · {minutes} min
@@ -292,7 +365,7 @@ export function ReviewPage() {
             <div className="sgrid">
               <div>
                 <b>{recallPct}%</b>
-                <span>recall</span>
+                <span>{mode === 'mock' ? 'score' : 'recall'}</span>
               </div>
               <div>
                 <b style={{ color: '#9ED9B6' }}>+{newlyMastered}</b>
@@ -338,10 +411,16 @@ export function ReviewPage() {
               <Link className="np-btn white" to="/academy">
                 Back to Library
               </Link>
-              {chapterScope && (
-                <Link className="np-btn glass" to={`/academy/reader/${chapterScope}`}>
-                  Continue reading
+              {isPractice ? (
+                <Link className="np-btn glass" to="/academy/practice">
+                  Practice again
                 </Link>
+              ) : (
+                chapterScope && (
+                  <Link className="np-btn glass" to={`/academy/reader/${chapterScope}`}>
+                    Continue reading
+                  </Link>
+                )
               )}
             </div>
           </section>
@@ -368,22 +447,36 @@ export function ReviewPage() {
           <span className="rcount">
             {index + 1} / {cards.length}
           </span>
-          <button
-            type="button"
-            className="np-pill"
-            style={{
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              color: activeFilterCount > 0 ? '#93590B' : '#5B6B82',
-              background: activeFilterCount > 0 ? '#FDF0D5' : 'rgba(255,255,255,.12)',
-            }}
-            onClick={() => setFilterOpen(true)}
-            title="Filter by book or type"
-          >
-            ⚙︎ Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </button>
-          {highYieldDueCount > 0 && (
+          {mode === 'mock' && mockSecondsLeft !== null && (
+            <span
+              className="np-pill"
+              style={{
+                color: mockSecondsLeft <= 60 ? '#B3261E' : '#5B6B82',
+                background: mockSecondsLeft <= 60 ? '#FBE3E1' : 'rgba(255,255,255,.12)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              ⏱ {String(Math.floor(mockSecondsLeft / 60)).padStart(2, '0')}:{String(mockSecondsLeft % 60).padStart(2, '0')}
+            </span>
+          )}
+          {!isPractice && (
+            <button
+              type="button"
+              className="np-pill"
+              style={{
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                color: activeFilterCount > 0 ? '#93590B' : '#5B6B82',
+                background: activeFilterCount > 0 ? '#FDF0D5' : 'rgba(255,255,255,.12)',
+              }}
+              onClick={() => setFilterOpen(true)}
+              title="Filter by book or type"
+            >
+              ⚙︎ Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+          )}
+          {!isPractice && highYieldDueCount > 0 && (
             <button
               type="button"
               className="np-pill"
@@ -556,9 +649,28 @@ export function ReviewPage() {
               )}
             </div>
 
-            {current.kind === 'mcq' ? (
+            {current.kind === 'mcq' && mcqChoice != null && mcqCorrect === false ? (
+              <motion.div
+                className="mistake-reasons on"
+                initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              >
+                <span className="np-small">Why did you miss this?</span>
+                <div className="chapter-parts">
+                  {MISTAKE_REASONS.map((r) => (
+                    <button key={r.reason} type="button" onClick={() => void handleGrade('again', r.reason)}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="np-btn ghost sm" onClick={() => void handleGrade('again')}>
+                  Skip
+                </button>
+              </motion.div>
+            ) : current.kind === 'mcq' ? (
               mcqChoice != null && (
-                <button className="reveal" onClick={() => void handleGrade(mcqCorrect ? 'good' : 'again')}>
+                <button className="reveal" onClick={() => void handleGrade('good')}>
                   Continue <kbd>Space</kbd>
                 </button>
               )
@@ -566,6 +678,25 @@ export function ReviewPage() {
               <button className="reveal" onClick={() => setRevealed(true)}>
                 Show answer <kbd>Space</kbd>
               </button>
+            ) : pendingAgain ? (
+              <motion.div
+                className="mistake-reasons on"
+                initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              >
+                <span className="np-small">Why did you miss this?</span>
+                <div className="chapter-parts">
+                  {MISTAKE_REASONS.map((r) => (
+                    <button key={r.reason} type="button" onClick={() => void handleGrade('again', r.reason)}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="np-btn ghost sm" onClick={() => void handleGrade('again')}>
+                  Skip
+                </button>
+              </motion.div>
             ) : (
               <motion.div
                 className="grade on"
@@ -574,7 +705,11 @@ export function ReviewPage() {
                 transition={{ type: 'spring', stiffness: 420, damping: 30 }}
               >
                 {(['again', 'hard', 'good', 'easy'] as FsrsRating[]).map((r, i) => (
-                  <button key={r} className={`g${i + 1}`} onClick={() => void handleGrade(r)}>
+                  <button
+                    key={r}
+                    className={`g${i + 1}`}
+                    onClick={() => (r === 'again' ? setPendingAgain(true) : void handleGrade(r))}
+                  >
                     <b>{r[0].toUpperCase() + r.slice(1)}</b>
                     <span>{preview?.[r].label}</span>
                   </button>

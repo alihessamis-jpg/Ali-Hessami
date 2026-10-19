@@ -20,6 +20,9 @@ import { AcademyTopicPage } from './pages/AcademyTopicPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { ReaderPage } from './pages/ReaderPage'
 import { ReviewPage } from './pages/ReviewPage'
+import { PracticePage } from './pages/PracticePage'
+import { MistakesPage } from './pages/MistakesPage'
+import { ChapterStatsPage } from './pages/ChapterStatsPage'
 import { HighYieldPage } from './pages/HighYieldPage'
 import { StudyHubPage } from './pages/StudyHubPage'
 import { BoardReadinessPage } from './pages/BoardReadinessPage'
@@ -56,6 +59,9 @@ export function App() {
           <Route path="/academy/topics" element={protect(<AcademyPage />)} />
           <Route path="/academy/reader/:id" element={protect(<ReaderPage />)} />
           <Route path="/academy/review" element={protect(<ReviewPage />)} />
+          <Route path="/academy/practice" element={protect(<PracticePage />)} />
+          <Route path="/academy/mistakes" element={protect(<MistakesPage />)} />
+          <Route path="/academy/stats" element={protect(<ChapterStatsPage />)} />
           <Route path="/academy/:id" element={protect(<AcademyTopicPage />)} />
           <Route path="/high-yield" element={protect(<HighYieldPage />)} />
           <Route path="/study" element={protect(<StudyHubPage />)} />

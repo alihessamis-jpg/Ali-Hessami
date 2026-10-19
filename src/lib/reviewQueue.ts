@@ -27,3 +27,14 @@ export function estimateReviewMinutes(dueCount: number, newCount: number): numbe
   const seconds = dueCount * SECONDS_PER_DUE_CARD + newCount * SECONDS_PER_NEW_CARD
   return Math.max(seconds > 0 ? 1 : 0, Math.round(seconds / 60))
 }
+
+// Fisher-Yates on a copy -- never mutates the input, so callers can shuffle
+// a memoized array safely (practice/mock-exam pools in ReviewPage).
+export function shuffle<T>(items: T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}

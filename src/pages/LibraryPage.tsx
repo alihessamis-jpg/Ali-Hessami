@@ -553,6 +553,33 @@ export function LibraryPage() {
                 </Link>
               )}
               {dueTotal === 0 && !continueReading && <span className="np-small">Open a chapter to get started.</span>}
+              <Link className="task" to="/academy/practice">
+                <span className="np-ic" style={{ background: '#ECE6FD', color: '#5131B5' }}>
+                  <QuizIcon width={17} height={17} />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <b>Practice</b>
+                  <span className="np-small">By chapter, mixed random, or a timed mock exam</span>
+                </span>
+              </Link>
+              <Link className="task" to="/academy/mistakes">
+                <span className="np-ic" style={{ background: '#FDEBDD', color: '#9A3412' }}>
+                  <AcademyIcon width={17} height={17} />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <b>My mistakes</b>
+                  <span className="np-small">Everything missed, tagged by reason</span>
+                </span>
+              </Link>
+              <Link className="task" to="/academy/stats">
+                <span className="np-ic" style={{ background: '#DDF2F3', color: '#0B6670' }}>
+                  <AcademyIcon width={17} height={17} />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <b>Chapter stats</b>
+                  <span className="np-small">Accuracy and retention, weakest first</span>
+                </span>
+              </Link>
             </div>
           </section>
           <section className="np-card np-fade" style={{ animationDelay: '.26s', gap: 10 }}>

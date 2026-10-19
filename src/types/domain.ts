@@ -467,6 +467,18 @@ export interface LibraryCard extends FsrsCardState {
   createdAt: string
 }
 
+// Phase 3: why a card was graded "again" -- tagged at the moment of the
+// miss so "My mistakes" can be filtered by cause, not just by chapter.
+export type MistakeReason = 'knowledge_gap' | 'misread' | 'confused_similar' | 'guessed'
+
+export interface LibraryCardMistake {
+  id: string
+  cardId: string
+  chapterId: string
+  reason: MistakeReason
+  createdAt: string
+}
+
 export type LibraryCardDraft = Pick<
   LibraryCard,
   'chapterId' | 'kind' | 'front' | 'back' | 'options' | 'sectionNumber' | 'page' | 'sourceText' | 'patientId'
