@@ -586,6 +586,15 @@ export function LibraryPage() {
                   <span className="np-small">Accuracy and retention, weakest first</span>
                 </span>
               </Link>
+              <Link className="task" to="/academy/exam-plan">
+                <span className="np-ic" style={{ background: '#FDF0DC', color: '#93590B' }}>
+                  <QuizIcon width={17} height={17} />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <b>Exam Plan</b>
+                  <span className="np-small">Countdown, coverage, and what's going stale</span>
+                </span>
+              </Link>
             </div>
           </section>
           <section className="np-card np-fade" style={{ animationDelay: '.26s', gap: 10 }}>

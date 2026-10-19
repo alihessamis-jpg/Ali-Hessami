@@ -23,6 +23,7 @@ import { ReviewPage } from './pages/ReviewPage'
 import { PracticePage } from './pages/PracticePage'
 import { MistakesPage } from './pages/MistakesPage'
 import { ChapterStatsPage } from './pages/ChapterStatsPage'
+import { ExamPlanPage } from './pages/ExamPlanPage'
 import { HighYieldPage } from './pages/HighYieldPage'
 import { StudyHubPage } from './pages/StudyHubPage'
 import { BoardReadinessPage } from './pages/BoardReadinessPage'
@@ -62,6 +63,7 @@ export function App() {
           <Route path="/academy/practice" element={protect(<PracticePage />)} />
           <Route path="/academy/mistakes" element={protect(<MistakesPage />)} />
           <Route path="/academy/stats" element={protect(<ChapterStatsPage />)} />
+          <Route path="/academy/exam-plan" element={protect(<ExamPlanPage />)} />
           <Route path="/academy/:id" element={protect(<AcademyTopicPage />)} />
           <Route path="/high-yield" element={protect(<HighYieldPage />)} />
           <Route path="/study" element={protect(<StudyHubPage />)} />

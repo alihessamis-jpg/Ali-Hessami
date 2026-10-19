@@ -24,6 +24,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   dailyNewCardLimit: 20,
   dailyReviewLimit: 0,
   targetRetention: 0.9,
+  examDate: null,
   lastBackupAt: null,
 }
 
@@ -50,6 +51,7 @@ interface UserSettingsRow {
   daily_new_card_limit: number
   daily_review_limit: number
   target_retention: number
+  exam_date: string | null
   last_backup_at: string | null
 }
 
@@ -77,6 +79,7 @@ function toDomain(row: UserSettingsRow): UserSettings {
     dailyNewCardLimit: row.daily_new_card_limit,
     dailyReviewLimit: row.daily_review_limit,
     targetRetention: row.target_retention,
+    examDate: row.exam_date,
     lastBackupAt: row.last_backup_at,
   }
 }
@@ -121,6 +124,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         daily_new_card_limit: next.dailyNewCardLimit,
         daily_review_limit: next.dailyReviewLimit,
         target_retention: next.targetRetention,
+        exam_date: next.examDate,
       },
       { onConflict: 'owner_id' }
     )

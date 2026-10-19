@@ -86,6 +86,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [animationsOn, setAnimationsOn] = useState(true)
+  const [examDate, setExamDate] = useState('')
 
   useEffect(() => {
     setAnimationsOn(getAnimationsEnabled())
@@ -93,7 +94,10 @@ export function SettingsPage() {
 
   useEffect(() => {
     getUserSettings()
-      .then((s) => setForm(toFormState(s)))
+      .then((s) => {
+        setForm(toFormState(s))
+        setExamDate(s.examDate ?? '')
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
       .finally(() => setLoading(false))
   }, [])
@@ -147,7 +151,7 @@ export function SettingsPage() {
     setError(null)
     setSaved(false)
     try {
-      await updateUserSettings(parsed)
+      await updateUserSettings({ ...parsed, examDate: examDate || null })
       setSaved(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings')
@@ -252,6 +256,25 @@ export function SettingsPage() {
                 <span className="np-small" style={{ lineHeight: 1.5 }}>
                   How many never-reviewed cards the Review tab introduces per day. High-yield (⭐) cards are
                   introduced first.
+                </span>
+              </section>
+
+              <section className="np-card np-fade" style={{ animationDelay: '.44s' }}>
+                <h2>Board exam date</h2>
+                <div className="np-field set-unit">
+                  <label htmlFor="examDate">Exam date</label>
+                  <input
+                    id="examDate"
+                    type="date"
+                    value={examDate}
+                    onChange={(e) => {
+                      setExamDate(e.target.value)
+                      setSaved(false)
+                    }}
+                  />
+                </div>
+                <span className="np-small" style={{ lineHeight: 1.5 }}>
+                  Drives the countdown and coverage forecast on the Exam Plan page.
                 </span>
               </section>
             </div>

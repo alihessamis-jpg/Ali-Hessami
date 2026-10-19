@@ -1049,5 +1049,7 @@ export interface UserSettings {
   dailyReviewLimit: number
   /** FSRS target retention (0-1), e.g. 0.9 = schedule reviews to keep ~90% recall. */
   targetRetention: number
+  /** Phase 5: the board exam date, for the exam-plan countdown. YYYY-MM-DD, or null if unset. */
+  examDate: string | null
   lastBackupAt?: string | null
 }
