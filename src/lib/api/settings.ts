@@ -22,6 +22,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   husLdhUpperLimit: 450,
   readingDailyGoal: 10,
   dailyNewCardLimit: 20,
+  dailyReviewLimit: 0,
   targetRetention: 0.9,
   lastBackupAt: null,
 }
@@ -47,6 +48,7 @@ interface UserSettingsRow {
   hus_ldh_upper_limit: number
   reading_daily_goal: number
   daily_new_card_limit: number
+  daily_review_limit: number
   target_retention: number
   last_backup_at: string | null
 }
@@ -73,6 +75,7 @@ function toDomain(row: UserSettingsRow): UserSettings {
     husLdhUpperLimit: row.hus_ldh_upper_limit,
     readingDailyGoal: row.reading_daily_goal,
     dailyNewCardLimit: row.daily_new_card_limit,
+    dailyReviewLimit: row.daily_review_limit,
     targetRetention: row.target_retention,
     lastBackupAt: row.last_backup_at,
   }
@@ -116,6 +119,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         hus_ldh_upper_limit: next.husLdhUpperLimit,
         reading_daily_goal: next.readingDailyGoal,
         daily_new_card_limit: next.dailyNewCardLimit,
+        daily_review_limit: next.dailyReviewLimit,
         target_retention: next.targetRetention,
       },
       { onConflict: 'owner_id' }

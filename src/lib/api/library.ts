@@ -283,6 +283,15 @@ export async function listLibraryChapters(bookId: string): Promise<LibraryChapte
   return (data as ChapterRow[]).map(chapterToDomain)
 }
 
+// Across every book, not just the one ensureLibraryBookSeeded() seeds --
+// the review queue can hold cards from any book, so it needs every
+// chapter to resolve a card's chapter/book label.
+export async function listAllLibraryChapters(): Promise<LibraryChapter[]> {
+  const { data, error } = await supabase.from('library_chapters').select('*').order('chapter_number')
+  if (error) throw error
+  return (data as ChapterRow[]).map(chapterToDomain)
+}
+
 export async function seedLibraryChapters(seeds: LibraryChapterSeed[]): Promise<LibraryChapter[]> {
   if (seeds.length === 0) return []
   const userId = await currentUserId()

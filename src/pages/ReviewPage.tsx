@@ -5,6 +5,8 @@ import {
   ensureLibraryBookSeeded,
   listAllLibraryCards,
   listAllLibraryChapterFigures,
+  listAllLibraryChapters,
+  listLibraryBooks,
   listReadingLog,
   updateLibraryCardFsrs,
 } from '../lib/api/library'
@@ -14,7 +16,15 @@ import { getUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { DEFAULT_REQUEST_RETENTION, fsrsPreviewAll, isCardMastered, scheduleFsrs, type FsrsPreviewMap } from '../lib/fsrs'
 import { HeroScene } from '../components/hero/HeroScene'
-import type { FsrsRating, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
+import type { FsrsRating, LibraryBook, LibraryCard, LibraryChapter, McqOptions, PatientCaseVignette } from '../types/domain'
+
+const TYPE_FILTER_OPTIONS: Array<{ kind: LibraryCard['kind']; label: string }> = [
+  { kind: 'basic', label: 'Cards' },
+  { kind: 'cloze', label: 'Cloze' },
+  { kind: 'table_cell', label: 'Tables' },
+  { kind: 'mcq', label: 'Board MCQ' },
+  { kind: 'patient_case', label: 'Patient cases' },
+]
 
 function todayStorageKey() {
   const d = new Date()
@@ -73,12 +83,16 @@ export function ReviewPage() {
 
   const [allDue, setAllDue] = useState<LibraryCard[]>([])
   const [chapters, setChapters] = useState<LibraryChapter[]>([])
+  const [books, setBooks] = useState<LibraryBook[]>([])
   const [figureUrls, setFigureUrls] = useState<Record<string, string>>({})
   const [streak, setStreak] = useState(0)
   const [targetRetention, setTargetRetention] = useState(DEFAULT_REQUEST_RETENTION)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hyOnly, setHyOnly] = useState(false)
+  const [bookFilter, setBookFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<LibraryCard['kind'] | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
 
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -92,11 +106,13 @@ export function ReviewPage() {
     Promise.all([
       listAllLibraryCards(),
       ensureLibraryBookSeeded(),
+      listAllLibraryChapters(),
+      listLibraryBooks(),
       listReadingLog(),
       getUserSettings(),
       listAllLibraryChapterFigures().catch(() => []),
     ])
-      .then(([cardRows, seeded, log, settings, figureRows]) => {
+      .then(([cardRows, , chapterRows, bookRows, log, settings, figureRows]) => {
         Promise.all(
           figureRows.map(async (f) => [f.figureKey, await getChapterFigureSignedUrl(f.storagePath).catch(() => null)] as const)
         ).then((entries) => setFigureUrls(Object.fromEntries(entries.filter((e): e is [string, string] => e[1] !== null))))
@@ -106,6 +122,7 @@ export function ReviewPage() {
 
         const dueCards = approved.filter((c) => c.reps > 0 && new Date(c.due) <= now)
         dueCards.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
+        const limitedDue = settings.dailyReviewLimit > 0 ? dueCards.slice(0, settings.dailyReviewLimit) : dueCards
 
         const introducedToday = loadIntroducedToday()
         const newPool = approved
@@ -123,8 +140,9 @@ export function ReviewPage() {
         for (const c of freshNew) nextIntroduced.add(c.id)
         saveIntroducedToday(nextIntroduced)
 
-        setAllDue([...dueCards, ...alreadyIntroduced, ...freshNew])
-        setChapters(seeded.chapters)
+        setAllDue([...limitedDue, ...alreadyIntroduced, ...freshNew])
+        setChapters(chapterRows)
+        setBooks(bookRows)
         setStreak(computeReadingStreak(log))
         setTargetRetention(settings.targetRetention)
       })
@@ -132,14 +150,25 @@ export function ReviewPage() {
       .finally(() => setLoading(false))
   }, [chapterScope])
 
-  const cards = useMemo(() => (hyOnly ? allDue.filter((c) => c.highYield) : allDue), [allDue, hyOnly])
+  const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters])
+
+  const cards = useMemo(() => {
+    let list = hyOnly ? allDue.filter((c) => c.highYield) : allDue
+    if (bookFilter) list = list.filter((c) => chapterById.get(c.chapterId)?.bookId === bookFilter)
+    if (typeFilter) list = list.filter((c) => c.kind === typeFilter)
+    return list
+  }, [allDue, hyOnly, bookFilter, typeFilter, chapterById])
   const highYieldDueCount = useMemo(() => allDue.filter((c) => c.highYield).length, [allDue])
+  const availableBooks = useMemo(() => {
+    const ids = new Set(allDue.map((c) => chapterById.get(c.chapterId)?.bookId).filter((id): id is string => !!id))
+    return books.filter((b) => ids.has(b.id))
+  }, [allDue, chapterById, books])
+  const availableKinds = useMemo(() => new Set(allDue.map((c) => c.kind)), [allDue])
 
   useEffect(() => {
     setIndex(0)
-  }, [hyOnly])
+  }, [hyOnly, bookFilter, typeFilter])
 
-  const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters])
   const current = cards[index]
   const preview: FsrsPreviewMap | null = current ? fsrsPreviewAll(current, new Date(), targetRetention) : null
 
@@ -205,10 +234,20 @@ export function ReviewPage() {
           </div>
           <div className="np-card np-fade">
             <p className="empty-state">
-              {hyOnly ? 'No high-yield cards due right now.' : 'Nothing due right now — nice work.'}
+              {hyOnly || bookFilter || typeFilter
+                ? 'No cards match this filter right now.'
+                : 'Nothing due right now — nice work.'}
             </p>
-            {hyOnly && allDue.length > 0 ? (
-              <button type="button" className="np-btn ghost" onClick={() => setHyOnly(false)}>
+            {(hyOnly || bookFilter || typeFilter) && allDue.length > 0 ? (
+              <button
+                type="button"
+                className="np-btn ghost"
+                onClick={() => {
+                  setHyOnly(false)
+                  setBookFilter(null)
+                  setTypeFilter(null)
+                }}
+              >
                 Show all due cards ({allDue.length})
               </button>
             ) : (
@@ -314,6 +353,7 @@ export function ReviewPage() {
   const chapter = chapterById.get(current.chapterId)
   const style = TYPE_STYLE[current.kind]
   const [before, after] = current.kind === 'cloze' ? clozeParts(current.front) : ['', '']
+  const activeFilterCount = (bookFilter ? 1 : 0) + (typeFilter ? 1 : 0)
 
   return (
     <div className="np-page">
@@ -328,6 +368,21 @@ export function ReviewPage() {
           <span className="rcount">
             {index + 1} / {cards.length}
           </span>
+          <button
+            type="button"
+            className="np-pill"
+            style={{
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              color: activeFilterCount > 0 ? '#93590B' : '#5B6B82',
+              background: activeFilterCount > 0 ? '#FDF0D5' : 'rgba(255,255,255,.12)',
+            }}
+            onClick={() => setFilterOpen(true)}
+            title="Filter by book or type"
+          >
+            ⚙︎ Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
           {highYieldDueCount > 0 && (
             <button
               type="button"
@@ -346,6 +401,73 @@ export function ReviewPage() {
             </button>
           )}
         </div>
+
+        <AnimatePresence>
+          {filterOpen && (
+            <>
+              <motion.div
+                className="more-sheet-backdrop"
+                onClick={() => setFilterOpen(false)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              />
+              <motion.div
+                className="more-sheet"
+                role="dialog"
+                aria-label="Filter review queue"
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+              >
+                <div className="more-sheet-handle" />
+                {availableBooks.length > 1 && (
+                  <>
+                    <h2 className="more-sheet-group-heading">Book</h2>
+                    <div className="chapter-parts">
+                      <button type="button" className={bookFilter === null ? 'on' : ''} onClick={() => setBookFilter(null)}>
+                        All books
+                      </button>
+                      {availableBooks.map((b) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          className={bookFilter === b.id ? 'on' : ''}
+                          onClick={() => setBookFilter(b.id)}
+                        >
+                          {b.title}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <h2 className="more-sheet-group-heading">Type</h2>
+                <div className="chapter-parts">
+                  <button type="button" className={typeFilter === null ? 'on' : ''} onClick={() => setTypeFilter(null)}>
+                    All types
+                  </button>
+                  {TYPE_FILTER_OPTIONS.filter((t) => availableKinds.has(t.kind)).map((t) => (
+                    <button
+                      key={t.kind}
+                      type="button"
+                      className={typeFilter === t.kind ? 'on' : ''}
+                      onClick={() => setTypeFilter(t.kind)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="more-sheet-footer">
+                  <button type="button" className="np-btn" onClick={() => setFilterOpen(false)}>
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <div className="stage">
           <AnimatePresence mode="wait" initial={false}>

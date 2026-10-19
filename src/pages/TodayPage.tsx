@@ -7,6 +7,7 @@ import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
 import { listAllLibraryCards, listReadingLog } from '../lib/api/library'
 import { listReadingItems, setReadingItemCheckpoint, updateReadingItemSrs } from '../lib/api/readingItems'
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
+import { estimateReviewMinutes, selectDueLibraryCards, selectNewLibraryCardPool } from '../lib/reviewQueue'
 import { getUserSettings } from '../lib/api/settings'
 import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
@@ -124,6 +125,8 @@ export function TodayPage() {
   const [libraryCards, setLibraryCards] = useState<LibraryCard[]>([])
   const [todayPages, setTodayPages] = useState(0)
   const [pagesGoal, setPagesGoal] = useState(20)
+  const [dailyNewCardLimit, setDailyNewCardLimit] = useState(20)
+  const [dailyReviewLimit, setDailyReviewLimit] = useState(0)
 
   useEffect(() => {
     if (!session) return
@@ -148,6 +151,8 @@ export function TodayPage() {
         const todayStr = new Date().toISOString().slice(0, 10)
         setTodayPages(log.find((l) => l.logDate === todayStr)?.pagesRead ?? 0)
         setPagesGoal(settings.readingDailyGoal)
+        setDailyNewCardLimit(settings.dailyNewCardLimit)
+        setDailyReviewLimit(settings.dailyReviewLimit)
       })
       .catch((err) => setError(`Failed to load today's review — ${describeError(err)}`))
       .finally(() => setLoading(false))
@@ -166,9 +171,18 @@ export function TodayPage() {
     () => academyCards.filter((c) => !c.nextReview || c.nextReview <= today),
     [academyCards, today]
   )
-  const dueLibraryCards = useMemo(
-    () => libraryCards.filter((c) => c.status === 'approved' && c.reps > 0 && new Date(c.due).getTime() <= Date.now()),
-    [libraryCards]
+  const dueLibraryCards = useMemo(() => selectDueLibraryCards(libraryCards), [libraryCards])
+  const dueLibraryCardsCapped = useMemo(
+    () => (dailyReviewLimit > 0 ? dueLibraryCards.slice(0, dailyReviewLimit) : dueLibraryCards),
+    [dueLibraryCards, dailyReviewLimit]
+  )
+  const newLibraryCardCount = useMemo(
+    () => Math.min(selectNewLibraryCardPool(libraryCards).length, dailyNewCardLimit),
+    [libraryCards, dailyNewCardLimit]
+  )
+  const libraryReviewMinutes = useMemo(
+    () => estimateReviewMinutes(dueLibraryCardsCapped.length, newLibraryCardCount),
+    [dueLibraryCardsCapped, newLibraryCardCount]
   )
 
   const currentFlashcard = dueFlashcards[flashcardIndex % Math.max(dueFlashcards.length, 1)]
@@ -181,7 +195,7 @@ export function TodayPage() {
     dueLeitnerItems.length +
     dueCheckpoints.length +
     dueAcademyCards.length +
-    dueLibraryCards.length
+    dueLibraryCardsCapped.length
 
   async function handleRateFlashcard(rating: Rating) {
     if (!currentFlashcard) return
@@ -388,7 +402,7 @@ export function TodayPage() {
             </div>
           )}
 
-          {(dueLibraryCards.length > 0 || todayPages > 0) && (
+          {(dueLibraryCardsCapped.length > 0 || newLibraryCardCount > 0 || todayPages > 0) && (
             <div className="np-card np-fade" style={{ animationDelay: '0.36s' }}>
               <div className="np-head">
                 <div className="np-head-l">
@@ -398,13 +412,13 @@ export function TodayPage() {
                   <h2>Academy</h2>
                 </div>
                 <span className="np-pill" style={{ color: '#5131B5', background: '#ECE6FD' }}>
-                  {dueLibraryCards.length}
+                  {dueLibraryCardsCapped.length}
                 </span>
               </div>
               <div className="td-row">
                 <span className="td-dot" />
-                <b>{dueLibraryCards.length} book cards due</b>
-                <span className="np-small">FSRS review</span>
+                <b>{dueLibraryCardsCapped.length} due · {newLibraryCardCount} new</b>
+                <span className="np-small">~{libraryReviewMinutes} min</span>
               </div>
               <div className="td-row">
                 <span className="td-dot" style={{ background: '#0B6670' }} />
@@ -413,7 +427,7 @@ export function TodayPage() {
                 </b>
               </div>
               <Link to="/academy/review" className="td-outline">
-                {dueLibraryCards.length > 0 ? 'Review due cards' : 'Keep reading'}
+                {dueLibraryCardsCapped.length > 0 || newLibraryCardCount > 0 ? 'Review due cards' : 'Keep reading'}
               </Link>
             </div>
           )}

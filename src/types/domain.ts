@@ -1019,6 +1019,8 @@ export interface UserSettings {
   husLdhUpperLimit: number
   readingDailyGoal: number
   dailyNewCardLimit: number
+  /** Max due cards per review session; 0 = unlimited. */
+  dailyReviewLimit: number
   /** FSRS target retention (0-1), e.g. 0.9 = schedule reviews to keep ~90% recall. */
   targetRetention: number
   lastBackupAt?: string | null

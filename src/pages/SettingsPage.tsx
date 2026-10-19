@@ -20,6 +20,7 @@ interface FieldConfig {
   unit?: string
   min?: string
   max?: string
+  allowZero?: boolean
 }
 
 const ANEMIA_FIELDS: FieldConfig[] = [{ key: 'anemiaHbThreshold', label: 'Hemoglobin below', step: '0.1', unit: 'g/dL' }]
@@ -56,6 +57,7 @@ const HUS_FIELDS: FieldConfig[] = [{ key: 'husLdhUpperLimit', label: 'LDH upper 
 
 const ACADEMY_FIELDS: FieldConfig[] = [
   { key: 'dailyNewCardLimit', label: 'New cards per day', step: '1', unit: 'cards' },
+  { key: 'dailyReviewLimit', label: 'Reviews per day (0 = unlimited)', step: '1', unit: 'cards', allowZero: true },
   {
     key: 'targetRetention',
     label: 'Target retention (FSRS) — higher means more frequent reviews',
@@ -129,7 +131,11 @@ export function SettingsPage() {
   async function handleSave(e: FormEvent) {
     e.preventDefault()
     const parsed = Object.fromEntries(ALL_FIELDS.map((f) => [f.key, Number(form[f.key])])) as unknown as UserSettings
-    if (Object.values(parsed).some((v) => Number.isNaN(v) || v <= 0)) {
+    const invalid = ALL_FIELDS.some((f) => {
+      const v = parsed[f.key] as number
+      return Number.isNaN(v) || (f.allowZero ? v < 0 : v <= 0)
+    })
+    if (invalid) {
       setError('Enter valid numbers above 0')
       return
     }
