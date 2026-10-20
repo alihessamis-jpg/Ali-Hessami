@@ -8283,7 +8283,12 @@ select.pt-ward:focus {
   .chapter-parts {
     grid-area: parts;
   }
-  .stack {
+  /* Scoped to .rd -- .stack is also LibraryPage's (unrelated) chapter-list
+     column inside .lib's own grid, which has no "content" named area, so an
+     unscoped rule here stranded it in an implicit grid track at this same
+     breakpoint and wrecked the whole .lib layout (every "Today's plan" row
+     collapsing to one character per line). */
+  .rd .stack {
     grid-area: content;
     min-width: 0;
   }
