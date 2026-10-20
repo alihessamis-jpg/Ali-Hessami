@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  addLibraryChapterFigure,
   ensureLibraryBookSeeded,
   listAllLibraryCards,
   listAllLibraryChapterFigures,
   listAllLibraryChapters,
   listLibraryBooks,
   listReadingLog,
+  setLibraryCardFigure,
   updateLibraryCardFsrs,
 } from '../lib/api/library'
 import { getChapterFigureSignedUrl } from '../lib/storage'
@@ -135,6 +137,7 @@ export function ReviewPage() {
   const [mockSecondsLeft, setMockSecondsLeft] = useState<number | null>(null)
   const [scenarioStep, setScenarioStep] = useState(0)
   const [scenarioStepAnswerShown, setScenarioStepAnswerShown] = useState(false)
+  const [attachingFigure, setAttachingFigure] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -305,6 +308,25 @@ export function ReviewPage() {
     setScenarioStep(0)
     setScenarioStepAnswerShown(false)
     setIndex((i) => i + 1)
+  }
+
+  // Lets a card missing its figure (e.g. a board-MCQ whose source options
+  // were images) get one attached from inside the review session, reusing
+  // the same chapter-figures upload the Reader uses for book figures.
+  async function handleAttachFigure(card: LibraryCard, chapterNumber: number, file: File) {
+    const figureKey = card.boardQuestionId ? `board-q-${card.boardQuestionId}` : `card-${card.id}`
+    setAttachingFigure(true)
+    try {
+      const figure = await addLibraryChapterFigure(card.chapterId, chapterNumber, figureKey, null, file)
+      await setLibraryCardFigure(card.id, figureKey)
+      const url = await getChapterFigureSignedUrl(figure.storagePath).catch(() => null)
+      if (url) setFigureUrls((prev) => ({ ...prev, [figureKey]: url }))
+      setAllDue((prev) => prev.map((c) => (c.id === card.id ? { ...c, figureKey } : c)))
+    } catch {
+      // best-effort -- the attach button stays visible so the user can retry
+    } finally {
+      setAttachingFigure(false)
+    }
   }
 
   // Clinical scenarios reveal their steps one at a time; once the last
@@ -641,6 +663,24 @@ export function ReviewPage() {
                   <p className="q" dir="rtl">
                     {isolateLatinRuns(current.front)}
                   </p>
+                  {current.figureKey && figureUrls[current.figureKey] && (
+                    <img className="cardfig" src={figureUrls[current.figureKey]} alt="" />
+                  )}
+                  {!current.figureKey && chapter && (
+                    <label className="attach-fig">
+                      {attachingFigure ? 'در حال آپلود...' : 'افزودن تصویر سوال'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={attachingFigure}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          e.target.value = ''
+                          if (file) void handleAttachFigure(current, chapter.chapterNumber, file)
+                        }}
+                      />
+                    </label>
+                  )}
                   <div className="opts" dir="rtl">
                     {current.options.choices.map((choice, i) => {
                       const cls =

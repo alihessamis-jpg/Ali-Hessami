@@ -8481,6 +8481,25 @@ select.pt-ward:focus {
   border-radius: 14px;
   border: 1px solid #e1e8f3;
   display: block;
+  margin-bottom: 14px;
+}
+
+/* Shown on a board-MCQ card whose original options were images, until one
+   is attached -- reuses the same chapter-figures upload as the Reader. */
+.attach-fig {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  margin-bottom: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.attach-fig input {
+  display: none;
 }
 
 .reveal {

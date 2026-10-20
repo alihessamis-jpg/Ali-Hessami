@@ -505,6 +505,13 @@ export async function approveLibraryCard(id: string): Promise<LibraryCard> {
   return cardToDomain(data as CardRow)
 }
 
+// Links a library card (board-MCQ or otherwise) to a figure already uploaded
+// via addLibraryChapterFigure, so ReviewPage can show it with the card.
+export async function setLibraryCardFigure(id: string, figureKey: string): Promise<void> {
+  const { error } = await supabase.from('library_cards').update({ figure_key: figureKey }).eq('id', id)
+  if (error) throw error
+}
+
 export async function approveLibraryCards(ids: string[]): Promise<void> {
   if (ids.length === 0) return
   const { error } = await supabase.from('library_cards').update({ status: 'approved' }).in('id', ids)
