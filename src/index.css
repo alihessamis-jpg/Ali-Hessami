@@ -8104,6 +8104,25 @@ select.pt-ward:focus {
   flex-shrink: 0;
 }
 
+/* .opt is shared between a dark card (.qc, in ReaderPage's Quick Check)
+   and the light review card (.face, in ReviewPage's board MCQs). The base
+   style above (white text) suits .qc; this override gives .face's copy
+   dark text on a light chip so it's legible on the white card. */
+.face .opt {
+  border-color: var(--border);
+  background: #f5f8fe;
+  color: #1b2a44;
+}
+
+.face .opt:hover {
+  background: #eaf0fc;
+}
+
+.face .opt .k {
+  background: #e3ebf7;
+  color: #1b2a44;
+}
+
 .opt.right {
   background: #ddf3e6;
   border-color: #9ed9b6;
