@@ -35,6 +35,10 @@ const COVERS: Record<string, BookCoverEntry> = {
     cover: '/book-covers/nelson-textbook-of-pediatrics.webp',
     fallbackTheme: { bg: '#0d2e1f', accent: '#4ade80', dot: '#9af0bd' },
   },
+  'Clinical Physiology of Acid-Base and Electrolyte Disorders': {
+    cover: '/book-covers/clinical-physiology-of-acid-base-and-electrolyte-disorders.webp',
+    fallbackTheme: { bg: '#140b2e', accent: '#f2b84c', dot: '#e8536d' },
+  },
 }
 
 const DEFAULT_THEME: BookTheme = { bg: '#0b1f44', accent: '#5b9dff', dot: '#ff6b6b' }
