@@ -1950,6 +1950,73 @@ legend {
   background: #7a2432;
 }
 
+/* Multi-line calculator result -- used by the dialysis-adequacy and ADTKD
+   calculators, whose formulas return several related numbers at once
+   (e.g. spKt/V plus URR, or peritoneal/renal/total clearance) rather than
+   the single value calc-result-tile is built for. */
+.calc-result-rows {
+  position: relative;
+  overflow: hidden;
+  margin-top: auto;
+  border-radius: 18px;
+  background: #0a2352;
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calc-result-rows--warning {
+  background: #7a2432;
+}
+
+.calc-result-rows .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12.5px;
+  color: #c9daf8;
+}
+
+.calc-result-rows .row b {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.calc-result-rows .row-note {
+  font-size: 11.5px;
+  color: #a9c6ff;
+}
+
+.calc-checklist {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.calc-checklist label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #30405c;
+}
+
+.calc-checklist input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 /* ---- Labs: AKI status banner ---- */
 
 .aki-banner {
