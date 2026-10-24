@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { OfflineAccessCard } from '../components/OfflineAccessCard'
 import { useNavigate } from 'react-router-dom'
 import { DEFAULT_USER_SETTINGS, getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { getAnimationsEnabled, setAnimationsEnabled } from '../lib/animationsPreference'
@@ -287,6 +288,8 @@ export function SettingsPage() {
           </button>
         </form>
       )}
+
+      <OfflineAccessCard />
 
       <section className="np-card np-fade" style={{ animationDelay: '.4s', padding: '6px 16px', gap: 0 }}>
         <button type="button" className="set-sw" role="switch" aria-checked={animationsOn} onClick={toggleAnimations}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { getPatient, markPatientExpired } from '../lib/api/patients'
 import { formatAge } from '../lib/patientAge'
@@ -102,6 +102,10 @@ function findTab(id: Tab) {
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
+  // Set by the offline-download crawler (lib/offlinePrep.ts): mount every
+  // tab at once, hidden, so all of this patient's data gets saved offline.
+  const [searchParams] = useSearchParams()
+  const offlinePrep = searchParams.get('offlinePrep') === '1'
   const [patient, setPatient] = useState<Patient | null>(null)
   const [growthEntries, setGrowthEntries] = useState<GrowthEntry[]>([])
   const [labEntries, setLabEntries] = useState<LabEntry[]>([])
@@ -171,6 +175,49 @@ export function PatientDetailPage() {
       setExpireError(err instanceof Error ? err.message : 'Failed to mark as expired')
     } finally {
       setExpiring(false)
+    }
+  }
+
+  function renderTab(t: Tab) {
+    const pid = id as string
+    const p = patient as Patient
+    switch (t) {
+      case 'overview':
+        return <OverviewTab patientId={pid} patient={p} labEntries={labEntries} onNavigate={navigateTo} />
+      case 'timeline':
+        return <TimelineTab patientId={pid} />
+      case 'assessment':
+        return <AssessmentTab patient={p} onUpdated={setPatient} />
+      case 'labs':
+        return <LabsTab patientId={pid} patient={p} />
+      case 'growth':
+        return <GrowthTab patientId={pid} patient={p} onPatientUpdated={setPatient} />
+      case 'trends':
+        return <TrendsTab patientId={pid} />
+      case 'notes':
+        return <NotesTab patientId={pid} onPatientUpdated={setPatient} />
+      case 'medications':
+        return <MedicationsTab patientId={pid} />
+      case 'imaging':
+        return <ImagingTab patientId={pid} />
+      case 'urineOutput':
+        return <UrineOutputTab patientId={pid} patient={p} />
+      case 'dialysis':
+        return <DialysisTab patientId={pid} patient={p} onPatientUpdated={setPatient} />
+      case 'vaccinations':
+        return <VaccinationTab patientId={pid} patient={p} />
+      case 'lusStudy':
+        return <LusStudyTab patientId={pid} patient={p} />
+      case 'nephroticSyndrome':
+        return <NephroticSyndromeTab patientId={pid} />
+      case 'followUp':
+        return <FollowUpTab patientId={pid} patient={p} />
+      case 'reminders':
+        return <RemindersTab patientId={pid} />
+      case 'document':
+        return <DocumentTab patientId={pid} />
+      default:
+        return null
     }
   }
 
@@ -438,25 +485,16 @@ export function PatientDetailPage() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
           >
-            {tab === 'overview' && <OverviewTab patientId={id} patient={patient} labEntries={labEntries} onNavigate={navigateTo} />}
-            {tab === 'timeline' && <TimelineTab patientId={id} />}
-            {tab === 'assessment' && <AssessmentTab patient={patient} onUpdated={setPatient} />}
-            {tab === 'labs' && <LabsTab patientId={id} patient={patient} />}
-            {tab === 'growth' && <GrowthTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
-            {tab === 'trends' && <TrendsTab patientId={id} />}
-            {tab === 'notes' && <NotesTab patientId={id} onPatientUpdated={setPatient} />}
-            {tab === 'medications' && <MedicationsTab patientId={id} />}
-            {tab === 'imaging' && <ImagingTab patientId={id} />}
-            {tab === 'urineOutput' && <UrineOutputTab patientId={id} patient={patient} />}
-            {tab === 'dialysis' && <DialysisTab patientId={id} patient={patient} onPatientUpdated={setPatient} />}
-            {tab === 'vaccinations' && <VaccinationTab patientId={id} patient={patient} />}
-            {tab === 'lusStudy' && <LusStudyTab patientId={id} patient={patient} />}
-            {tab === 'nephroticSyndrome' && <NephroticSyndromeTab patientId={id} />}
-            {tab === 'followUp' && <FollowUpTab patientId={id} patient={patient} />}
-            {tab === 'reminders' && <RemindersTab patientId={id} />}
-            {tab === 'document' && <DocumentTab patientId={id} />}
+            {renderTab(tab)}
           </motion.div>
         </AnimatePresence>
+        {offlinePrep && (
+          <div hidden aria-hidden="true">
+            {TABS.filter((t) => t.id !== tab).map((t) => (
+              <div key={t.id}>{renderTab(t.id)}</div>
+            ))}
+          </div>
+        )}
       </div>
 
       <button type="button" className={fabHidden ? 'pc-fab pc-fab--hidden' : 'pc-fab'} onClick={() => setAddOpen(true)}>
