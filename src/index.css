@@ -8823,3 +8823,87 @@ html.force-reduced-motion .login-flow,
 html.force-reduced-motion .pc-ecg-line {
   animation: none !important;
 }
+
+/* ---- Offline mode (OfflineFileViewer, Settings → Offline access) ---- */
+.offline-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 1200;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  box-shadow: var(--shadow-md);
+}
+.offline-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 22, 40, 0.92);
+  padding-top: env(safe-area-inset-top);
+}
+.offline-viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+}
+.offline-viewer-bar .np-btn {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.offline-viewer-name {
+  flex: 1;
+  min-width: 0;
+  color: #fff;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.offline-viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.offline-viewer-body img,
+.offline-viewer-body video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.offline-viewer-body iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+}
+.offline-sync-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+.offline-sync-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width var(--dur) var(--ease-out);
+}

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { offlineAwareFetch } from './offlineFetch'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -9,4 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Every request goes through offlineAwareFetch so the whole app keeps
+// working (read-only) without internet -- see offlineFetch.ts.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: offlineAwareFetch },
+})
