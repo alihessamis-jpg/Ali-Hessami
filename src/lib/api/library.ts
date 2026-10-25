@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import bookContents from '../../data/bookContents.json'
 import { parseChapterNoteForImport } from '../chapterImport'
 import { uploadChapterFigureFile } from '../storage'
@@ -236,7 +237,7 @@ function highlightToDomain(row: HighlightRow): LibraryHighlight {
 async function currentUserId(): Promise<string> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   return user.id
 }

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { Flashcard, FlashcardDraft, SrsState } from '../../types/domain'
 
 interface FlashcardRow {
@@ -34,7 +35,7 @@ export async function listFlashcards(): Promise<Flashcard[]> {
 export async function addFlashcard(draft: FlashcardDraft): Promise<Flashcard> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('flashcards')

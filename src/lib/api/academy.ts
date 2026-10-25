@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { AcademyProgress, AcademyTopic, AcademyTopicDraft, SrsState, StudyLink } from '../../types/domain'
 
 interface TopicRow {
@@ -97,7 +98,7 @@ export async function listAcademyTopics(): Promise<AcademyTopic[]> {
 export async function addAcademyTopic(draft: AcademyTopicDraft): Promise<AcademyTopic> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('academy_topics')

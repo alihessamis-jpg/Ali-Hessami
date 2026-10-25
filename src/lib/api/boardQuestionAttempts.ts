@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { BoardQuestionAttempt, BoardQuestionAttemptDraft } from '../../types/domain'
 
 interface BoardQuestionAttemptRow {
@@ -31,7 +32,7 @@ export async function listBoardQuestionAttempts(): Promise<BoardQuestionAttempt[
 export async function addBoardQuestionAttempt(draft: BoardQuestionAttemptDraft): Promise<BoardQuestionAttempt> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('board_question_attempts')

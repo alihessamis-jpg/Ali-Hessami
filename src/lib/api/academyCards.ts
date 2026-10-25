@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { AcademyCard, AcademyCardDraft, SrsState } from '../../types/domain'
 
 interface AcademyCardRow {
@@ -52,7 +53,7 @@ export async function listAllAcademyCards(): Promise<AcademyCard[]> {
 export async function addAcademyCard(draft: AcademyCardDraft): Promise<AcademyCard> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('academy_cards')
@@ -75,7 +76,7 @@ export async function addAcademyCards(drafts: AcademyCardDraft[]): Promise<Acade
   if (drafts.length === 0) return []
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('academy_cards')

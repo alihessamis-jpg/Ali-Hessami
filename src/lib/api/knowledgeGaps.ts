@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { KnowledgeGap, KnowledgeGapDraft } from '../../types/domain'
 
 interface KnowledgeGapRow {
@@ -32,7 +33,7 @@ export async function listKnowledgeGaps(): Promise<KnowledgeGap[]> {
 export async function addKnowledgeGap(draft: KnowledgeGapDraft): Promise<KnowledgeGap> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('knowledge_gaps')

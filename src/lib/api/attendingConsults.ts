@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { AttendingConsult, AttendingConsultDraft, ConsultSetting } from '../../types/domain'
 
 interface AttendingConsultRow {
@@ -55,7 +56,7 @@ export async function getAttendingConsult(id: string): Promise<AttendingConsult>
 export async function addAttendingConsult(draft: AttendingConsultDraft): Promise<AttendingConsult> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('attending_consults')

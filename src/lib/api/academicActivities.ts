@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { AcademicActivity, AcademicActivityDraft } from '../../types/domain'
 
 interface AcademicActivityRow {
@@ -34,7 +35,7 @@ export async function listAcademicActivities(): Promise<AcademicActivity[]> {
 export async function addAcademicActivity(draft: AcademicActivityDraft): Promise<AcademicActivity> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('academic_activities')

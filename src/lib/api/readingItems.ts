@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { ReadingItem, ReadingItemDraft, ReadingItemFromQuestionDraft, ReviewCheckpointKey, SrsState } from '../../types/domain'
 
 interface ReadingItemRow {
@@ -58,7 +59,7 @@ export async function listReadingItems(): Promise<ReadingItem[]> {
 export async function addReadingItem(draft: ReadingItemDraft): Promise<ReadingItem> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('reading_items')
@@ -128,7 +129,7 @@ export async function deleteReadingItem(id: string): Promise<void> {
 export async function addReadingItemFromQuestion(draft: ReadingItemFromQuestionDraft): Promise<ReadingItem> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('reading_items')

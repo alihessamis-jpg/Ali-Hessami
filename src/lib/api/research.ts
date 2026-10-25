@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type {
   ResearchField,
   ResearchFieldDraft,
@@ -109,7 +110,7 @@ export async function getResearchProject(id: string): Promise<ResearchProject> {
 export async function addResearchProject(draft: ResearchProjectDraft): Promise<ResearchProject> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('research_projects')

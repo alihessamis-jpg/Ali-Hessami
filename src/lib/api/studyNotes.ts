@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { StudyNote, StudyNoteDraft } from '../../types/domain'
 
 interface StudyNoteRow {
@@ -23,7 +24,7 @@ export async function listStudyNotes(): Promise<StudyNote[]> {
 export async function addStudyNote(draft: StudyNoteDraft): Promise<StudyNote> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('study_notes')

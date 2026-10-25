@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { ReasoningCase, ReasoningCaseDraft } from '../../types/domain'
 
 interface ReasoningCaseRow {
@@ -42,7 +43,7 @@ export async function listReasoningCases(): Promise<ReasoningCase[]> {
 export async function addReasoningCase(draft: ReasoningCaseDraft): Promise<ReasoningCase> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('reasoning_cases')

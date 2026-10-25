@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { DialysisRefEntry, DialysisRefEntryDraft } from '../../types/domain'
 
 interface DialysisRefRow {
@@ -46,7 +47,7 @@ export async function listDialysisReference(): Promise<DialysisRefEntry[]> {
 export async function addDialysisReference(draft: DialysisRefEntryDraft): Promise<DialysisRefEntry> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('dialysis_reference')

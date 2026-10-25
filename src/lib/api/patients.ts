@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { Patient, PatientCareStatus, PatientDraft } from '../../types/domain'
 
 interface PatientRow {
@@ -175,7 +176,7 @@ export async function getPatient(id: string): Promise<Patient> {
 export async function createPatient(draft: PatientDraft): Promise<Patient> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase

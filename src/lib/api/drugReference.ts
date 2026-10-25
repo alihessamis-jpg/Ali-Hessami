@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { DrugRefEntry, DrugRefEntryDraft } from '../../types/domain'
 
 interface DrugRefRow {
@@ -55,7 +56,7 @@ export async function listDrugReference(): Promise<DrugRefEntry[]> {
 export async function addDrugReference(draft: DrugRefEntryDraft): Promise<DrugRefEntry> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('drug_reference')

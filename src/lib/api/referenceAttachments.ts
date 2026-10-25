@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { ReferenceAttachment, ReferenceAttachmentCategory } from '../../types/domain'
 
 interface ReferenceAttachmentRow {
@@ -39,7 +40,7 @@ export async function addReferenceAttachment(
 ): Promise<ReferenceAttachment> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('reference_attachments')

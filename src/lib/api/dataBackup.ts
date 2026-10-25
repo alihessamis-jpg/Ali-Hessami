@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 
 // Every table in the schema, in an order that's safe to restore in
 // top-to-bottom: a table only appears after every table it has a foreign
@@ -120,7 +121,7 @@ export interface RestoreResult {
 export async function restoreFromBackup(bundle: BackupBundle): Promise<RestoreResult[]> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const results: RestoreResult[] = []

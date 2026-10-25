@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { CaseLogEntry, CaseLogEntryDraft } from '../../types/domain'
 
 interface CaseLogRow {
@@ -45,7 +46,7 @@ export async function listCaseLogEntries(): Promise<CaseLogEntryWithPatient[]> {
 export async function addCaseLogEntry(draft: CaseLogEntryDraft): Promise<CaseLogEntryWithPatient> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   const { data, error } = await supabase

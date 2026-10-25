@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { ChecklistItem, ChecklistTemplate, ChecklistTemplateDraft } from '../../types/domain'
 
 interface TemplateRow {
@@ -32,7 +33,7 @@ export async function listChecklistTemplates(): Promise<ChecklistTemplate[]> {
 export async function addChecklistTemplate(draft: ChecklistTemplateDraft): Promise<ChecklistTemplate> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('checklist_templates')

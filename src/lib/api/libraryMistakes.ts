@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { LibraryCardMistake, MistakeReason } from '../../types/domain'
 
 interface LibraryCardMistakeRow {
@@ -28,7 +29,7 @@ export async function listLibraryCardMistakes(): Promise<LibraryCardMistake[]> {
 export async function addLibraryCardMistake(cardId: string, chapterId: string, reason: MistakeReason): Promise<LibraryCardMistake> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('library_card_mistakes')

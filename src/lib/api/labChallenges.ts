@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { LabChallenge, LabChallengeDraft } from '../../types/domain'
 
 interface LabChallengeRow {
@@ -28,7 +29,7 @@ export async function listLabChallenges(): Promise<LabChallenge[]> {
 export async function addLabChallenge(draft: LabChallengeDraft): Promise<LabChallenge> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('lab_challenges')

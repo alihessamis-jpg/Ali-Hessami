@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { BoardQuestion, BoardQuestionDraft, BoardQuestionMatchItem, BoardQuestionMatchPair } from '../../types/domain'
 
 interface BoardQuestionRow {
@@ -141,7 +142,7 @@ export async function rejectBoardQuestionSuggestion(id: string): Promise<void> {
 export async function addBoardQuestion(draft: BoardQuestionDraft): Promise<BoardQuestion> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('board_questions')
@@ -176,7 +177,7 @@ export async function importBoardQuestions(drafts: BoardQuestionDraft[]): Promis
   if (drafts.length === 0) return { imported: 0 }
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
 
   // Not a plain supabase-js .upsert(): the owner_id+import_key unique index

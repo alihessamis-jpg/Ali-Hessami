@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAuthUser } from './authUser'
 import type { UserSettings } from '../../types/domain'
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
@@ -93,7 +94,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const current = await getUserSettings()
   const next = { ...current, ...patch }
@@ -140,7 +141,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
 export async function markBackupTaken(): Promise<void> {
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getAuthUser()
   if (!user) throw new Error('Not authenticated')
   const { error } = await supabase
     .from('user_settings')
