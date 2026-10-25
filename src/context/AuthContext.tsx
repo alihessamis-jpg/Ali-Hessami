@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { clearOfflineHttpCache } from '../lib/offlineFetch'
+import { listOutbox, syncOutbox } from '../lib/offlineOutbox'
 
 // Offline, Supabase can't refresh an expired access token, so getSession()
 // reports no session even though this device is still signed in (the
@@ -73,6 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Don't lose notes/labs that were saved offline and haven't synced yet.
+    await syncOutbox()
+    const unsynced = (await listOutbox()).length
+    if (unsynced > 0) {
+      // every sign-out button calls this without handling errors, so tell
+      // the user directly instead of throwing
+      window.alert(
+        `${unsynced} change${unsynced === 1 ? '' : 's'} made offline ha${unsynced === 1 ? 's' : 've'}n't synced yet. Connect to the internet (or review them in Settings → Offline access) before signing out.`
+      )
+      return
+    }
     // Offline the server can't be told; still sign out on this device.
     const { error } = await supabase.auth.signOut(navigator.onLine ? undefined : { scope: 'local' })
     if (error) throw error

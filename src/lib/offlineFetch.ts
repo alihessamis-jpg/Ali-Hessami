@@ -172,7 +172,7 @@ function offlineError(message: string, status = 503): Response {
 }
 
 export const OFFLINE_WRITE_MESSAGE =
-  "You're offline — this change wasn't saved. Reconnect and try again (everything you can see is still readable offline)."
+  "You're offline — this change wasn't saved. Progress notes and lab results can be added offline (they sync automatically); other changes need a connection."
 const OFFLINE_MISSING_MESSAGE =
   "You're offline and this wasn't saved on this device yet. Open it once while online, or use Settings → Download everything for offline."
 
@@ -194,7 +194,14 @@ export async function offlineAwareFetch(input: RequestInfo | URL, init?: Request
 
   if (kind === 'write') {
     if (isOffline()) return offlineError(OFFLINE_WRITE_MESSAGE)
-    return tracked(() => fetch(input, init))
+    try {
+      return await tracked(() => fetch(input, init))
+    } catch (err) {
+      // connection dropped mid-request (weak hospital Wi-Fi): report it as
+      // offline so notes/labs get queued instead of lost
+      if (err instanceof TypeError) return offlineError(OFFLINE_WRITE_MESSAGE)
+      throw err
+    }
   }
 
   // read: network-first, falling back to (or racing a slow network with) the cache
