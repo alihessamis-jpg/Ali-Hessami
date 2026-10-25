@@ -7,14 +7,60 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Only the app shell (JS/CSS/fonts/the one local image) is
-      // precached here -- Supabase API/storage calls are left alone so
-      // the app's own offline cache (src/lib/offlineCache.ts) decides what
-      // Academy data to serve when there's no network, instead of the
-      // service worker silently freezing stale API responses.
+      // The app shell is precached so Nephron opens with no network. Supabase
+      // API data is NOT cached here -- src/lib/offlineFetch.ts does that
+      // network-first in IndexedDB, so online you always get fresh data.
+      // Stored files (images/PDFs) and fonts are cached at runtime below.
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,ico,webp,woff2,json}'],
         navigateFallback: '/index.html',
+        // the three.js / charts bundles are bigger than workbox's 2 MB
+        // default -- without this they'd be skipped and the app couldn't
+        // start offline
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+        runtimeCaching: [
+          // Google Fonts (Plus Jakarta Sans / Vazirmatn) so text looks the same offline
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-css' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          // Stored files (imaging, PDFs, chapter figures, attachments), opened
+          // through short-lived signed URLs. The token is stripped from the
+          // cache key so the saved copy is found again offline even though
+          // every signed URL is different. Paths are unique per upload, so a
+          // saved file never goes stale.
+          {
+            urlPattern: /^https:\/\/[^/]+\/storage\/v1\/object\/(sign|public)\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'nephron-files',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 3000, purgeOnQuotaError: true },
+              plugins: [
+                {
+                  // <img>/<a> loads are "no-cors" and would be stored as
+                  // opaque responses, which can't be read back by fetch()
+                  // (the offline viewer) and bloat storage. Supabase Storage
+                  // sends CORS headers, so fetch them as normal CORS requests.
+                  requestWillFetch: async ({ request }) =>
+                    request.mode === 'no-cors' ? new Request(request.url, { mode: 'cors', credentials: 'omit' }) : request,
+                  cacheKeyWillBeUsed: async ({ request }) =>
+                    request.url.replace(/([?&])token=[^&]*&?/, '$1').replace(/[?&]$/, ''),
+                },
+              ],
+            },
+          },
+        ],
       },
       includeAssets: ['kidneys-logo.png'],
       manifest: {

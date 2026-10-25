@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { Layout } from './components/Layout'
 import { OverflowDebugPanel } from './components/OverflowDebugPanel'
+import { OfflineFileViewer } from './components/OfflineFileViewer'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TodayPage } from './pages/TodayPage'
@@ -43,6 +44,7 @@ export function App() {
   return (
     <AuthProvider>
       <OverflowDebugPanel />
+      <OfflineFileViewer />
       <Layout>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
