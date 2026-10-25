@@ -8907,3 +8907,45 @@ html.force-reduced-motion .pc-ecg-line {
   border-radius: inherit;
   transition: width var(--dur) var(--ease-out);
 }
+
+/* ---- Offline outbox (notes/labs saved without internet) ---- */
+.sync-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.offline-pill--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  text-decoration: none;
+}
+.outbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.outbox-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--danger-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.outbox-list li > span {
+  flex: 1;
+  min-width: 0;
+}

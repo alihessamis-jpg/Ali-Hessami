@@ -3,6 +3,17 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { getLastOfflineSync, prepareOffline, type OfflinePrepProgress, type OfflinePrepResult } from '../lib/offlinePrep'
 import { describeError } from '../lib/describeError'
 import { toShamsi } from '../lib/shamsi'
+import { discardOp, retryFailed, syncOutbox, type OutboxEntry } from '../lib/offlineOutbox'
+import { useOutbox } from './PendingSync'
+
+function describeOp(op: OutboxEntry) {
+  if (op.kind === 'noteWeight') return `Weight ${op.weight} kg from a progress note`
+  const what = op.table === 'progress_notes' ? 'Progress note' : 'Lab result'
+  const verb = op.kind === 'insert' ? 'added' : op.kind === 'update' ? 'edited' : 'deleted'
+  const row = op.kind === 'delete' ? null : op.row
+  const detail = row ? [row.test, row.date].filter((v) => typeof v === 'string').join(' · ') : ''
+  return `${what} ${verb}${detail ? ` (${detail})` : ''}`
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
@@ -23,6 +34,9 @@ export function OfflineAccessCard() {
   const [error, setError] = useState<string | null>(null)
   const [usage, setUsage] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const outbox = useOutbox()
+  const failedOps = outbox.filter((o) => o.failed)
+  const waitingCount = outbox.length - failedOps.length
   const running = progress !== null
 
   async function refreshUsage() {
@@ -63,8 +77,9 @@ export function OfflineAccessCard() {
       <h2>Offline access</h2>
       <span className="np-small" style={{ lineHeight: 1.6 }}>
         Without internet, Nephron shows the copy saved on this device — patients, labs, notes, imaging, documents, Academy
-        and Library. Anything you open while online is saved automatically; this button saves everything at once. Offline
-        is read-only: changes can only be saved once you're back online.
+        and Library. Anything you open while online is saved automatically; this button saves everything at once. Progress
+        notes and lab results can also be added offline — they're kept on this device and sync automatically once you're
+        back online. Other changes need a connection.
       </span>
 
       {running && progress ? (
@@ -87,6 +102,52 @@ export function OfflineAccessCard() {
       )}
 
       {error && <p className="form-error">{error}</p>}
+
+      <span className="np-small" style={{ lineHeight: 1.6 }}>
+        {waitingCount > 0
+          ? `${waitingCount} change${waitingCount === 1 ? '' : 's'} made offline waiting to sync — sent automatically when you're online.`
+          : 'All notes and lab results made offline have synced.'}
+        {waitingCount > 0 && online && (
+          <>
+            {' '}
+            <button type="button" className="link-button" onClick={() => void syncOutbox()}>
+              Sync now
+            </button>
+          </>
+        )}
+      </span>
+
+      {failedOps.length > 0 && (
+        <>
+          <span className="np-small" style={{ lineHeight: 1.6, color: 'var(--danger)' }}>
+            The server rejected these offline changes. Retry, or discard ones you no longer need:
+          </span>
+          <ul className="outbox-list">
+            {failedOps.map((op) => (
+              <li key={op.seq}>
+                <span>
+                  <b>{describeOp(op)}</b>
+                  <br />
+                  {op.failed}
+                </span>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    if (window.confirm('Discard this change? It will not be saved.')) void discardOp(op.seq as number)
+                  }}
+                >
+                  Discard
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="np-btn" disabled={!online} onClick={() => void retryFailed()}>
+            Retry sync
+          </button>
+        </>
+      )}
+
       <span className="np-small" style={{ lineHeight: 1.6 }}>
         {last
           ? `Last full download: ${formatWhen(last.finishedAt)} — ${last.pages} pages, ${last.files} files${

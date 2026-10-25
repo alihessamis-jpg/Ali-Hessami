@@ -3,6 +3,8 @@ import { addProgressNote, deleteProgressNote, listProgressNotes, updateProgressN
 import { upsertGrowthMeasurement } from '../../lib/api/growth'
 import { updatePatient } from '../../lib/api/patients'
 import { toShamsi } from '../../lib/shamsi'
+import { isOfflineError, queueOp } from '../../lib/offlineOutbox'
+import { PendingSyncChip, usePendingIds } from '../PendingSync'
 import type { Patient, ProgressNote } from '../../types/domain'
 
 interface Props {
@@ -28,6 +30,7 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
   const [draft, setDraft] = useState(emptyDraft)
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const pending = usePendingIds()
 
   useEffect(() => {
     refresh()
@@ -65,8 +68,14 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
           : [note, ...prev]
       )
       if (note.weight != null) {
-        upsertGrowthMeasurement(patientId, note.date, { weightKg: note.weight }).catch(() => undefined)
-        updatePatient(patientId, { weight: note.weight }).then(onPatientUpdated).catch(() => undefined)
+        const weight = note.weight
+        Promise.all([
+          upsertGrowthMeasurement(patientId, note.date, { weightKg: weight }),
+          updatePatient(patientId, { weight }).then(onPatientUpdated),
+        ]).catch((err) => {
+          // offline: update weight + growth chart once the note syncs
+          if (isOfflineError(err)) void queueOp({ kind: 'noteWeight', id: note.id, patientId, date: note.date, weight })
+        })
       }
       setDraft({ ...emptyDraft, date: draft.date })
       setEditingId(null)
@@ -171,6 +180,7 @@ export function NotesTab({ patientId, onPatientUpdated }: Props) {
             <li key={n.id}>
               <div className="note-header">
                 <strong>{toShamsi(n.date)}</strong>
+                {pending.has(n.id) && <PendingSyncChip />}
                 <span>
                   {[n.weight != null ? `${n.weight} kg` : null, n.bp, n.uo].filter(Boolean).join(' · ')}
                 </span>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { addLabEntry, deleteLabEntry, listLabEntries } from '../../lib/api/labs'
+import { PendingSyncChip, usePendingIds } from '../PendingSync'
 import { correctedCalcium, feNa, feUrea, kdigoStage, transferrinSaturation } from '../../lib/formulas'
 import { isAbnormal } from '../../lib/labRange'
 import { formatLabReferenceRange, getLabReferenceRange, isOutsideLabReferenceRange } from '../../lib/labReferenceRanges'
@@ -64,6 +65,7 @@ const emptyMicro = {
 
 export function LabsTab({ patientId, patient }: Props) {
   const [entries, setEntries] = useState<LabEntry[]>([])
+  const pending = usePendingIds()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState(emptyDraft)
@@ -846,7 +848,10 @@ export function LabsTab({ patientId, patient }: Props) {
                   isOutsideLabReferenceRange(e.test, e.value, ageAtLab, e.unit)
                 return (
                   <tr key={e.id} className={abnormal ? 'row-abnormal' : ''}>
-                    <td>{toShamsi(e.date)}</td>
+                    <td>
+                      {toShamsi(e.date)}
+                      {pending.has(e.id) && <PendingSyncChip />}
+                    </td>
                     <td>{e.category}</td>
                     <td>{e.test}</td>
                     <td className={abnormal ? 'value-abnormal' : ''}>

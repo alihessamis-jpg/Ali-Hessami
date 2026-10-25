@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { App } from './App'
 import { applyAnimationsPreference } from './lib/animationsPreference'
+import { startOutboxSync } from './lib/offlineOutbox'
 import './index.css'
 
 applyAnimationsPreference()
+startOutboxSync()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
