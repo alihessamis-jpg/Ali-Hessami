@@ -409,6 +409,11 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
               <p dir="auto" style={{ whiteSpace: 'pre-line' }}>
                 <strong>{queue[queueIndex].question}</strong>
               </p>
+              {queue[queueIndex].source && (
+                <p dir="auto" className="patient-meta" style={{ fontStyle: 'italic' }}>
+                  منبع: {queue[queueIndex].source}
+                </p>
+              )}
 
               {queue[queueIndex].type === 'mcq' && (
                 <>
@@ -794,6 +799,11 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
                     {q.type === 'matching' && q.matchAnswer && ` · ${q.matchAnswer.length} pairs`}
                     {q.type === 'true_false' && q.correctBool != null && ` · Correct: ${q.correctBool ? 'True' : 'False'}`}
                   </p>
+                  {q.source && (
+                    <p dir="auto" className="patient-meta" style={{ fontStyle: 'italic' }}>
+                      منبع: {q.source}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

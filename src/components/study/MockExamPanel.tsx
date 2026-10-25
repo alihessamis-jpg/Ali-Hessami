@@ -240,6 +240,11 @@ export function MockExamPanel({ questions, onRecordAttempt }: MockExamPanelProps
         <p>
           <strong>{reviewQ.question}</strong>
         </p>
+        {reviewQ.source && (
+          <p dir="auto" className="patient-meta" style={{ fontStyle: 'italic' }}>
+            منبع: {reviewQ.source}
+          </p>
+        )}
 
         {reviewQ.type === 'mcq' &&
           reviewQ.options.map((opt, i) => {
@@ -328,6 +333,11 @@ export function MockExamPanel({ questions, onRecordAttempt }: MockExamPanelProps
       <p>
         <strong>{q.question}</strong>
       </p>
+      {q.source && (
+        <p dir="auto" className="patient-meta" style={{ fontStyle: 'italic' }}>
+          منبع: {q.source}
+        </p>
+      )}
 
       {q.type === 'mcq' &&
         q.options.map((opt, i) => (
