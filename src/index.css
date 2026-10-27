@@ -8949,3 +8949,374 @@ html.force-reduced-motion .pc-ecg-line {
   flex: 1;
   min-width: 0;
 }
+
+/* ================= Dashboard kidney hero (components/dashboard/KidneyHero.tsx) =================
+   Full-height stage: sectioned kidney + circulating cells in one WebGL canvas
+   (KidneyStage), a cursive "Nephro" headline on the left, focus cards on the
+   right. Two looks: Clinical (teal) and Academy (blue), cross-faded. */
+.kh {
+  --kh-pink: #fbcfe8;
+  --kh-ink: #011d17;
+  --kh-muted: rgba(255, 255, 255, 0.72);
+  --kh-glass: rgba(255, 255, 255, 0.06);
+  --kh-glass-border: rgba(255, 255, 255, 0.14);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 28px;
+  color: #fff;
+  background: #011411;
+  height: clamp(580px, calc(100svh - 140px), 820px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 22px 32px 30px;
+  font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif;
+}
+
+.kh-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kh-bg-clinical {
+  background: radial-gradient(circle at 50% 50%, #0b8a78 0%, #044e3b 50%, #011411 100%);
+}
+
+.kh-bg-academy {
+  background: radial-gradient(circle at 50% 50%, #0b4f8a 0%, #04294e 50%, #010c14 100%);
+  opacity: 0;
+}
+
+.kh-academy .kh-bg-academy {
+  opacity: 1;
+}
+
+.kh-academy .kh-bg-clinical {
+  opacity: 0;
+}
+
+.kh-stage {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.kh-stage canvas {
+  max-width: none;
+}
+
+.kh-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kh-date {
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 13px;
+  color: var(--kh-muted);
+}
+
+.kh-pill {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.kh-pill a {
+  color: var(--kh-muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 100px;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+
+.kh-pill a:hover {
+  background: var(--kh-pink);
+  color: var(--kh-ink);
+}
+
+.kh-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  padding-top: 2.6rem;
+  min-width: 0;
+}
+
+.kh .kh-title {
+  font-family: 'Galada', cursive;
+  font-size: clamp(5rem, 10vw, 12rem);
+  line-height: 0.8;
+  font-weight: 400;
+  letter-spacing: normal;
+  white-space: nowrap;
+  margin: 0;
+  color: #fff;
+  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+.kh-desc {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--kh-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.kh-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4rem;
+  width: fit-content;
+  padding: 0.4rem 0.4rem 0.4rem 1.4rem;
+  border-radius: 100px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.kh-cta:hover {
+  background: rgba(0, 0, 0, 0.65);
+  transform: translateY(-3px);
+}
+
+.kh-plus {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kh-pink);
+  color: var(--kh-ink);
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+
+.kh-badge {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: fit-content;
+  color: #fff;
+  text-decoration: none;
+}
+
+.kh-badge-ic {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kh-glass);
+  border: 1px solid var(--kh-glass-border);
+}
+
+.kh-badge-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.kh-badge-text span {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--kh-muted);
+}
+
+.kh-badge-text b {
+  font-size: 0.88rem;
+}
+
+.kh-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  text-align: right;
+  padding-top: 4.6rem;
+  min-width: 0;
+}
+
+.kh-carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1.2rem;
+}
+
+.kh-cards {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.kh-card {
+  position: relative;
+  width: 128px;
+  padding: 4.6rem 1rem 1rem;
+  border-radius: 28px;
+  border: 1px solid var(--kh-glass-border);
+  background: var(--kh-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.4s ease;
+}
+
+.kh .kh-card:hover {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.kh-card.active {
+  border-color: var(--kh-pink);
+}
+
+.kh-card img {
+  width: 96px;
+  height: auto;
+  margin-top: -7.6rem;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5));
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.kh-card:hover img {
+  transform: translateY(-24px) rotate(-12deg) scale(1.12);
+}
+
+.kh-card-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  width: 100%;
+}
+
+.kh-card-info span {
+  color: var(--kh-muted);
+}
+
+.kh-arrows {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.kh-arrows button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--kh-glass-border);
+  background: var(--kh-glass);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.3s;
+}
+
+.kh .kh-arrows button:hover {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.kh .kh-side {
+  font-family: 'Galada', cursive;
+  font-size: clamp(2.6rem, 4.6vw, 4.8rem);
+  line-height: 0.85;
+  font-weight: 400;
+  letter-spacing: normal;
+  white-space: nowrap;
+  margin: 0;
+  color: #fff;
+}
+
+.kh a:focus-visible,
+.kh button:focus-visible {
+  outline: 2px solid var(--kh-pink);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .kh {
+    height: auto;
+    min-height: min(720px, calc(100svh - 120px));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(260px, 1fr) auto;
+    padding: 16px 16px 18px;
+    border-radius: 22px;
+  }
+
+  .kh-pill {
+    display: none;
+  }
+
+  .kh-left {
+    padding-top: 0.8rem;
+    gap: 0.9rem;
+  }
+
+  .kh .kh-title {
+    font-size: 4.4rem;
+  }
+
+  .kh-desc {
+    font-size: 0.95rem;
+    max-width: 17rem;
+  }
+
+  .kh-badge,
+  .kh .kh-side {
+    display: none;
+  }
+
+  .kh-right {
+    grid-row: 4;
+    padding-top: 3.6rem;
+  }
+
+  .kh-card {
+    width: 104px;
+    padding-top: 3.4rem;
+    gap: 0.7rem;
+  }
+
+  .kh-card img {
+    width: 72px;
+    margin-top: -5.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kh-bg,
+  .kh-card img,
+  .kh-cta {
+    transition: none;
+  }
+}
