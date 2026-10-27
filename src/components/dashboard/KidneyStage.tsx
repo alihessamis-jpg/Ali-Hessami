@@ -278,8 +278,8 @@ function mountKidneyStage(
     Array.from({ length: n }, () => ({
       theta: rnd() * Math.PI * 2,
       omega: (0.04 + rnd() * 0.08) * (rnd() < 0.8 ? 1 : -1),
-      rx: 0.55 + rnd() * 0.45,
-      ry: 0.5 + rnd() * 0.5,
+      rx: 0.62 + rnd() * 0.38,
+      ry: 0.55 + rnd() * 0.45,
       z: zMin + rnd() * (zMax - zMin),
       size: sMin + rnd() * (sMax - sMin),
       floatDur: [5, 7, 6, 8, 5.5, 6.5, 9, 11, 10][Math.floor(rnd() * 9)],
@@ -344,7 +344,8 @@ function mountKidneyStage(
   /* ---------------- layout ---------------- */
   let hw = 4,
     hh = 3,
-    narrow = false
+    narrow = false,
+    cellScale = 1
   const visAt = (z: number) => Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z - z)
   function seedSpecks() {
     for (let i = 0; i < SPECKS; i++) {
@@ -364,9 +365,11 @@ function mountKidneyStage(
     hh = visAt(0)
     hw = hh * camera.aspect
     narrow = camera.aspect < 0.85
-    const kidneyH = hh * 2 * (narrow ? 0.46 : 0.66)
+    // phones: the kidney sits in the open band between the headline and the cards
+    const kidneyH = hh * 2 * (narrow ? 0.36 : 0.62)
     kidneyRoot.scale.setScalar(kidneyH * kidneyBaseScale)
-    kidneyCenter.set(0, narrow ? -hh * 0.12 : 0, 0)
+    kidneyCenter.set(0, narrow ? -hh * 0.08 : 0, 0)
+    cellScale = narrow ? 0.6 : 0.88
     kidneyRoot.position.copy(kidneyCenter)
     if (!motionAllowed) step(0)
   }
@@ -425,8 +428,8 @@ function mountKidneyStage(
       const depthScale = visAt(c.z) / hh
       // home position on an elliptical orbit around the kidney
       P.set(
-        Math.cos(c.theta) * hw * 0.82 * c.rx * depthScale,
-        Math.sin(c.theta) * hh * 0.78 * c.ry * depthScale + Math.sin(fl) * 0.12,
+        Math.cos(c.theta) * hw * (narrow ? 0.95 : 0.82) * c.rx * depthScale,
+        kidneyCenter.y + Math.sin(c.theta) * hh * (narrow ? 0.62 : 0.78) * c.ry * depthScale + Math.sin(fl) * 0.12,
         c.z
       )
       // parallax: cells in front drift with the pointer, cells behind against it
@@ -457,7 +460,7 @@ function mountKidneyStage(
       c.angle += dt * c.spin * speed
 
       if (gather !== 0) P.lerp(kidneyCenter, gather)
-      const s = c.size * (1 - 0.9 * clamp01(gather))
+      const s = c.size * cellScale * (1 - 0.9 * clamp01(gather))
       Q.copy(c.q0).multiply(Qa.setFromAxisAngle(c.axis, c.angle + Math.cos(fl) * 0.1))
       M.compose(P, Q, S.set(s, s, s))
       mesh.setMatrixAt(i, M)
