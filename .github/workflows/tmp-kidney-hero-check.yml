@@ -2,6 +2,8 @@ name: tmp kidney hero check
 on:
   push:
     branches: [claude/kidney-hero]
+permissions:
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -17,10 +19,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_ANON_KEY: dummy
-      - run: tar czf three-pkg.tgz node_modules/three/build node_modules/three/examples/jsm/loaders/GLTFLoader.js node_modules/three/examples/jsm/environments/RoomEnvironment.js node_modules/three/examples/jsm/utils/BufferGeometryUtils.js node_modules/three/package.json
-        if: always()
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: three-pkg
-          path: three-pkg.tgz
+      - name: publish three build to a scratch branch
+        run: |
+          mkdir -p /tmp/pkg && cp -r node_modules/three/build node_modules/three/package.json /tmp/pkg/
+          mkdir -p /tmp/pkg/jsm && cp node_modules/three/examples/jsm/loaders/GLTFLoader.js node_modules/three/examples/jsm/environments/RoomEnvironment.js /tmp/pkg/jsm/
+          cp node_modules/three/examples/jsm/utils/BufferGeometryUtils.js /tmp/pkg/jsm/
+          cd /tmp/pkg && git init -q && git checkout -q -b tmp/three-pkg && git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -qm pkg
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" tmp/three-pkg
