@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import JSZip from 'jszip'
 import {
   addLibraryCard,
@@ -220,6 +220,25 @@ export function ReaderPage() {
     [activeNote]
   )
   const missingFigures = noteFigures.filter((f) => !figureUrls[f.id])
+
+  // v1.5: a deep link into this chapter's note (`…/reader/<id>#<anchor>`,
+  // e.g. from a reviewed card's source link) -- wait for the note to render,
+  // then jump to and flash the target the same way an in-page source link
+  // does, minus the "back to question" button (there's no scroll position
+  // on this fresh page load to return to).
+  const location = useLocation()
+  useEffect(() => {
+    const hash = location.hash.replace(/^#/, '')
+    if (!hash || !activeNote) return
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(hash)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('anchor-flash')
+      window.setTimeout(() => el.classList.remove('anchor-flash'), 1500)
+    }, 150)
+    return () => window.clearTimeout(t)
+  }, [location.hash, activeNote])
 
   function markSectionsReadUpTo(idx: number) {
     if (idx <= furthestSectionIndexRef.current) return

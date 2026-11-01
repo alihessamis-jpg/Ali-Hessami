@@ -14,6 +14,7 @@ import {
 } from '../lib/api/library'
 import { getChapterFigureSignedUrl } from '../lib/storage'
 import { isolateLatinRuns } from '../lib/bidiText'
+import { splitSourceLinks } from '../lib/sourceLinks'
 import { getUserSettings } from '../lib/api/settings'
 import { addLibraryCardMistake } from '../lib/api/libraryMistakes'
 import { computeReadingStreak } from '../lib/libraryNote'
@@ -103,6 +104,29 @@ function clozeParts(front: string): [string, string] {
   const idx = front.indexOf('_____')
   if (idx < 0) return [front, '']
   return [front.slice(0, idx), front.slice(idx + 5)]
+}
+
+// v1.5: renders a card's back/explanation with its `[[#id|text]]` source
+// links (and `[[#id]]` chips) as deep links into the chapter Reader at that
+// anchor -- unlike the in-Reader version, this is a real page navigation
+// (`/academy/reader/<chapterId>#<id>`), so there's no "known id" check: the
+// Reader itself degrades gracefully (no scroll) if the id is somehow stale.
+function renderCardText(text: string, chapterId: string, keyBase: string) {
+  const segments = splitSourceLinks(text)
+  if (segments.length === 1 && segments[0].kind === 'text') return isolateLatinRuns(text)
+  return segments.map((seg, i) =>
+    seg.kind === 'text' ? (
+      <span key={`${keyBase}-${i}`}>{isolateLatinRuns(seg.text)}</span>
+    ) : seg.chip ? (
+      <Link key={`${keyBase}-${i}`} className="xlink" to={`/academy/reader/${chapterId}#${seg.id}`}>
+        منبع ›
+      </Link>
+    ) : (
+      <Link key={`${keyBase}-${i}`} className="srclink" to={`/academy/reader/${chapterId}#${seg.id}`}>
+        {isolateLatinRuns(seg.text)}
+      </Link>
+    )
+  )
 }
 
 export function ReviewPage() {
@@ -702,7 +726,7 @@ export function ReviewPage() {
                   {revealed && current.options.explanation && (
                     <div className="expl on" dir="rtl">
                       <span className="h">EXPLANATION</span>
-                      {isolateLatinRuns(current.options.explanation)}
+                      {renderCardText(current.options.explanation, current.chapterId, `${current.id}-expl`)}
                     </div>
                   )}
                 </>
@@ -740,7 +764,7 @@ export function ReviewPage() {
                   </p>
                   {current.kind !== 'cloze' && revealed && (
                     <p className="ctx" dir="rtl">
-                      {isolateLatinRuns(current.back)}
+                      {renderCardText(current.back, current.chapterId, `${current.id}-back`)}
                     </p>
                   )}
                   {revealed && current.figureKey && figureUrls[current.figureKey] && (

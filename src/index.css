@@ -7971,6 +7971,68 @@ select.pt-ward:focus {
   text-decoration: none;
   white-space: nowrap;
   font-family: 'Plus Jakarta Sans', sans-serif;
+  border: none;
+  cursor: pointer;
+}
+
+/* v1.5: `[[#id|text]]` source link -- a tappable highlighted word inside
+   prose, bold text, callouts and MCQ/short-answer answers, that jumps the
+   Reader to the paragraph/section/figure it names. */
+.srclink {
+  color: #0f6e62;
+  background: rgba(197, 231, 224, 0.55);
+  border: none;
+  border-bottom: 1px dotted #0f6e62;
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The paragraph/list-item/section/figure a source link just jumped to --
+   scroll-margin-top keeps it clear of the sticky section-chips bar
+   (.tocchips), and the flash briefly highlights where the eye should land. */
+.prose [id] {
+  scroll-margin-top: 76px;
+}
+
+.anchor-flash {
+  animation: anchor-flash-kf 1.5s ease-out;
+}
+
+@keyframes anchor-flash-kf {
+  0%,
+  12% {
+    background: rgba(197, 231, 224, 0.85);
+    box-shadow: 0 0 0 4px rgba(197, 231, 224, 0.85);
+    border-radius: 6px;
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 4px rgba(197, 231, 224, 0);
+  }
+}
+
+.anchor-back {
+  position: fixed;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  background: var(--text);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Vazirmatn', sans-serif;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
 }
 
 .chart {

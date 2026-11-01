@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
 import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,6 +8,7 @@ import { describeError } from '../../lib/describeError'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
 import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
 import { parseMcqBlock, type ParsedMcqChoice } from '../../lib/mcqBlock'
+import { collectAnchorIds, splitSourceLinks, stripTrailingAnchorText } from '../../lib/sourceLinks'
 import { toPersianDigits } from '../../lib/shamsi'
 import { renderNephronChart, type NephronChartSpec } from './nephronChart'
 import type { LibraryCard, LibraryHighlight } from '../../types/domain'
@@ -71,6 +72,8 @@ interface SpecialMatch {
   linkId?: string
   /** chlink only: true for `[[#id]]` (same-chapter section), false for `[[chNN]]`. */
   isSection?: boolean
+  /** chlink only, v1.5: the `|text` after a `#id` source link, e.g. `[[#ch75-s6-6-p3|10]]`. */
+  linkText?: string
 }
 
 // `{p.N}` (older hand-authored notes) and `[p. N]` (NEPHRON_CHAPTER_FORMAT
@@ -79,8 +82,11 @@ const PAGE_REF_RES = [/\{p\.(\d+)\}/g, /\[p\.\s?(\d+)\]/g]
 // `[۱۵]`, `[۳، ۴]`, `[۲۳ تا ۲۵]` -- a bracketed Persian-digit reference
 // number (or range/list of them), rendered small and muted.
 const REFERENCE_RE = /\[([۰-۹][۰-۹،,\sتا]*)\]/g
-// v1.1: `[[ch75]]` (another chapter) or `[[#ch74-s8]]` (a section of this one).
-const CHAPTER_LINK_RE = /\[\[(#?)([\w-]+)\]\]/g
+// v1.1: `[[ch75]]` (another chapter) or `[[#ch74-s8]]` (a section of this
+// one). v1.5: `[[#id|text]]` (source link -- text after `|` becomes a
+// tappable highlighted word) and `[[#id]]` (source chip, any id -- not just
+// a section id any more).
+const CHAPTER_LINK_RE = /\[\[(#?)([\w-]+)(?:\|([^\]]+))?\]\]/g
 
 function findMatches(text: string, cards: LibraryCard[], highlights: LibraryHighlight[]): SpecialMatch[] {
   const matches: SpecialMatch[] = []
@@ -100,6 +106,7 @@ function findMatches(text: string, cards: LibraryCard[], highlights: LibraryHigh
       text: m[0],
       linkId: m[2],
       isSection: m[1] === '#',
+      linkText: m[3],
     })
   }
   for (const c of cards) {
@@ -129,7 +136,9 @@ function renderTextWithSpecials(
   cards: LibraryCard[],
   highlights: LibraryHighlight[],
   keyBase: string,
-  chapterNumberToId?: Record<number, string>
+  chapterNumberToId?: Record<number, string>,
+  knownIds?: Set<string>,
+  onAnchorClick?: (id: string) => void
 ): ReactNode[] {
   const matches = findMatches(text, cards, highlights)
   if (matches.length === 0) return renderBdi(text, keyBase)
@@ -151,12 +160,25 @@ function renderTextWithSpecials(
       )
     } else if (m.kind === 'chlink') {
       if (m.isSection) {
-        const sectionNum = (m.linkId ?? '').replace(/^.*-s/, '')
-        nodes.push(
-          <a className="xlink" key={`${keyBase}-l${i}`} href={`#${m.linkId}`}>
-            بخش {sectionNum} ›
-          </a>
-        )
+        // v1.5: `[[#id|text]]` -> tappable highlighted word; `[[#id]]` -> the
+        // generic "منبع ›" chip. Either way, an id this note never declares
+        // renders as plain text instead of a dead link.
+        const known = knownIds?.has(m.linkId ?? '') ?? false
+        if (!known) {
+          nodes.push(...renderBdi(m.linkText ?? m.text, `${keyBase}-l${i}`))
+        } else if (m.linkText) {
+          nodes.push(
+            <button type="button" className="srclink" key={`${keyBase}-l${i}`} onClick={() => onAnchorClick?.(m.linkId ?? '')}>
+              {renderBdi(m.linkText, `${keyBase}-l${i}-b`)}
+            </button>
+          )
+        } else {
+          nodes.push(
+            <button type="button" className="xlink" key={`${keyBase}-l${i}`} onClick={() => onAnchorClick?.(m.linkId ?? '')}>
+              منبع ›
+            </button>
+          )
+        }
       } else {
         const chNumMatch = (m.linkId ?? '').match(/^ch(\d+)$/)
         const chNum = chNumMatch ? Number(chNumMatch[1]) : null
@@ -197,15 +219,37 @@ function transformChildren(
   cards: LibraryCard[],
   highlights: LibraryHighlight[],
   keyBase: string,
-  chapterNumberToId?: Record<number, string>
+  chapterNumberToId?: Record<number, string>,
+  knownIds?: Set<string>,
+  onAnchorClick?: (id: string) => void
 ): ReactNode {
   let i = 0
   function walk(node: ReactNode): ReactNode {
-    if (typeof node === 'string') return renderTextWithSpecials(node, cards, highlights, `${keyBase}-${i++}`, chapterNumberToId)
+    if (typeof node === 'string')
+      return renderTextWithSpecials(node, cards, highlights, `${keyBase}-${i++}`, chapterNumberToId, knownIds, onAnchorClick)
     return node
   }
   if (Array.isArray(children)) return children.map(walk)
   return walk(children)
+}
+
+// v1.5: strips a trailing `{#id}` paragraph/list-item anchor from the last
+// text child of a rendered node's children, returning the id to use as that
+// element's `id` attribute. The anchor is always plain trailing text (never
+// inside `**bold**` or a nested element), so only the last child -- if it's
+// a plain string -- needs checking.
+function stripAnchorFromChildren(children: ReactNode): { children: ReactNode; anchorId: string | null } {
+  const arr = Array.isArray(children) ? children : [children]
+  if (arr.length === 0) return { children, anchorId: null }
+  const lastIdx = arr.length - 1
+  const last = arr[lastIdx]
+  if (typeof last !== 'string') return { children, anchorId: null }
+  const { text: stripped, id } = stripTrailingAnchorText(last)
+  if (!id) return { children, anchorId: null }
+  const next = [...arr]
+  if (stripped) next[lastIdx] = stripped
+  else next.pop()
+  return { children: next, anchorId: id }
 }
 
 // A paragraph written fully in English (e.g. an original figure caption,
@@ -281,6 +325,36 @@ function parseHeadingText(raw: string): { display: string; en: string | null; se
   return { display: faPart.trim(), en, sectionNumber, anchorId }
 }
 
+// v1.5: renders an answer/explanation string with `[[#id|text]]` source
+// links and `[[#id]]` source chips tappable (falling back to plain text for
+// an id the note never declares) -- used where the full prose special-match
+// system (findMatches/renderTextWithSpecials) isn't wired up, i.e. an MCQ
+// card's explanation.
+function renderSourceLinkedText(
+  text: string,
+  keyBase: string,
+  knownIds: Set<string>,
+  onAnchorClick: (id: string) => void
+): ReactNode[] {
+  return splitSourceLinks(text).flatMap((seg, i) => {
+    if (seg.kind === 'text') return renderBdi(seg.text, `${keyBase}-${i}`)
+    const known = seg.id ? knownIds.has(seg.id) : false
+    if (!known) return renderBdi(seg.text, `${keyBase}-${i}`)
+    if (seg.chip) {
+      return [
+        <button type="button" className="xlink" key={`${keyBase}-${i}`} onClick={() => onAnchorClick(seg.id!)}>
+          منبع ›
+        </button>,
+      ]
+    }
+    return [
+      <button type="button" className="srclink" key={`${keyBase}-${i}`} onClick={() => onAnchorClick(seg.id!)}>
+        {renderBdi(seg.text, `${keyBase}-${i}-b`)}
+      </button>,
+    ]
+  })
+}
+
 // v1.2: one `### سؤال N {#id .mcq}` block -- a tappable question card with a
 // "Show answer" toggle (native <details>, no extra state needed).
 function McqCard({
@@ -289,12 +363,16 @@ function McqCard({
   stem,
   choices,
   explanation,
+  knownIds,
+  onAnchorClick,
 }: {
   id: string
   label: string
   stem: string
   choices: ParsedMcqChoice[]
   explanation: string | null
+  knownIds: Set<string>
+  onAnchorClick: (id: string) => void
 }) {
   return (
     <section className="mcqc" id={id}>
@@ -313,7 +391,7 @@ function McqCard({
         </summary>
         <div>
           <strong>{choices.find((c) => c.correct)?.label}</strong>
-          {explanation && <> — {renderBdi(explanation, `${id}-expl`)}</>}
+          {explanation && <> — {renderSourceLinkedText(explanation, `${id}-expl`, knownIds, onAnchorClick)}</>}
         </div>
       </details>
     </section>
@@ -597,6 +675,24 @@ export function ChapterProse({
   const selectedTextRef = useRef('')
   const [viewerFigure, setViewerFigure] = useState<{ src: string; caption: string } | null>(null)
 
+  // v1.5: every `{#id}` this note declares (headings, MCQs, figures, and
+  // paragraph/list/callout anchors), so a `[[#id|text]]`/`[[#id]]` source
+  // link can tell a real target from a stale/typo'd one and fall back to
+  // plain text instead of a dead button.
+  const knownIds = useMemo(() => collectAnchorIds(note), [note])
+  // Where to scroll back to after a source-link jump -- shows the floating
+  // "↩ بازگشت به سؤال" button until tapped (or until another jump replaces it).
+  const [backOrigin, setBackOrigin] = useState<number | null>(null)
+
+  function handleAnchorJump(id: string) {
+    const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
+    if (!el) return
+    setBackOrigin(window.scrollY)
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el.classList.add('anchor-flash')
+    window.setTimeout(() => el.classList.remove('anchor-flash'), 1500)
+  }
+
   useEffect(() => {
     if (!onMakeCard && !onHighlight) return
     function handleSelectionChange() {
@@ -706,23 +802,42 @@ export function ChapterProse({
     },
     p: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
       const raw = node ? hastText(node) : ''
+      const { children: kids, anchorId } = stripAnchorFromChildren(children)
+      const rendered = transformChildren(
+        kids,
+        cards,
+        highlights,
+        `p-${sectionRef.current}`,
+        chapterNumberToId,
+        knownIds,
+        handleAnchorJump
+      )
       if (isFullyEnglish(raw)) {
         return (
-          <p dir="ltr" className="enp">
-            {transformChildren(children, cards, highlights, `p-${sectionRef.current}`, chapterNumberToId)}
+          <p dir="ltr" className="enp" id={anchorId ?? undefined}>
+            {rendered}
           </p>
         )
       }
-      return <p>{transformChildren(children, cards, highlights, `p-${sectionRef.current}`, chapterNumberToId)}</p>
+      return <p id={anchorId ?? undefined}>{rendered}</p>
     },
-    li: (props: { children?: ReactNode }) => (
-      <li>{transformChildren(props.children, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId)}</li>
-    ),
+    li: (props: { children?: ReactNode }) => {
+      const { children: kids, anchorId } = stripAnchorFromChildren(props.children)
+      return (
+        <li id={anchorId ?? undefined}>
+          {transformChildren(kids, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+        </li>
+      )
+    },
     td: (props: { children?: ReactNode }) => (
-      <td>{transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId)}</td>
+      <td>
+        {transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+      </td>
     ),
     th: (props: { children?: ReactNode }) => (
-      <th>{transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId)}</th>
+      <th>
+        {transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+      </th>
     ),
     pre: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
       const codeNode = node?.children.find((c): c is HastElement => c.type === 'element' && c.tagName === 'code')
@@ -844,6 +959,8 @@ export function ChapterProse({
                 stem={parsed.stem}
                 choices={parsed.choices}
                 explanation={parsed.explanation}
+                knownIds={knownIds}
+                onAnchorClick={handleAnchorJump}
               />
             )
           })}
@@ -934,6 +1051,18 @@ export function ChapterProse({
       )}
       {renderedBlocks}
       {viewerFigure && <FigureViewer src={viewerFigure.src} caption={viewerFigure.caption} onClose={() => setViewerFigure(null)} />}
+      {backOrigin !== null && (
+        <button
+          type="button"
+          className="anchor-back"
+          onClick={() => {
+            window.scrollTo({ top: backOrigin, behavior: 'smooth' })
+            setBackOrigin(null)
+          }}
+        >
+          ↩ بازگشت به سؤال
+        </button>
+      )}
     </div>
   )
 }
