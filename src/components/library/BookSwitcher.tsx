@@ -297,6 +297,7 @@ function BookPickerSheet({ books, stats, selectedBookId, onSelect, onClose }: Sh
         <div className="bsw-sheet-list">
           {books.map((b) => {
             const s = stats[b.id] ?? emptyStats()
+            const coverSrc = getBookCover(b.title)
             return (
               <button
                 key={b.id}
@@ -305,9 +306,13 @@ function BookPickerSheet({ books, stats, selectedBookId, onSelect, onClose }: Sh
                 aria-label={b.title}
                 onClick={() => onSelect(b.id)}
               >
-                <span className="cover" aria-hidden="true" style={{ transform: 'none', width: 40, height: 56 }}>
-                  <i>{b.edition} ed.</i>
-                </span>
+                {coverSrc ? (
+                  <img className="bsw-row-cover" src={coverSrc} alt="" width={40} height={56} />
+                ) : (
+                  <span className="cover" aria-hidden="true" style={{ transform: 'none', width: 40, height: 56 }}>
+                    <i>{b.edition} ed.</i>
+                  </span>
+                )}
                 <span className="bsw-sheet-info">
                   <span className="bsw-sheet-title">{b.title}</span>
                   <span className="bsw-sheet-meta">
@@ -347,6 +352,7 @@ function DesktopSwitcher({ books, stats, selectedBookId, onSelect, dailyGoal, to
         {books.map((b) => {
           const s = stats[b.id] ?? emptyStats()
           const isActive = b.id === selectedBookId
+          const coverSrc = getBookCover(b.title)
           return (
             <button
               key={b.id}
@@ -360,9 +366,13 @@ function DesktopSwitcher({ books, stats, selectedBookId, onSelect, dailyGoal, to
               tabIndex={isActive ? 0 : -1}
               onClick={() => onSelect(b.id)}
             >
-              <span className="cover" aria-hidden="true" style={{ transform: 'none', width: 36, height: 50 }}>
-                <i>{b.edition} ed.</i>
-              </span>
+              {coverSrc ? (
+                <img className="bsw-row-cover" src={coverSrc} alt="" width={36} height={50} />
+              ) : (
+                <span className="cover" aria-hidden="true" style={{ transform: 'none', width: 36, height: 50 }}>
+                  <i>{b.edition} ed.</i>
+                </span>
+              )}
               <span className="bsw-sidebar-info">
                 <span className="bsw-sidebar-title">{b.title}</span>
                 <span className="bsw-sidebar-meta">
