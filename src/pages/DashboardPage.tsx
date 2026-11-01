@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarWidget } from '../components/dashboard/CalendarWidget'
-import { DashboardHero } from '../components/dashboard/DashboardHero'
+import { KidneyHero } from '../components/dashboard/KidneyHero'
 import { PatientGlanceRow } from '../components/dashboard/PatientGlanceRow'
 import { QuickTools } from '../components/dashboard/QuickTools'
 import { EmptyState } from '../components/illustrations/EmptyState'
@@ -427,7 +427,10 @@ export function DashboardPage() {
 
   return (
     <div className="np-page">
-      <DashboardHero followUpCount={sortedPatients.length} />
+      <KidneyHero
+        followUpCount={sortedPatients.length}
+        dueCount={dueTopics.length + dueFlashcards.length + dueReadingCount}
+      />
 
       {academyUnavailable && (
         <p className="np-small" style={{ color: '#9B3A31', background: '#FDECEB', padding: '8px 12px', borderRadius: 10 }}>

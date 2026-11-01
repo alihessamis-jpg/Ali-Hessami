@@ -19,6 +19,19 @@ export default defineConfig({
         // start offline
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
         runtimeCaching: [
+          // The dashboard hero's kidney model (~4 MB) is not precached, so
+          // installing/updating the app stays light; it's fetched the first
+          // time the dashboard opens and served from this cache afterwards
+          // (online and offline).
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'nephron-models',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 8 },
+            },
+          },
           // Google Fonts (Plus Jakarta Sans / Vazirmatn) so text looks the same offline
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
