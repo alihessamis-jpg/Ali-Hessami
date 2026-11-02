@@ -848,7 +848,30 @@ export async function unlinkChapterTopic(chapterId: string, topicId: string): Pr
 // Creates the bundled textbook's Library book + its 87 chapters (from
 // src/data/bookContents.json) for the signed-in clinician the first time
 // they open the Library — nothing to run server-side, no shared seed row.
-export async function ensureLibraryBookSeeded(): Promise<{ book: LibraryBook; chapters: LibraryChapter[] }> {
+// Several pages (Library, Reader, Practice, Board Readiness, Study Hub) each
+// call this on mount to make sure the bundled default book/chapters exist.
+// With no coordination, several near-simultaneous calls (same tab, several
+// widgets, or an app cold-start before the first one's "do books already
+// exist?" read had come back) could all see zero books and each insert its
+// own duplicate book + 87 placeholder chapters -- this is exactly what
+// happened once in production (9 duplicate "Pediatric Nephrology" books).
+// Memoizing the in-flight promise means every call in this session shares
+// the same read-then-maybe-create round trip instead of racing it.
+let ensureLibraryBookSeededPromise: Promise<{ book: LibraryBook; chapters: LibraryChapter[] }> | null = null
+
+export function ensureLibraryBookSeeded(): Promise<{ book: LibraryBook; chapters: LibraryChapter[] }> {
+  if (!ensureLibraryBookSeededPromise) {
+    ensureLibraryBookSeededPromise = ensureLibraryBookSeededUncached().catch((err) => {
+      // A failed attempt must not permanently wedge every later call --
+      // only a successful seed is worth sharing.
+      ensureLibraryBookSeededPromise = null
+      throw err
+    })
+  }
+  return ensureLibraryBookSeededPromise
+}
+
+async function ensureLibraryBookSeededUncached(): Promise<{ book: LibraryBook; chapters: LibraryChapter[] }> {
   const existingBooks = await listLibraryBooks()
   if (existingBooks.length > 0) {
     const book = existingBooks[0]
