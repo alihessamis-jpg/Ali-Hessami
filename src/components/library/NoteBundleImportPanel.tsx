@@ -38,8 +38,7 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
     onClose()
   }
 
-  function handlePick(files: FileList) {
-    const picked = Array.from(files)
+  function handlePick(picked: File[]) {
     pickedFiles.current = picked
     setFileNames(picked.map((f) => f.name))
     setReport(null)
@@ -147,9 +146,15 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
               multiple
               style={{ display: 'none' }}
               onChange={(e) => {
-                const files = e.target.files
+                // Convert to a plain array (and so to real File references)
+                // before clearing the input's value -- some mobile browsers
+                // (notably iOS/iPadOS Safari with a multi-file document
+                // picker) invalidate the live FileList as soon as the value
+                // is reset, so reading it lazily inside handlePick picked up
+                // an empty list.
+                const files = e.target.files ? Array.from(e.target.files) : []
                 e.target.value = ''
-                if (files && files.length > 0) handlePick(files)
+                if (files.length > 0) handlePick(files)
               }}
             />
             <button type="button" className="np-btn ghost sm" onClick={() => inputRef.current?.click()}>
