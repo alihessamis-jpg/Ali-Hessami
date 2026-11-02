@@ -11,6 +11,7 @@ function boardQuestion(partial: Partial<BoardQuestion> & { id: string }): BoardQ
     correctIndex: 0,
     createdAt: '2026-01-01',
     answerVerified: true,
+    reviewStatus: 'approved',
     ...partial,
   }
 }

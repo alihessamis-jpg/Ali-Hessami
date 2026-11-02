@@ -345,23 +345,28 @@ function renderSourceLinkedText(
   knownIds: Set<string>,
   onAnchorClick: (id: string) => void
 ): ReactNode[] {
-  return splitSourceLinks(text).flatMap((seg, i) => {
-    if (seg.kind === 'text') return renderBdi(seg.text, `${keyBase}-${i}`)
-    const known = seg.id ? knownIds.has(seg.id) : false
-    if (!known) return renderBdi(seg.text, `${keyBase}-${i}`)
+  const result: ReactNode[] = []
+  splitSourceLinks(text).forEach((seg, i) => {
+    const known = seg.kind === 'link' && seg.id ? knownIds.has(seg.id) : false
+    if (seg.kind === 'text' || !known) {
+      result.push(...renderBdi(seg.text, `${keyBase}-${i}`))
+      return
+    }
     if (seg.chip) {
-      return [
+      result.push(
         <button type="button" className="xlink" key={`${keyBase}-${i}`} onClick={() => onAnchorClick(seg.id!)}>
           منبع ›
-        </button>,
-      ]
+        </button>
+      )
+      return
     }
-    return [
+    result.push(
       <button type="button" className="srclink" key={`${keyBase}-${i}`} onClick={() => onAnchorClick(seg.id!)}>
         {renderBdi(seg.text, `${keyBase}-${i}-b`)}
-      </button>,
-    ]
+      </button>
+    )
   })
+  return result
 }
 
 // v1.2: one `### سؤال N {#id .mcq}` block -- a tappable question card with a

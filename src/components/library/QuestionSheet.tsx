@@ -46,17 +46,21 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
   }
 
   if (ref.kind === 'card') {
-    const options = ref.card.options as McqOptions
+    // Captured outside the nested `submit` so it stays a plain LibraryCard
+    // there instead of the AnchoredQuestionRef union TS won't narrow inside
+    // a closure.
+    const card = ref.card
+    const options = card.options as McqOptions
     const correctIndex = options.choices.findIndex((c) => c.correct)
     function submit() {
       if (selected == null) return
       setSubmitted(true)
-      onGradeCard(ref.card.id, selected === correctIndex)
+      onGradeCard(card.id, selected === correctIndex)
     }
     return (
       <SheetFrame index={index} total={refs.length} onClose={onClose} onPrev={prev} onNext={next}>
         <p dir="rtl" className="qq">
-          {ref.card.front.replace(/_____/g, '؟')}
+          {card.front.replace(/_____/g, '؟')}
         </p>
         <div className="opts" dir="rtl">
           {options.choices.map((c, i) => (
