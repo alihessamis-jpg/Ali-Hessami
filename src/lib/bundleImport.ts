@@ -65,7 +65,18 @@ async function collectImages(entries: JSZipObject[]): Promise<ChapterNoteImageIn
   )
 }
 
-export async function importNoteBundle(zipFiles: File[]): Promise<BundleImportReport> {
+export interface BundleImportProgress {
+  done: number
+  total: number
+  currentFile: string
+  phase: 'loading' | 'importing'
+}
+
+export async function importNoteBundle(
+  zipFiles: File[],
+  onProgress?: (progress: BundleImportProgress) => void
+): Promise<BundleImportReport> {
+  onProgress?.({ done: 0, total: 0, currentFile: '', phase: 'loading' })
   const zips = await Promise.all(zipFiles.map((f) => JSZip.loadAsync(f)))
   const allEntries = zips.flatMap((z) => Object.values(z.files).filter((f) => !f.dir))
 
@@ -92,7 +103,9 @@ export async function importNoteBundle(zipFiles: File[]): Promise<BundleImportRe
     : mdEntries.map((e) => ({ file: e.name, entry: e }))
 
   const files: BundleFileReport[] = []
+  let doneCount = 0
   for (const target of targets) {
+    onProgress?.({ done: doneCount, total: targets.length, currentFile: basename(target.file), phase: 'importing' })
     if (!target.entry) {
       files.push({
         file: target.file,
@@ -107,6 +120,7 @@ export async function importNoteBundle(zipFiles: File[]): Promise<BundleImportRe
         autolinked: 0,
         error: 'فایل در zip(های) انتخاب‌شده پیدا نشد',
       })
+      doneCount++
       continue
     }
     try {
@@ -131,6 +145,7 @@ export async function importNoteBundle(zipFiles: File[]): Promise<BundleImportRe
         autolinked,
         error: null,
       })
+      doneCount++
     } catch (err) {
       files.push({
         file: target.file,
@@ -145,8 +160,10 @@ export async function importNoteBundle(zipFiles: File[]): Promise<BundleImportRe
         autolinked: 0,
         error: err instanceof Error ? err.message : 'ایمپورت ناموفق بود',
       })
+      doneCount++
     }
   }
+  onProgress?.({ done: doneCount, total: targets.length, currentFile: '', phase: 'importing' })
 
   return {
     files,

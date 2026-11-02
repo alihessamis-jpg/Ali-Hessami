@@ -6,7 +6,7 @@
 // are pooled before any note is imported, so the bundle doesn't have to be
 // repackaged into one file first.
 import { useRef, useState } from 'react'
-import { importNoteBundle, type BundleImportReport } from '../../lib/bundleImport'
+import { importNoteBundle, type BundleImportProgress, type BundleImportReport } from '../../lib/bundleImport'
 import { describeError } from '../../lib/describeError'
 
 interface Props {
@@ -19,6 +19,7 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [report, setReport] = useState<BundleImportReport | null>(null)
+  const [progress, setProgress] = useState<BundleImportProgress | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pickedFiles = useRef<File[]>([])
 
@@ -28,6 +29,7 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
     setFileNames([])
     setImportError(null)
     setReport(null)
+    setProgress(null)
     pickedFiles.current = []
   }
 
@@ -48,13 +50,15 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
     if (pickedFiles.current.length === 0) return
     setImporting(true)
     setImportError(null)
+    setProgress({ done: 0, total: 0, currentFile: '', phase: 'loading' })
     try {
-      const result = await importNoteBundle(pickedFiles.current)
+      const result = await importNoteBundle(pickedFiles.current, setProgress)
       setReport(result)
     } catch (err) {
       setImportError(describeError(err, 'Bundle import failed'))
     } finally {
       setImporting(false)
+      setProgress(null)
     }
   }
 
@@ -152,6 +156,29 @@ export function NoteBundleImportPanel({ open, onClose }: Props) {
               {fileNames.length > 0 ? fileNames.join(', ') : 'Choose one or more .zip files'}
             </button>
             {importError && <p className="form-error">{importError}</p>}
+            {importing && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <p className="np-small">
+                  {progress?.phase === 'loading' || !progress || progress.total === 0
+                    ? 'Unpacking zip(s)…'
+                    : `${progress.done} / ${progress.total} notes imported${progress.currentFile ? ` — working on ${progress.currentFile}` : ''}`}
+                </p>
+                <div style={{ height: 6, borderRadius: 3, background: '#EEF2F8', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: progress && progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : '8%',
+                      height: '100%',
+                      background: 'var(--accent)',
+                      transition: 'width .2s',
+                    }}
+                  />
+                </div>
+                <p className="np-small">
+                  This can take several minutes for a large bundle (note text + figure uploads, one at a time). Keep this tab open and in
+                  the foreground until it finishes.
+                </p>
+              </div>
+            )}
             <button type="button" className="np-btn sm" disabled={fileNames.length === 0 || importing} onClick={() => void handleImport()}>
               {importing ? 'Importing…' : `Import ${fileNames.length || ''} bundle${fileNames.length === 1 ? '' : 's'}`}
             </button>
