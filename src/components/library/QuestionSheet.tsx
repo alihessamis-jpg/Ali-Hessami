@@ -67,7 +67,17 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
             <button
               key={i}
               type="button"
-              className={selected == null ? 'opt' : i === correctIndex ? 'opt right' : i === selected ? 'opt wrong' : 'opt'}
+              className={
+                !submitted
+                  ? i === selected
+                    ? 'opt sel'
+                    : 'opt'
+                  : i === correctIndex
+                    ? 'opt right'
+                    : i === selected
+                      ? 'opt wrong'
+                      : 'opt'
+              }
               disabled={submitted}
               onClick={() => setSelected(i)}
             >
@@ -104,7 +114,17 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
             <button
               key={i}
               type="button"
-              className={selected == null ? 'opt' : i === correctIndex ? 'opt right' : i === selected ? 'opt wrong' : 'opt'}
+              className={
+                !submitted
+                  ? i === selected
+                    ? 'opt sel'
+                    : 'opt'
+                  : i === correctIndex
+                    ? 'opt right'
+                    : i === selected
+                      ? 'opt wrong'
+                      : 'opt'
+              }
               disabled={submitted}
               onClick={() => setSelected(i)}
             >

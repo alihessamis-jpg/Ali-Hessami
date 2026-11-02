@@ -8315,6 +8315,23 @@ select.pt-ward:focus {
   color: #1b2a44;
 }
 
+/* v1.6 (section 10.4): the "🧩 n" badge's bottom sheet (.qsheet) is a
+   light card like .face, not the dark .qc -- same override. */
+.qsheet .opt {
+  border-color: var(--border);
+  background: #f5f8fe;
+  color: #1b2a44;
+}
+
+.qsheet .opt:hover {
+  background: #eaf0fc;
+}
+
+.qsheet .opt .k {
+  background: #e3ebf7;
+  color: #1b2a44;
+}
+
 .opt.right {
   background: #ddf3e6;
   border-color: #9ed9b6;
@@ -8335,6 +8352,19 @@ select.pt-ward:focus {
 }
 .opt.dim {
   opacity: 0.55;
+}
+
+/* v1.6: the picked-but-not-yet-submitted option in .qsheet's two-step
+   select-then-submit flow -- a neutral highlight, not a right/wrong color
+   (those only apply after submit). */
+.opt.sel {
+  border-color: var(--accent);
+  background: #eaf0fc;
+  color: #1b2a44;
+}
+.opt.sel .k {
+  background: var(--accent);
+  color: #fff;
 }
 
 .why,
