@@ -88,6 +88,7 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [animationsOn, setAnimationsOn] = useState(true)
   const [examDate, setExamDate] = useState('')
+  const [showParagraphQuestionBadges, setShowParagraphQuestionBadges] = useState(true)
 
   useEffect(() => {
     setAnimationsOn(getAnimationsEnabled())
@@ -98,6 +99,7 @@ export function SettingsPage() {
       .then((s) => {
         setForm(toFormState(s))
         setExamDate(s.examDate ?? '')
+        setShowParagraphQuestionBadges(s.showParagraphQuestionBadges)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load settings'))
       .finally(() => setLoading(false))
@@ -152,7 +154,7 @@ export function SettingsPage() {
     setError(null)
     setSaved(false)
     try {
-      await updateUserSettings({ ...parsed, examDate: examDate || null })
+      await updateUserSettings({ ...parsed, examDate: examDate || null, showParagraphQuestionBadges })
       setSaved(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings')
@@ -257,6 +259,25 @@ export function SettingsPage() {
                 <span className="np-small" style={{ lineHeight: 1.5 }}>
                   How many never-reviewed cards the Review tab introduces per day. High-yield (⭐) cards are
                   introduced first.
+                </span>
+              </section>
+
+              <section className="np-card np-fade" style={{ animationDelay: '.42s' }}>
+                <h2>Reader</h2>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={showParagraphQuestionBadges}
+                    onChange={(e) => {
+                      setShowParagraphQuestionBadges(e.target.checked)
+                      setSaved(false)
+                    }}
+                  />
+                  نمایش سؤال‌های هر پاراگراف
+                </label>
+                <span className="np-small" style={{ lineHeight: 1.5 }}>
+                  Shows a «🧩 n» badge on any paragraph, table or figure that Practice questions or the chapter's own
+                  question bank point back to, with a tap-to-answer sheet.
                 </span>
               </section>
 

@@ -8035,6 +8035,58 @@ select.pt-ward:focus {
   cursor: pointer;
 }
 
+/* v1.6 (section 10.4): the "🧩 n" reverse-link badge on an anchored
+   paragraph/list-item/figure that has questions pointing back to it. */
+.qbadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f6e62;
+  background: rgba(197, 231, 224, 0.55);
+  border: none;
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-inline-start: 6px;
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  white-space: nowrap;
+}
+
+.qbadge-section {
+  display: inline-flex;
+  margin-inline-start: 10px;
+  font-size: 12.5px;
+}
+
+.qsheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(10, 16, 28, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.qsheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--card, #fff);
+  border-radius: 20px 20px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.qsheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .chart {
   margin: 16px 0;
   background: #fff;

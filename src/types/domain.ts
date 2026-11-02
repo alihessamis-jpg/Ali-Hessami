@@ -1052,4 +1052,6 @@ export interface UserSettings {
   /** Phase 5: the board exam date, for the exam-plan countdown. YYYY-MM-DD, or null if unset. */
   examDate: string | null
   lastBackupAt?: string | null
+  /** v1.6 (section 10.4): show the "🧩 n" reverse-link badge on anchored paragraphs in the Reader. */
+  showParagraphQuestionBadges: boolean
 }

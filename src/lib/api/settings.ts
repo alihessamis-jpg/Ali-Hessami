@@ -27,6 +27,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   targetRetention: 0.9,
   examDate: null,
   lastBackupAt: null,
+  showParagraphQuestionBadges: true,
 }
 
 interface UserSettingsRow {
@@ -54,6 +55,7 @@ interface UserSettingsRow {
   target_retention: number
   exam_date: string | null
   last_backup_at: string | null
+  show_paragraph_question_badges: boolean
 }
 
 function toDomain(row: UserSettingsRow): UserSettings {
@@ -82,6 +84,7 @@ function toDomain(row: UserSettingsRow): UserSettings {
     targetRetention: row.target_retention,
     examDate: row.exam_date,
     lastBackupAt: row.last_backup_at,
+    showParagraphQuestionBadges: row.show_paragraph_question_badges,
   }
 }
 
@@ -126,6 +129,7 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
         daily_review_limit: next.dailyReviewLimit,
         target_retention: next.targetRetention,
         exam_date: next.examDate,
+        show_paragraph_question_badges: next.showParagraphQuestionBadges,
       },
       { onConflict: 'owner_id' }
     )

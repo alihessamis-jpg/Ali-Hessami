@@ -169,6 +169,17 @@ export async function deleteBoardQuestion(id: string): Promise<void> {
   if (error) throw error
 }
 
+// v1.6 (section 10.3): re-run the DB-side pg_trgm auto-linker
+// (nephron_autolink_chapter, see the migration) for every still-unlinked
+// question of one chapter -- called after a note (re)import so newly
+// imported anchors can pick up matches the chapter's own questions were
+// missing. Returns how many explanations it attached a link to.
+export async function autolinkChapterQuestions(chapterId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('nephron_autolink_chapter', { p_chapter_id: chapterId })
+  if (error) throw error
+  return (data as number) ?? 0
+}
+
 // Idempotent bulk import: each draft must carry a stable `importKey`
 // ("<chapterId>:<sourceFile>:<number>"). Re-importing the same file
 // upserts on that key instead of duplicating rows (owner_id + import_key

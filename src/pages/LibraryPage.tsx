@@ -17,6 +17,7 @@ import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCa
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
 import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
 import { BulkCardImportPanel } from '../components/library/BulkCardImportPanel'
+import { NoteBundleImportPanel } from '../components/library/NoteBundleImportPanel'
 import { BookSwitcher, type LibraryBookStats } from '../components/library/BookSwitcher'
 import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
@@ -55,6 +56,7 @@ export function LibraryPage() {
   const [questionAttempts, setQuestionAttempts] = useState<BoardQuestionAttempt[]>([])
   const [importOpen, setImportOpen] = useState(false)
   const [bulkImportOpen, setBulkImportOpen] = useState(false)
+  const [noteBundleImportOpen, setNoteBundleImportOpen] = useState(false)
   const [topics, setTopics] = useState<AcademyTopic[]>([])
   const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
   const [dailyGoal, setDailyGoal] = useState(10)
@@ -387,6 +389,10 @@ export function LibraryPage() {
               <UploadIcon width={16} height={16} />
               Bulk import
             </button>
+            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setNoteBundleImportOpen(true)}>
+              <UploadIcon width={16} height={16} />
+              Import bundle (zip)
+            </button>
           </div>
 
           {tab === 'book' && bookUnavailable ? (
@@ -655,6 +661,7 @@ export function LibraryPage() {
         onImported={(imported) => setQuestions((prev) => [...prev.filter((q) => !imported.some((n) => n.importKey === q.importKey)), ...imported])}
       />
       <BulkCardImportPanel open={bulkImportOpen} onClose={() => setBulkImportOpen(false)} />
+      <NoteBundleImportPanel open={noteBundleImportOpen} onClose={() => setNoteBundleImportOpen(false)} />
     </div>
   )
 }

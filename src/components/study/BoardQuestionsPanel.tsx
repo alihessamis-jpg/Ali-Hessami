@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
 import { addBoardQuestionAttempt, listBoardQuestionAttempts } from '../../lib/api/boardQuestionAttempts'
@@ -8,9 +9,13 @@ import { addKnowledgeGap, listKnowledgeGaps } from '../../lib/api/knowledgeGaps'
 import { accuracyByTopic, dailyAccuracyTrend } from '../../lib/boardQuestionStats'
 import { toShamsi } from '../../lib/shamsi'
 import { matchesSearch } from '../../lib/textFilter'
+import { renderExplanation } from '../../lib/explanationLinks'
+import { savePracticeResume, takePracticeResume } from '../../lib/practiceResume'
 import { TopicPicker } from './TopicPicker'
 import { MockExamPanel } from './MockExamPanel'
 import type { BoardQuestion, BoardQuestionAttempt, KnowledgeGap } from '../../types/domain'
+
+const NEEDS_KEY_REVIEW_TAG = 'needs-key-review'
 
 type Mode = 'practice' | 'mockExam' | 'progress' | 'manage'
 
@@ -63,9 +68,11 @@ interface BoardQuestionsPanelProps {
 }
 
 export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsPanelProps = {}) {
+  const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('practice')
   const [chapterFilterId, setChapterFilterId] = useState<string | null>(null)
   const autoStartedRef = useRef(false)
+  const resumedRef = useRef(false)
   const [questions, setQuestions] = useState<BoardQuestion[]>([])
   const [attempts, setAttempts] = useState<BoardQuestionAttempt[]>([])
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
@@ -91,10 +98,33 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
   const [editingQuestion, setEditingQuestion] = useState<BoardQuestion | null>(null)
   const [manageTopicFilter, setManageTopicFilter] = useState('All')
   const [manageSearch, setManageSearch] = useState('')
+  const [manageNeedsKeyReviewOnly, setManageNeedsKeyReviewOnly] = useState(false)
 
   useEffect(() => {
     refresh()
   }, [])
+
+  // v1.6 (section 10.1): resume a session interrupted by tapping a source
+  // link in its explanation ("↩ بازگشت به سؤال") -- restore it before the
+  // chapterId auto-start below gets a chance to start a fresh one instead.
+  useEffect(() => {
+    if (resumedRef.current || questions.length === 0) return
+    const snap = takePracticeResume()
+    if (!snap) return
+    resumedRef.current = true
+    autoStartedRef.current = true
+    const byId = new Map(questions.map((q) => [q.id, q]))
+    const restoredQueue = snap.queueIds.map((qid) => byId.get(qid)).filter((q): q is BoardQuestion => !!q)
+    if (restoredQueue.length === 0) return
+    setMode('practice')
+    setChapterFilterId(snap.chapterFilterId)
+    setPracticeTopic(snap.practiceTopic)
+    setQueue(restoredQueue)
+    setQueueIndex(Math.min(snap.queueIndex, restoredQueue.length - 1))
+    setSessionScore(snap.sessionScore)
+    setSelectedIndex(snap.selectedIndex)
+    setSubmitted(snap.submitted)
+  }, [questions])
 
   useEffect(() => {
     if (!initialChapterId || autoStartedRef.current || questions.length === 0) return
@@ -104,6 +134,23 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
     startPractice(initialChapterId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialChapterId, questions])
+
+  // v1.6 (section 10.1): tapping a source link in the current question's
+  // explanation -- persist exactly enough to restore this session (above)
+  // and open the Reader at that anchor, flagged so it shows the back button.
+  function handleOpenSourceLink(chapterId: string, anchorId: string) {
+    if (!queue) return
+    savePracticeResume({
+      chapterFilterId,
+      practiceTopic,
+      queueIds: queue.map((q) => q.id),
+      queueIndex,
+      sessionScore,
+      selectedIndex,
+      submitted,
+    })
+    navigate(`/academy/reader/${chapterId}?from=practice#${anchorId}`)
+  }
 
   function refresh() {
     setLoading(true)
@@ -261,6 +308,11 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
         sourceDate: editingQuestion?.sourceDate ?? null,
         answerVerified: true,
         importKey: editingQuestion?.importKey ?? null,
+        // Editing and saving a question's key here is exactly the fellow's
+        // "I fixed it" action for a flagged key (bullet 5 / FLAGGED_ANSWERS.md)
+        // -- drop the review tag so it falls out of the "needs key review"
+        // filter below; every other tag carries forward unchanged.
+        tags: (editingQuestion?.tags ?? []).filter((t) => t !== NEEDS_KEY_REVIEW_TAG),
       }
       if (editingId) {
         const updated = await updateBoardQuestion(editingId, payload)
@@ -312,8 +364,14 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
   const trend = useMemo(() => dailyAccuracyTrend(attempts), [attempts])
   const overallAccuracy = attempts.length > 0 ? Math.round((attempts.filter((a) => a.isCorrect).length / attempts.length) * 100) : null
 
+  // v1.6 (bullet 5): FLAGGED_ANSWERS.md's 26 questions are tagged
+  // `needs-key-review` in the DB without touching their keys -- this filter
+  // is how the fellow finds them one by one to fix.
+  const needsKeyReviewCount = useMemo(() => questions.filter((q) => q.tags?.includes(NEEDS_KEY_REVIEW_TAG)).length, [questions])
+
   const visibleQuestions = questions
     .filter((q) => manageTopicFilter === 'All' || q.topic === manageTopicFilter)
+    .filter((q) => !manageNeedsKeyReviewOnly || q.tags?.includes(NEEDS_KEY_REVIEW_TAG))
     .filter((q) => matchesSearch([q.topic, q.question, q.explanation, ...q.options], manageSearch))
 
   if (loading) return <p>Loading…</p>
@@ -570,7 +628,17 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
 
               {submitted && (
                 <div>
-                  {queue[queueIndex].explanation && <p className="patient-meta">{queue[queueIndex].explanation}</p>}
+                  {queue[queueIndex].explanation && (
+                    <p className="patient-meta" dir="auto">
+                      {renderExplanation(queue[queueIndex].explanation as string, {
+                        keyBase: queue[queueIndex].id,
+                        onLinkClick: (anchorId) => {
+                          const chapterId = queue?.[queueIndex]?.chapterId
+                          if (chapterId) handleOpenSourceLink(chapterId, anchorId)
+                        },
+                      })}
+                    </p>
+                  )}
                   <div className="form-actions">
                     <button
                       type="button"
@@ -769,6 +837,16 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
                 allLabel="All"
               />
             )}
+            {needsKeyReviewCount > 0 && (
+              <button
+                type="button"
+                className={manageNeedsKeyReviewOnly ? 'category-pill active' : 'category-pill'}
+                onClick={() => setManageNeedsKeyReviewOnly((v) => !v)}
+                title="FLAGGED_ANSWERS.md -- keys not yet confirmed"
+              >
+                Needs key review ({needsKeyReviewCount})
+              </button>
+            )}
           </div>
           {visibleQuestions.length === 0 ? (
             <p className="empty-state">No questions yet.</p>
@@ -778,6 +856,11 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
                 <li key={q.id}>
                   <div className="note-header">
                     <strong>{q.question}</strong>
+                    {q.tags?.includes(NEEDS_KEY_REVIEW_TAG) && (
+                      <span style={{ color: '#B42318', background: '#FDE1DE', padding: '1px 8px', borderRadius: 999, fontSize: 12 }}>
+                        needs key review
+                      </span>
+                    )}
                     {q.answerVerified === false && (
                       <span style={{ color: '#93590B', background: '#FDF0D5', padding: '1px 8px', borderRadius: 999, fontSize: 12 }}>
                         answer not verified

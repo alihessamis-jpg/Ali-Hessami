@@ -38,7 +38,13 @@ import { getUserSettings } from '../lib/api/settings'
 import { AcademyIcon, CalendarIcon, PatientsIcon, QuizIcon } from '../components/icons'
 import { HeroScene } from '../components/hero/HeroScene'
 import { requestChapterSuggestions } from '../lib/api/aiSuggestions'
-import { approveBoardQuestionSuggestion, listPendingBoardQuestions, rejectBoardQuestionSuggestion } from '../lib/api/boardQuestions'
+import {
+  approveBoardQuestionSuggestion,
+  listBoardQuestionsForChapter,
+  listPendingBoardQuestions,
+  rejectBoardQuestionSuggestion,
+} from '../lib/api/boardQuestions'
+import { addBoardQuestionAttempt } from '../lib/api/boardQuestionAttempts'
 import type {
   AcademyTopic,
   BoardQuestion,
@@ -202,6 +208,10 @@ export function ReaderPage() {
   const selectedPartIdRef = useRef<string | null>(null)
   selectedPartIdRef.current = selectedPartId
   const [targetRetention, setTargetRetention] = useState(DEFAULT_REQUEST_RETENTION)
+  // v1.6 (section 10.4): this chapter's board_questions, for ChapterProse's
+  // reverse-link "🧩 n" badges; the settings toggle that can hide them.
+  const [chapterBoardQuestions, setChapterBoardQuestions] = useState<BoardQuestion[]>([])
+  const [showQuestionBadges, setShowQuestionBadges] = useState(true)
 
   // The note actually being read -- the selected part's, if this chapter
   // has parts, otherwise the chapter's own (the v1-v1.3 behavior, for every
@@ -221,15 +231,29 @@ export function ReaderPage() {
   )
   const missingFigures = noteFigures.filter((f) => !figureUrls[f.id])
 
-  // v1.5: a deep link into this chapter's note (`…/reader/<id>#<anchor>`,
-  // e.g. from a reviewed card's source link) -- wait for the note to render,
-  // then jump to and flash the target the same way an in-page source link
-  // does, minus the "back to question" button (there's no scroll position
-  // on this fresh page load to return to).
+  // v1.5/v1.6: a deep link into this chapter's note (`…/reader/<id>#<anchor>`,
+  // e.g. from a reviewed card's source link, or v1.6's Practice explanations
+  // -- section 10.1) -- wait for the note to render, then jump to and flash
+  // the target the same way an in-page source link does. v1.6: a chapter
+  // with parts (section 7) scatters anchors across several independent part
+  // notes, and an anchor id is unique only within the whole chapter, so the
+  // target part isn't necessarily the one already selected -- find and
+  // switch to whichever part (or the chapter's own note) actually declares
+  // this anchor before trying to scroll to it.
   const location = useLocation()
   useEffect(() => {
     const hash = location.hash.replace(/^#/, '')
-    if (!hash || !activeNote) return
+    if (!hash) return
+    if (parts.length > 0) {
+      const escaped = hash.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const anchorRe = new RegExp(`\\{#${escaped}(?:\\s|\\})`)
+      const holder = parts.find((p) => anchorRe.test(p.note ?? ''))
+      if (holder && holder.id !== selectedPartId) {
+        selectPart(holder)
+        return
+      }
+    }
+    if (!activeNote) return
     const t = window.setTimeout(() => {
       const el = document.getElementById(hash)
       if (!el) return
@@ -238,7 +262,15 @@ export function ReaderPage() {
       window.setTimeout(() => el.classList.remove('anchor-flash'), 1500)
     }, 150)
     return () => window.clearTimeout(t)
-  }, [location.hash, activeNote])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.hash, activeNote, parts, selectedPartId])
+
+  // v1.6 (section 10.1): a Practice source link opens the Reader with
+  // `?from=practice` -- show a floating back button that returns to the
+  // same Practice question (practiceResume.ts restores its score/position
+  // on BoardQuestionsPanel's next mount; this is plain browser-history back,
+  // which is what pops back to that mount).
+  const backToPractice = new URLSearchParams(location.search).get('from') === 'practice'
 
   function markSectionsReadUpTo(idx: number) {
     if (idx <= furthestSectionIndexRef.current) return
@@ -300,18 +332,21 @@ export function ReaderPage() {
   async function reload() {
     if (!id) return
     try {
-      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows, pendingQuestionRows, partRows] = await Promise.all([
-        getLibraryChapter(id),
-        listLibraryCardsForChapter(id),
-        listLibraryHighlights(id),
-        listTopicIdsForChapter(id),
-        ensureLibraryBookSeeded().catch(() => null),
-        listLibraryChapterFigures(id).catch(() => []),
-        listPendingBoardQuestions(id).catch(() => []),
-        listLibraryChapterParts(id).catch(() => []),
-      ])
+      const [chapterRow, cardRows, highlightRows, topicIds, seeded, figureRows, pendingQuestionRows, partRows, chapterBoardQuestionRows] =
+        await Promise.all([
+          getLibraryChapter(id),
+          listLibraryCardsForChapter(id),
+          listLibraryHighlights(id),
+          listTopicIdsForChapter(id),
+          ensureLibraryBookSeeded().catch(() => null),
+          listLibraryChapterFigures(id).catch(() => []),
+          listPendingBoardQuestions(id).catch(() => []),
+          listLibraryChapterParts(id).catch(() => []),
+          listBoardQuestionsForChapter(id).catch(() => []),
+        ])
       setOfflineFallback(false)
       setPendingQuestions(pendingQuestionRows)
+      setChapterBoardQuestions(chapterBoardQuestionRows)
       if (!chapterRow) {
         setChapter(null)
         setCards([])
@@ -358,7 +393,10 @@ export function ReaderPage() {
       .catch((err) => setError(describeError(err, 'Failed to load chapter')))
       .finally(() => setLoading(false))
     getUserSettings()
-      .then((s) => setTargetRetention(s.targetRetention))
+      .then((s) => {
+        setTargetRetention(s.targetRetention)
+        setShowQuestionBadges(s.showParagraphQuestionBadges)
+      })
       .catch(() => {
         // keep the default retention if settings fail to load
       })
@@ -686,6 +724,28 @@ export function ReaderPage() {
     setQcAnswer(null)
   }
 
+  // v1.6 (section 10.4): the "🧩 n" badge's bottom sheet answers a question
+  // in place -- same two write paths Practice/Quick check already use, just
+  // triggered from inside ChapterProse instead.
+  function handleRecordBoardAttempt(questionId: string, isCorrect: boolean, selectedIndex: number) {
+    void addBoardQuestionAttempt({ questionId, selectedIndex, isCorrect }).catch((err) => {
+      setError(describeError(err, 'Failed to record attempt'))
+    })
+  }
+
+  function handleGradeCard(cardId: string, correct: boolean) {
+    const card = cards.find((c) => c.id === cardId)
+    if (!card) return
+    const next = scheduleFsrs(card, correct ? 'good' : 'again', new Date(), targetRetention)
+    void updateLibraryCardFsrs(card.id, next.next).then((updated) => {
+      setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+    })
+  }
+
+  function handleOpenInPractice(chapterId: string) {
+    navigate(`/study?tab=boardQuestions&chapterId=${chapterId}`)
+  }
+
   async function handleFinishChapter(rating: FsrsRating) {
     if (!chapter) return
     try {
@@ -740,6 +800,11 @@ export function ReaderPage() {
 
   return (
     <div className="np-page">
+      {backToPractice && (
+        <button type="button" className="anchor-back" onClick={() => navigate(-1)}>
+          ↩ بازگشت به سؤال
+        </button>
+      )}
       <div className="rd">
         <header className="rhead np-fade">
           <div className="crumb" style={{ justifyContent: 'space-between', width: '100%' }}>
@@ -952,6 +1017,11 @@ export function ReaderPage() {
                 figures={figureUrls}
                 onUploadFigure={handleUploadFigure}
                 onRemoveFigure={handleRemoveFigure}
+                boardQuestions={chapterBoardQuestions}
+                showQuestionBadges={showQuestionBadges}
+                onRecordBoardAttempt={handleRecordBoardAttempt}
+                onGradeCard={handleGradeCard}
+                onOpenInPractice={handleOpenInPractice}
               />
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>

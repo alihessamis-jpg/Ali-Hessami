@@ -9,9 +9,11 @@ import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNo
 import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
 import { parseMcqBlock, type ParsedMcqChoice } from '../../lib/mcqBlock'
 import { collectAnchorIds, splitSourceLinks, stripTrailingAnchorText } from '../../lib/sourceLinks'
+import { buildAnchorQuestionIndex, sectionQuestionRefs, type AnchoredQuestionRef } from '../../lib/reverseLinks'
 import { toPersianDigits } from '../../lib/shamsi'
 import { renderNephronChart, type NephronChartSpec } from './nephronChart'
-import type { LibraryCard, LibraryHighlight } from '../../types/domain'
+import { QuestionSheet } from './QuestionSheet'
+import type { BoardQuestion, LibraryCard, LibraryHighlight } from '../../types/domain'
 
 export interface MakeCardPayload {
   sectionNumber: string | null
@@ -44,6 +46,13 @@ interface Props {
   onUploadFigure?: (figureKey: string, file: File) => Promise<void>
   /** Deletes an existing figure's image/row, turning it back into a "Missing figure" card. */
   onRemoveFigure?: (figureKey: string) => Promise<void>
+  /** v1.6 (section 10.4): this chapter's board_questions, for the reverse-link "🧩 n" badges. */
+  boardQuestions?: BoardQuestion[]
+  /** Settings toggle "نمایش سؤال‌های هر پاراگراف" -- default on. */
+  showQuestionBadges?: boolean
+  onRecordBoardAttempt?: (questionId: string, isCorrect: boolean, selectedIndex: number) => void
+  onGradeCard?: (cardId: string, correct: boolean) => void
+  onOpenInPractice?: (chapterId: string) => void
 }
 
 function renderBdi(text: string, keyBase: string): ReactNode[] {
@@ -410,6 +419,7 @@ function FigureCard({
   onOpen,
   onUploadFigure,
   onRemoveFigure,
+  badge,
 }: {
   id: string
   src: string | null
@@ -418,6 +428,7 @@ function FigureCard({
   onOpen: () => void
   onUploadFigure?: (figureKey: string, file: File) => Promise<void>
   onRemoveFigure?: (figureKey: string) => Promise<void>
+  badge?: ReactNode
 }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -559,7 +570,12 @@ function FigureCard({
           )}
         </div>
       )}
-      {caption && <figcaption>{renderBdi(caption, `${id}-cap`)}</figcaption>}
+      {caption && (
+        <figcaption>
+          {renderBdi(caption, `${id}-cap`)}
+          {badge}
+        </figcaption>
+      )}
     </figure>
   )
 }
@@ -661,6 +677,11 @@ export function ChapterProse({
   figures,
   onUploadFigure,
   onRemoveFigure,
+  boardQuestions,
+  showQuestionBadges = true,
+  onRecordBoardAttempt,
+  onGradeCard,
+  onOpenInPractice,
 }: Props) {
   const chartIndexRef = useRef(0)
   chartIndexRef.current = 0
@@ -683,6 +704,50 @@ export function ChapterProse({
   // Where to scroll back to after a source-link jump -- shows the floating
   // "↩ بازگشت به سؤال" button until tapped (or until another jump replaces it).
   const [backOrigin, setBackOrigin] = useState<number | null>(null)
+
+  // v1.6 (section 10.4): anchor -> questions that cite it, built from links
+  // that already exist (board_questions + this chapter's own imported mcq
+  // cards) -- drives the "🧩 n" badges below and the sheet they open.
+  const reverseIndex = useMemo(() => buildAnchorQuestionIndex(boardQuestions ?? [], cards), [boardQuestions, cards])
+  const [sheetRefs, setSheetRefs] = useState<AnchoredQuestionRef[] | null>(null)
+
+  function renderBadge(anchorId: string | null | undefined, keySuffix: string) {
+    if (!anchorId || !showQuestionBadges) return null
+    const refs = reverseIndex.get(anchorId)
+    if (!refs || refs.length === 0) return null
+    return (
+      <button
+        type="button"
+        className="qbadge"
+        key={`badge-${keySuffix}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          setSheetRefs(refs)
+        }}
+        title={`${refs.length} سؤال مرتبط با این بخش`}
+      >
+        🧩 {toPersianDigits(String(refs.length))}
+      </button>
+    )
+  }
+
+  function renderSectionBadge(anchorId: string | null | undefined) {
+    if (!anchorId || !showQuestionBadges) return null
+    const refs = sectionQuestionRefs(anchorId, reverseIndex)
+    if (refs.length === 0) return null
+    return (
+      <button
+        type="button"
+        className="qbadge qbadge-section"
+        onClick={(e) => {
+          e.stopPropagation()
+          setSheetRefs(refs)
+        }}
+      >
+        🧩 {toPersianDigits(String(refs.length))} سؤال در این بخش
+      </button>
+    )
+  }
 
   function handleAnchorJump(id: string) {
     const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`)
@@ -771,6 +836,7 @@ export function ChapterProse({
           {sectionNumber && <span className="sn">{toPersianDigits(sectionNumber)}</span>}
           {renderBdi(display, `h2-${anchorId ?? raw}`)}
           {en && <span className="en">{renderBdi(en, `h2-en-${anchorId ?? raw}`)}</span>}
+          {renderSectionBadge(anchorId)}
         </h2>
       )
     },
@@ -816,16 +882,23 @@ export function ChapterProse({
         return (
           <p dir="ltr" className="enp" id={anchorId ?? undefined}>
             {rendered}
+            {renderBadge(anchorId, `p-${anchorId}`)}
           </p>
         )
       }
-      return <p id={anchorId ?? undefined}>{rendered}</p>
+      return (
+        <p id={anchorId ?? undefined}>
+          {rendered}
+          {renderBadge(anchorId, `p-${anchorId}`)}
+        </p>
+      )
     },
     li: (props: { children?: ReactNode }) => {
       const { children: kids, anchorId } = stripAnchorFromChildren(props.children)
       return (
         <li id={anchorId ?? undefined}>
           {transformChildren(kids, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+          {renderBadge(anchorId, `li-${anchorId}`)}
         </li>
       )
     },
@@ -994,6 +1067,7 @@ export function ChapterProse({
           onOpen={() => url && setViewerFigure({ src: url, caption: block.caption })}
           onUploadFigure={onUploadFigure}
           onRemoveFigure={onRemoveFigure}
+          badge={renderBadge(block.id, `fig-${block.id}`)}
         />
       )
       continue
@@ -1051,6 +1125,15 @@ export function ChapterProse({
       )}
       {renderedBlocks}
       {viewerFigure && <FigureViewer src={viewerFigure.src} caption={viewerFigure.caption} onClose={() => setViewerFigure(null)} />}
+      {sheetRefs && (
+        <QuestionSheet
+          refs={sheetRefs}
+          onClose={() => setSheetRefs(null)}
+          onOpenInPractice={(chapterId) => onOpenInPractice?.(chapterId)}
+          onRecordBoardAttempt={(questionId, isCorrect, selectedIndex) => onRecordBoardAttempt?.(questionId, isCorrect, selectedIndex)}
+          onGradeCard={(cardId, correct) => onGradeCard?.(cardId, correct)}
+        />
+      )}
       {backOrigin !== null && (
         <button
           type="button"
