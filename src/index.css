@@ -9475,3 +9475,105 @@ html.force-reduced-motion .pc-ecg-line {
     transition: none;
   }
 }
+
+/* ---- بیت روز (daily Persian verse) ---- */
+
+.vs-today {
+  background: linear-gradient(160deg, #fffaf0 0%, #ffffff 60%);
+  border-color: #f1e2c4;
+}
+
+.vs-quill {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #fbefd9;
+  color: #a8650f;
+  font-size: 18px;
+}
+
+.vs-beyt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 4px 2px;
+}
+
+.vs-mesra {
+  margin: 0;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 19px;
+  line-height: 1.9;
+  font-weight: 500;
+  color: #1d2a44;
+  text-align: right;
+}
+
+.vs-mesra-2 {
+  text-align: left;
+}
+
+.vs-poet {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #93590b;
+}
+
+.vs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vs-item .vs-mesra {
+  font-size: 17px;
+}
+
+.vs-hidden {
+  color: transparent;
+  text-shadow: 0 0 9px rgba(29, 42, 68, 0.55);
+  cursor: pointer;
+  user-select: none;
+}
+
+.vs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vs-chip {
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #dce7f7;
+  background: #fff;
+  color: #33425c;
+  cursor: pointer;
+}
+
+.vs-chip.on {
+  background: #1e5bd8;
+  border-color: #1e5bd8;
+  color: #fff;
+}
+
+.vs-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+@media (max-width: 420px) {
+  .vs-mesra {
+    font-size: 17px;
+  }
+  .vs-mesra-2 {
+    text-align: right;
+    padding-right: 1.5em;
+  }
+}
