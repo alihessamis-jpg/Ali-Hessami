@@ -9,13 +9,16 @@ import { listReadingItems, setReadingItemCheckpoint, updateReadingItemSrs } from
 import { listDueCheckpoints, listDueLeitnerItems } from '../lib/readingReview'
 import { estimateReviewMinutes, selectDueLibraryCards, selectNewLibraryCardPool } from '../lib/reviewQueue'
 import { getUserSettings } from '../lib/api/settings'
+import { ensureTodayVerse, listDailyVerses, updateDailyVerseSrs } from '../lib/api/dailyVerses'
+import { localIsoDate, verseForDate } from '../lib/dailyVerse'
+import { DailyVerseCard } from '../components/DailyVerseCard'
 import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
 import { useAuth } from '../context/AuthContext'
 import { AcademyIcon, BookIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
-import type { AcademyCard, AcademyTopic, Flashcard, LibraryCard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
+import type { AcademyCard, AcademyTopic, DailyVerse, Flashcard, LibraryCard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
 
 type Rating = 'easy' | 'moderate' | 'difficult'
 
@@ -128,6 +131,33 @@ export function TodayPage() {
   const [dailyNewCardLimit, setDailyNewCardLimit] = useState(20)
   const [dailyReviewLimit, setDailyReviewLimit] = useState(0)
 
+  const [verses, setVerses] = useState<DailyVerse[]>([])
+  const [todayVerse, setTodayVerse] = useState<DailyVerse | null>(null)
+  const [verseNotice, setVerseNotice] = useState<string | null>(null)
+  const [verseIndex, setVerseIndex] = useState(0)
+  const [verseShowBack, setVerseShowBack] = useState(false)
+  const localToday = localIsoDate()
+
+  // بیت روز — loaded separately so a failure here never blocks the review queue.
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    listDailyVerses()
+      .then(async (rows) => {
+        const verse = await ensureTodayVerse(localToday, rows)
+        if (cancelled) return
+        setTodayVerse(verse)
+        setVerses(rows.some((r) => r.id === verse.id) ? rows : [verse, ...rows])
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setVerseNotice(`این بیت در دفتر ذخیره نشد — ${describeError(err)}`)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session, localToday])
+
   useEffect(() => {
     if (!session) return
     setLoading(true)
@@ -185,6 +215,16 @@ export function TodayPage() {
     [dueLibraryCardsCapped, newLibraryCardCount]
   )
 
+  const dueVerses = useMemo(
+    () => verses.filter((v) => !v.memorized && v.shownOn < localToday && (!v.nextReview || v.nextReview <= localToday)),
+    [verses, localToday]
+  )
+  const currentVerse = dueVerses[verseIndex % Math.max(dueVerses.length, 1)]
+  const fallbackVerse = useMemo(() => verseForDate(localToday), [localToday])
+  // Until the saved verse arrives show nothing (avoids a flash of a different
+  // verse); if saving failed, fall back to a deterministic verse for the day.
+  const shownVerse = todayVerse ?? (verseNotice ? fallbackVerse : null)
+
   const currentFlashcard = dueFlashcards[flashcardIndex % Math.max(dueFlashcards.length, 1)]
   const currentLeitner = dueLeitnerItems[leitnerIndex % Math.max(dueLeitnerItems.length, 1)]
   const currentCard = dueAcademyCards[cardIndex % Math.max(dueAcademyCards.length, 1)]
@@ -195,7 +235,8 @@ export function TodayPage() {
     dueLeitnerItems.length +
     dueCheckpoints.length +
     dueAcademyCards.length +
-    dueLibraryCardsCapped.length
+    dueLibraryCardsCapped.length +
+    dueVerses.length
 
   async function handleRateFlashcard(rating: Rating) {
     if (!currentFlashcard) return
@@ -205,6 +246,19 @@ export function TodayPage() {
       setFlashcards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
       setFlashcardShowBack(false)
       setFlashcardIndex((i) => i + 1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review')
+    }
+  }
+
+  async function handleRateVerse(rating: Rating) {
+    if (!currentVerse) return
+    const next = scheduleReview(currentVerse, rating)
+    try {
+      const updated = await updateDailyVerseSrs(currentVerse.id, next)
+      setVerses((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
+      setVerseShowBack(false)
+      setVerseIndex((i) => i + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save review')
     }
@@ -295,6 +349,18 @@ export function TodayPage() {
 
       {error && <p className="form-error">{error}</p>}
 
+      {shownVerse && (
+        <DailyVerseCard
+          date={localToday}
+          poet={shownVerse.poet}
+          line1={shownVerse.line1}
+          line2={shownVerse.line2}
+          source={shownVerse.source}
+          savedCount={verses.length}
+          notice={verseNotice}
+        />
+      )}
+
       {totalDue === 0 ? (
         <div className="np-card np-fade">
           <EmptyState>Nothing due today — you're all caught up.</EmptyState>
@@ -312,6 +378,21 @@ export function TodayPage() {
               onShowBack={() => setFlashcardShowBack(true)}
               onGrade={(rating) => void handleRateFlashcard(rating)}
               animationDelay="0.1s"
+            />
+          )}
+
+          {dueVerses.length > 0 && currentVerse && (
+            <DueReviewCard
+              icon={<span aria-hidden="true">❦</span>}
+              title="Verses to recite"
+              pillText={`${(verseIndex % dueVerses.length) + 1} / ${dueVerses.length}`}
+              meta={currentVerse.poet}
+              question={`${currentVerse.line1} …`}
+              answer={currentVerse.line2}
+              showBack={verseShowBack}
+              onShowBack={() => setVerseShowBack(true)}
+              onGrade={(rating) => void handleRateVerse(rating)}
+              animationDelay="0.12s"
             />
           )}
 

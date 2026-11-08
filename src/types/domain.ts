@@ -535,6 +535,18 @@ export interface Flashcard extends SrsState {
 
 export type FlashcardDraft = Omit<Flashcard, 'id' | keyof SrsState>
 
+// بیت روز — one classical Persian verse per day, archived with its date.
+export interface DailyVerse extends SrsState {
+  id: string
+  shownOn: string
+  verseKey: string
+  poet: string
+  line1: string
+  line2: string
+  source?: string | null
+  memorized: boolean
+}
+
 export interface ReasoningCase {
   id: string
   title: string

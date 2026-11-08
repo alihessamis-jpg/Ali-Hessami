@@ -8,6 +8,7 @@ import { OfflineFileViewer } from './components/OfflineFileViewer'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TodayPage } from './pages/TodayPage'
+import { VersesPage } from './pages/VersesPage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
 import { QuickAkiEntryPage } from './pages/QuickAkiEntryPage'
@@ -50,6 +51,7 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={protect(<DashboardPage />)} />
           <Route path="/today" element={protect(<TodayPage />)} />
+          <Route path="/verses" element={protect(<VersesPage />)} />
           <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/quick-aki" element={protect(<QuickAkiEntryPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />
