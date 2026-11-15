@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
-import { tokenizeBidi } from '../../lib/bidiText'
+import { blockDir, tokenizeBidi } from '../../lib/bidiText'
 import { describeError } from '../../lib/describeError'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
 import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
@@ -391,7 +391,7 @@ function McqCard({
   return (
     <section className="mcqc" id={id}>
       <div className="mq">{label}</div>
-      <p className="mq-stem">{renderBdi(stem, `${id}-stem`)}</p>
+      <p className="mq-stem" dir={blockDir(stem)}>{renderBdi(stem, `${id}-stem`)}</p>
       <ul>
         {choices.map((c) => (
           <li key={c.label}>
@@ -837,7 +837,7 @@ export function ChapterProse({
       const { display, en, sectionNumber, anchorId } = parseHeadingText(raw)
       sectionRef.current = sectionNumber
       return (
-        <h2 id={anchorId ?? undefined}>
+        <h2 id={anchorId ?? undefined} dir={blockDir(display)}>
           {sectionNumber && <span className="sn">{toPersianDigits(sectionNumber)}</span>}
           {renderBdi(display, `h2-${anchorId ?? raw}`)}
           {en && <span className="en">{renderBdi(en, `h2-en-${anchorId ?? raw}`)}</span>}
@@ -850,7 +850,7 @@ export function ChapterProse({
       const idMatch = raw.match(/\{#([\w-]+)\}/)
       const display = raw.replace(/\s*\{[^}]*\}\s*$/, '').trim()
       return (
-        <h3 id={idMatch?.[1]}>{renderBdi(display, `h3-${idMatch?.[1] ?? raw}`)}</h3>
+        <h3 id={idMatch?.[1]} dir={blockDir(display)}>{renderBdi(display, `h3-${idMatch?.[1] ?? raw}`)}</h3>
       )
     },
     // v1.1: a "#### label" inside a نکات امتحانی panel is a group label, not
@@ -861,7 +861,7 @@ export function ChapterProse({
       const starred = /⭐\s*$/.test(raw)
       const display = raw.replace(/\s*⭐\s*$/, '').trim()
       return (
-        <h4 className="grp">
+        <h4 className="grp" dir={blockDir(display)}>
           {renderBdi(display, `h4-${raw}`)}
           {starred && (
             <span className="hy">
@@ -892,28 +892,28 @@ export function ChapterProse({
         )
       }
       return (
-        <p id={anchorId ?? undefined}>
+        <p id={anchorId ?? undefined} dir="rtl">
           {rendered}
           {renderBadge(anchorId, `p-${anchorId}`)}
         </p>
       )
     },
-    li: (props: { children?: ReactNode }) => {
+    li: (props: { node?: HastElement; children?: ReactNode }) => {
       const { children: kids, anchorId } = stripAnchorFromChildren(props.children)
       return (
-        <li id={anchorId ?? undefined}>
+        <li id={anchorId ?? undefined} dir={blockDir(props.node ? hastText(props.node) : '')}>
           {transformChildren(kids, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
           {renderBadge(anchorId, `li-${anchorId}`)}
         </li>
       )
     },
-    td: (props: { children?: ReactNode }) => (
-      <td>
+    td: (props: { node?: HastElement; children?: ReactNode }) => (
+      <td dir={blockDir(props.node ? hastText(props.node) : '')}>
         {transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
       </td>
     ),
-    th: (props: { children?: ReactNode }) => (
-      <th>
+    th: (props: { node?: HastElement; children?: ReactNode }) => (
+      <th dir={blockDir(props.node ? hastText(props.node) : '')}>
         {transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
       </th>
     ),

@@ -90,3 +90,13 @@ export function isolateLatinRuns(text: string): string {
     .map((t) => (t.isolate ? `${LRI}${t.text}${PDI}` : t.text))
     .join('')
 }
+
+// Block-level base direction for mixed Persian/English content. The global
+// `* { unicode-bidi: plaintext }` rule guesses each paragraph's direction
+// from its FIRST strong character, so a Persian sentence that happens to
+// start with an English term ("PTH بالا ...", "**Nephrotic syndrome**: ...")
+// was laid out left-to-right and its Persian clauses scrambled. Any block
+// that contains Persian is RTL; only purely Latin blocks stay LTR.
+export function blockDir(text: string): 'rtl' | 'ltr' {
+  return PERSIAN_CHAR_RE.test(text) || !/[A-Za-z]/.test(text) ? 'rtl' : 'ltr'
+}
