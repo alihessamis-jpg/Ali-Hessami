@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
-import { blockDir, tokenizeBidi } from '../../lib/bidiText'
+import { isLatinOnly, tokenizeBidi } from '../../lib/bidiText'
 import { describeError } from '../../lib/describeError'
 import { extractCalloutVariants, type CalloutVariant } from '../../lib/libraryNote'
 import { splitNoteBlocks, type NoteBlock } from '../../lib/chapterNoteBlocks'
@@ -68,6 +68,18 @@ function renderBdi(text: string, keyBase: string): ReactNode[] {
       t.text
     )
   )
+}
+
+// Every chapter block is RTL; a purely English block keeps its own LTR
+// order inside a single isolate (see bidiText.isLatinOnly).
+function ltrIfLatin(raw: string, content: ReactNode): ReactNode {
+  return isLatinOnly(raw) ? <bdi dir="ltr">{content}</bdi> : content
+}
+
+function bdiStrings(children: ReactNode, keyBase: string): ReactNode {
+  let i = 0
+  const walk = (c: ReactNode): ReactNode => (typeof c === 'string' ? renderBdi(c, `${keyBase}-${i++}`) : c)
+  return Array.isArray(children) ? children.map(walk) : walk(children)
 }
 
 interface SpecialMatch {
@@ -391,7 +403,7 @@ function McqCard({
   return (
     <section className="mcqc" id={id}>
       <div className="mq">{label}</div>
-      <p className="mq-stem" dir={blockDir(stem)}>{renderBdi(stem, `${id}-stem`)}</p>
+      <p className="mq-stem" dir="rtl">{ltrIfLatin(stem, renderBdi(stem, `${id}-stem`))}</p>
       <ul>
         {choices.map((c) => (
           <li key={c.label}>
@@ -837,9 +849,9 @@ export function ChapterProse({
       const { display, en, sectionNumber, anchorId } = parseHeadingText(raw)
       sectionRef.current = sectionNumber
       return (
-        <h2 id={anchorId ?? undefined} dir={blockDir(display)}>
+        <h2 id={anchorId ?? undefined} dir="rtl">
           {sectionNumber && <span className="sn">{toPersianDigits(sectionNumber)}</span>}
-          {renderBdi(display, `h2-${anchorId ?? raw}`)}
+          {ltrIfLatin(display, renderBdi(display, `h2-${anchorId ?? raw}`))}
           {en && <span className="en">{renderBdi(en, `h2-en-${anchorId ?? raw}`)}</span>}
           {renderSectionBadge(anchorId)}
         </h2>
@@ -850,7 +862,7 @@ export function ChapterProse({
       const idMatch = raw.match(/\{#([\w-]+)\}/)
       const display = raw.replace(/\s*\{[^}]*\}\s*$/, '').trim()
       return (
-        <h3 id={idMatch?.[1]} dir={blockDir(display)}>{renderBdi(display, `h3-${idMatch?.[1] ?? raw}`)}</h3>
+        <h3 id={idMatch?.[1]} dir="rtl">{ltrIfLatin(display, renderBdi(display, `h3-${idMatch?.[1] ?? raw}`))}</h3>
       )
     },
     // v1.1: a "#### label" inside a نکات امتحانی panel is a group label, not
@@ -861,8 +873,8 @@ export function ChapterProse({
       const starred = /⭐\s*$/.test(raw)
       const display = raw.replace(/\s*⭐\s*$/, '').trim()
       return (
-        <h4 className="grp" dir={blockDir(display)}>
-          {renderBdi(display, `h4-${raw}`)}
+        <h4 className="grp" dir="rtl">
+          {ltrIfLatin(display, renderBdi(display, `h4-${raw}`))}
           {starred && (
             <span className="hy">
               ⭐ <bdi dir="ltr">High-yield</bdi>
@@ -871,6 +883,10 @@ export function ChapterProse({
         </h4>
       )
     },
+    // Bold/italic text gets the same Latin-run isolation as plain text (it
+    // isn't reached by transformChildren, which only walks direct strings).
+    strong: ({ children }: { children?: ReactNode }) => <strong>{bdiStrings(children, 'b')}</strong>,
+    em: ({ children }: { children?: ReactNode }) => <em>{bdiStrings(children, 'i')}</em>,
     p: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
       const raw = node ? hastText(node) : ''
       const { children: kids, anchorId } = stripAnchorFromChildren(children)
@@ -885,8 +901,8 @@ export function ChapterProse({
       )
       if (isFullyEnglish(raw)) {
         return (
-          <p dir="ltr" className="enp" id={anchorId ?? undefined}>
-            {rendered}
+          <p dir="rtl" className="enp" id={anchorId ?? undefined}>
+            <bdi dir="ltr">{rendered}</bdi>
             {renderBadge(anchorId, `p-${anchorId}`)}
           </p>
         )
@@ -901,20 +917,29 @@ export function ChapterProse({
     li: (props: { node?: HastElement; children?: ReactNode }) => {
       const { children: kids, anchorId } = stripAnchorFromChildren(props.children)
       return (
-        <li id={anchorId ?? undefined} dir={blockDir(props.node ? hastText(props.node) : '')}>
-          {transformChildren(kids, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+        <li id={anchorId ?? undefined} dir="rtl">
+          {ltrIfLatin(
+            props.node ? hastText(props.node) : '',
+            transformChildren(kids, cards, highlights, `li-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)
+          )}
           {renderBadge(anchorId, `li-${anchorId}`)}
         </li>
       )
     },
     td: (props: { node?: HastElement; children?: ReactNode }) => (
-      <td dir={blockDir(props.node ? hastText(props.node) : '')}>
-        {transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+      <td dir="rtl">
+        {ltrIfLatin(
+          props.node ? hastText(props.node) : '',
+          transformChildren(props.children, cards, highlights, `td-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)
+        )}
       </td>
     ),
     th: (props: { node?: HastElement; children?: ReactNode }) => (
-      <th dir={blockDir(props.node ? hastText(props.node) : '')}>
-        {transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)}
+      <th dir="rtl">
+        {ltrIfLatin(
+          props.node ? hastText(props.node) : '',
+          transformChildren(props.children, cards, highlights, `th-${sectionRef.current}`, chapterNumberToId, knownIds, handleAnchorJump)
+        )}
       </th>
     ),
     pre: ({ node, children }: { node?: HastElement; children?: ReactNode }) => {
