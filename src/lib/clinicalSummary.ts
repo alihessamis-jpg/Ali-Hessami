@@ -25,8 +25,12 @@ export interface CsStep {
   ref?: string
 }
 
+/** A plain string, or an item with its own source anchor. */
+export type CsText = string | CsItem
+
 export interface CsBranch {
   label: string
+  ref?: string
   tone?: CsTone
   /** terminal conclusion/action for this branch */
   then?: string
@@ -48,9 +52,9 @@ export interface CsFlow {
 export interface CsScenario {
   name: string
   tone?: CsTone
-  clues: string[]
-  workup?: string[]
-  treat?: string[]
+  clues: CsText[]
+  workup?: CsText[]
+  treat?: CsText[]
   ref?: string
 }
 
@@ -58,6 +62,8 @@ export interface CsTable {
   title?: string
   cols: string[]
   rows: string[][]
+  /** source anchor per row (same order as rows) */
+  rowRefs?: Array<string | null>
 }
 
 export interface ClinicalSummary {
@@ -76,7 +82,7 @@ export interface ClinicalSummary {
   treatment?: CsStep[]
   followUp?: CsItem[]
   pitfalls?: CsItem[]
-  numbers?: Array<{ k: string; v: string }>
+  numbers?: Array<{ k: string; v: string; ref?: string }>
 }
 
 function esc(s: string): string {
@@ -104,6 +110,12 @@ export function inlineHtml(s: string): string {
   return out + bidi(s.slice(last))
 }
 
+// Every element with a source gets data-jump: tapping anywhere on it opens
+// that paragraph of the chapter (an inner [[#…]] link still wins).
+function jumpAttr(ref?: string | null): string {
+  return ref ? ` data-jump="${esc(ref)}" role="link" tabindex="0"` : ''
+}
+
 function refChip(ref?: string): string {
   return ref ? ` <a class="cs-src" data-jump="${esc(ref)}" role="link" tabindex="0" title="رفتن به متن">📖</a>` : ''
 }
@@ -114,7 +126,8 @@ function items(list: CsItem[]): string {
   return `<ul class="cs-list">${list
     .map((it) => {
       const tag = it.tag ? `<span class="cs-tag cs-tag-${it.tag}">${TAG_ICON[it.tag]}</span>` : ''
-      return `<li class="${it.tag ? `cs-li-${it.tag}` : ''}">${tag}<span>${inlineHtml(it.t)}${refChip(it.ref)}</span></li>`
+      const cls = [it.tag ? `cs-li-${it.tag}` : '', it.ref ? 'cs-jump' : ''].filter(Boolean).join(' ')
+      return `<li class="${cls}"${jumpAttr(it.ref)}>${tag}<span>${inlineHtml(it.t)}${refChip(it.ref)}</span></li>`
     })
     .join('')}</ul>`
 }
@@ -129,36 +142,38 @@ function steps(list: CsStep[], tone: CsTone): string {
   return `<ol class="cs-steps">${list
     .map(
       (s, i) =>
-        `<li class="cs-step cs-t-${s.tone ?? tone}"><span class="cs-num">${(i + 1).toLocaleString('fa-IR')}</span><div class="cs-step-c"><div class="cs-step-t">${inlineHtml(
+        `<li class="cs-step cs-t-${s.tone ?? tone}"><span class="cs-num">${(i + 1).toLocaleString('fa-IR')}</span><div class="cs-step-c"><div class="cs-step-t${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(
           s.title
-        )}${refChip(s.ref)}</div>${s.body ? `<div class="cs-step-b">${inlineHtml(s.body)}</div>` : ''}${
-          s.items?.length ? items(s.items) : ''
+        )}${refChip(s.ref)}</div>${s.body ? `<div class="cs-step-b${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(s.body)}</div>` : ''}${
+          s.items?.length ? items(s.items.map((it) => ({ ...it, ref: it.ref ?? s.ref }))) : ''
         }</div></li>`
     )
     .join('')}</ol>`
 }
 
-function flowNode(n: CsFlowNode): string {
-  return `<div class="cs-node"><div class="cs-q">❓ ${inlineHtml(n.q)}${refChip(n.ref)}</div><div class="cs-brs">${n.branches
+function flowNode(n: CsFlowNode, inheritedRef?: string): string {
+  const nodeRef = n.ref ?? inheritedRef
+  return `<div class="cs-node"><div class="cs-q${nodeRef ? ' cs-jump' : ''}"${jumpAttr(nodeRef)}>❓ ${inlineHtml(n.q)}${refChip(nodeRef)}</div><div class="cs-brs">${n.branches
     .map(
       (b) =>
-        `<div class="cs-br cs-t-${b.tone ?? 'gray'}"><div class="cs-br-l"><span class="cs-arrow">◀</span>${inlineHtml(b.label)}</div>${
-          b.then ? `<div class="cs-end">⬅ ${inlineHtml(b.then)}</div>` : ''
-        }${b.next ? flowNode(b.next) : ''}</div>`
+        ((ref) => `<div class="cs-br cs-t-${b.tone ?? 'gray'}"><div class="cs-br-l"><span class="cs-arrow">◀</span>${inlineHtml(b.label)}</div>${
+          b.then ? `<div class="cs-end${ref ? ' cs-jump' : ''}"${jumpAttr(ref)}>⬅ ${inlineHtml(b.then)}${refChip(ref)}</div>` : ''
+        }${b.next ? flowNode(b.next, ref) : ''}</div>`)(b.ref ?? nodeRef)
     )
     .join('')}</div></div>`
 }
 
 function scenarios(list: CsScenario[]): string {
-  const block = (label: string, arr?: string[]) =>
-    arr?.length ? `<div class="cs-sc-k">${label}</div><ul class="cs-list">${arr.map((x) => `<li><span>${inlineHtml(x)}</span></li>`).join('')}</ul>` : ''
+  const block = (label: string, arr: CsText[] | undefined, fallback?: string) =>
+    arr?.length ? `<div class="cs-sc-k">${label}</div>${items(arr.map((x) => (typeof x === 'string' ? { t: x, ref: fallback } : { ...x, ref: x.ref ?? fallback })))}` : ''
   return `<div class="cs-scs">${list
     .map(
       (s) =>
-        `<div class="cs-sc cs-t-${s.tone ?? 'blue'}"><div class="cs-sc-n">${inlineHtml(s.name)}${refChip(s.ref)}</div>${block('🔎 سرنخ‌ها', s.clues)}${block(
-          '🧪 بررسی',
-          s.workup
-        )}${block('💊 برخورد', s.treat)}</div>`
+        `<div class="cs-sc cs-t-${s.tone ?? 'blue'}"><div class="cs-sc-n${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(s.name)}${refChip(s.ref)}</div>${block(
+          '🔎 سرنخ‌ها',
+          s.clues,
+          s.ref
+        )}${block('🧪 بررسی', s.workup, s.ref)}${block('💊 برخورد', s.treat, s.ref)}</div>`
     )
     .join('')}</div>`
 }
@@ -167,7 +182,12 @@ function table(t: CsTable): string {
   return `${t.title ? `<div class="cs-tt">${inlineHtml(t.title)}</div>` : ''}<div class="cs-tscroll"><table class="cs-table"><thead><tr>${t.cols
     .map((c) => `<th>${inlineHtml(c)}</th>`)
     .join('')}</tr></thead><tbody>${t.rows
-    .map((r) => `<tr>${r.map((c, i) => (i === 0 ? `<th>${inlineHtml(c)}</th>` : `<td>${inlineHtml(c)}</td>`)).join('')}</tr>`)
+    .map((r, ri) => {
+      const ref = t.rowRefs?.[ri] ?? null
+      return `<tr class="${ref ? 'cs-jump' : ''}"${jumpAttr(ref)}>${r
+        .map((c, i) => (i === 0 ? `<th>${inlineHtml(c)}${refChip(ref ?? undefined)}</th>` : `<td>${inlineHtml(c)}</td>`))
+        .join('')}</tr>`
+    })
     .join('')}</tbody></table></div>`
 }
 
@@ -182,7 +202,7 @@ export function renderClinicalSummaryHtml(s: ClinicalSummary): string {
             .map((e) => `<span class="cs-chip">${inlineHtml(e)}</span>`)
             .join('')}</div>`
         : ''
-    }</header>`
+    }<div class="cs-hint">👆 روی هر مطلب بزن تا متن اصلی‌اش در کتاب باز شود</div></header>`
   )
   if (s.history?.length) parts.push(section('blue', '🗣️', 'شرح حال — چه بپرسم؟', items(s.history)))
   if (s.exam?.length) parts.push(section('teal', '🩻', 'معاینه — دنبال چه بگردم؟', items(s.exam)))
@@ -208,7 +228,12 @@ export function renderClinicalSummaryHtml(s: ClinicalSummary): string {
         'gray',
         '🔢',
         'اعداد کلیدی',
-        `<div class="cs-nums">${s.numbers.map((n) => `<div class="cs-numc"><div class="cs-numk">${inlineHtml(n.k)}</div><div class="cs-numv">${inlineHtml(n.v)}</div></div>`).join('')}</div>`,
+        `<div class="cs-nums">${s.numbers
+          .map(
+            (n) =>
+              `<div class="cs-numc${n.ref ? ' cs-jump' : ''}"${jumpAttr(n.ref)}><div class="cs-numk">${inlineHtml(n.k)}${refChip(n.ref)}</div><div class="cs-numv">${inlineHtml(n.v)}</div></div>`
+          )
+          .join('')}</div>`,
         false
       )
     )
