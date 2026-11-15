@@ -29,6 +29,7 @@ import { listAcademyTopics } from '../lib/api/academy'
 import { listPatientIdsForTopic } from '../lib/api/academyTopicPatients'
 import { listPatients } from '../lib/api/patients'
 import { ChapterProse, type MakeCardPayload, type MakeCardsFromTablePayload } from '../components/library/ChapterProse'
+import { ClinicalSummaryBox } from '../components/library/ClinicalSummaryBox'
 import { PatientCaseCardForm } from '../components/library/PatientCaseCardForm'
 import { splitNoteBlocks, type NoteBlock } from '../lib/chapterNoteBlocks'
 import { describeError } from '../lib/describeError'
@@ -271,6 +272,20 @@ export function ReaderPage() {
   // on BoardQuestionsPanel's next mount; this is plain browser-history back,
   // which is what pops back to that mount).
   const backToPractice = new URLSearchParams(location.search).get('from') === 'practice'
+
+  // A 📖 link in the clinical-summary box: reuse the deep-link effect above
+  // (it also switches to the part that holds the anchor).
+  function handleSummaryJump(id: string) {
+    if (location.hash === `#${id}`) {
+      const el = document.getElementById(id)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('anchor-flash')
+      window.setTimeout(() => el.classList.remove('anchor-flash'), 1500)
+      return
+    }
+    navigate({ pathname: location.pathname, search: location.search, hash: id }, { replace: true })
+  }
 
   function markSectionsReadUpTo(idx: number) {
     if (idx <= furthestSectionIndexRef.current) return
@@ -1026,6 +1041,7 @@ export function ReaderPage() {
             ) : (
               <p className="empty-state">No content written for this chapter yet.</p>
             )}
+            {chapter?.clinicalSummary && <ClinicalSummaryBox summary={chapter.clinicalSummary} onJump={handleSummaryJump} />}
             <div ref={bottomSentinelRef} style={{ height: 1 }} />
           </article>
 

@@ -1,3 +1,4 @@
+import type { ClinicalSummary } from '../lib/clinicalSummary'
 // Domain shapes match the prototype's TS interfaces (see NEPHRON_HANDOFF.md)
 // so existing formulas/logic (e.g. scheduleReview, schwartzEGFR) can be
 // reused as-is against these types.
@@ -348,6 +349,8 @@ export interface LibraryChapter {
   direction?: string | null
   noteFormat?: string | null
   importedAt?: string | null
+  /** "جمع‌بندی بالینی" box shown at the end of the chapter (lib/clinicalSummary.ts). */
+  clinicalSummary?: ClinicalSummary | null
 }
 
 export type LibraryChapterSeed = Pick<
