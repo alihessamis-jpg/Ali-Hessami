@@ -9594,3 +9594,83 @@ html.force-reduced-motion .pc-ecg-line {
     padding-right: 1.5em;
   }
 }
+
+/* clinical-summary:start — "جمع‌بندی بالینی" box at the end of a chapter
+   (markup from lib/clinicalSummary.ts). Everything inside is RTL; inline
+   pieces isolate instead of guessing their own direction. */
+.cs { --c: #1d64e0; --cs: #eaf2fe; --cb: #c9dcfb; margin: 28px 0 8px; border: 2px solid #1d64e0; border-radius: 18px; background: #fbfdff; overflow: hidden; font-size: 14.5px; line-height: 1.85; color: var(--text); box-shadow: var(--shadow-md); }
+.cs :not(bdi) { unicode-bidi: isolate; }
+.cs-t-red { --c: #c0362c; --cs: #fdecea; --cb: #f5c6c0; }
+.cs-t-amber { --c: #b26a00; --cs: #fff4e0; --cb: #f6d9a6; }
+.cs-t-green { --c: #1e8a4c; --cs: #e8f7ee; --cb: #bfe6cf; }
+.cs-t-blue { --c: #1d64e0; --cs: #eaf2fe; --cb: #c9dcfb; }
+.cs-t-purple { --c: #6b3fd4; --cs: #f1ecfd; --cb: #d8cbf7; }
+.cs-t-teal { --c: #0f8a8a; --cs: #e4f6f5; --cb: #b9e3e1; }
+.cs-t-pink { --c: #c2337a; --cs: #fcebf3; --cb: #f2c4da; }
+.cs-t-gray { --c: #5c7291; --cs: #f1f4f9; --cb: #d7e0ec; }
+.cs-head { background: linear-gradient(135deg, #123a8a, #1d64e0 60%, #2f8cff); color: #fff; padding: 16px 18px 14px; }
+.cs-badge { display: inline-block; font-weight: 800; font-size: 13px; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); padding: 2px 12px; border-radius: 999px; }
+.cs-title { font-weight: 800; font-size: 18px; margin-top: 8px; }
+.cs-bottom { margin: 8px 0 0; font-size: 15px; background: rgba(255,255,255,.12); border-inline-start: 4px solid #ffd54a; padding: 8px 12px; border-radius: 10px; }
+.cs-entry { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.cs-entry-l { font-size: 12.5px; opacity: .85; }
+.cs-chip { background: #fff; color: #123a8a; font-weight: 700; font-size: 12.5px; padding: 2px 10px; border-radius: 999px; }
+.cs-sec { border-top: 1px solid var(--cb); }
+.cs-sec > summary { list-style: none; cursor: pointer; display: flex; gap: 8px; align-items: center; padding: 10px 16px; font-weight: 800; font-size: 15.5px; color: var(--c); background: var(--cs); border-inline-start: 6px solid var(--c); }
+.cs-sec > summary::-webkit-details-marker { display: none; }
+.cs-sec > summary::after { content: '▾'; margin-inline-start: auto; transition: transform var(--dur-fast); }
+.cs-sec:not([open]) > summary::after { transform: rotate(90deg); }
+.cs-body { padding: 10px 14px 14px; }
+.cs-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.cs-list > li { display: flex; gap: 6px; align-items: flex-start; padding: 5px 10px; border-radius: 10px; background: #fff; border: 1px solid var(--cb); }
+.cs-list > li::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin-top: 10px; }
+.cs-list > li:has(.cs-tag)::before { display: none; }
+.cs-li-red { background: #fdecea !important; border-color: #f5c6c0 !important; }
+.cs-li-key { background: #fff8e1 !important; border-color: #f6d9a6 !important; }
+.cs-li-tip { background: #e8f7ee !important; border-color: #bfe6cf !important; }
+.cs-tag { flex: none; }
+.cs b { color: var(--c); }
+.cs-head b { color: #ffd54a; }
+.cs-ref, .cs-src { color: var(--accent); cursor: pointer; text-decoration: none; border-bottom: 1px dashed currentColor; }
+.cs-src { border: 0; font-size: 12px; background: var(--accent-soft); border-radius: 999px; padding: 0 6px; }
+/* step timeline */
+.cs-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cs-step { position: relative; display: flex; gap: 10px; padding-bottom: 14px; }
+.cs-step:not(:last-child)::after { content: '▼'; position: absolute; inset-inline-start: 9px; bottom: -2px; font-size: 10px; color: var(--c); }
+.cs-step:not(:last-child)::before { content: ''; position: absolute; inset-inline-start: 14px; top: 30px; bottom: 8px; width: 3px; border-radius: 2px; background: linear-gradient(var(--c), var(--cb)); }
+.cs-num { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 4px var(--cs); }
+.cs-step-c { flex: 1; min-width: 0; background: var(--cs); border: 1px solid var(--cb); border-radius: 12px; padding: 8px 12px; }
+.cs-step-t { font-weight: 800; color: var(--c); }
+.cs-step-b { margin-top: 2px; }
+.cs-step-c .cs-list { margin-top: 6px; }
+/* decision flow */
+.cs-flow + .cs-flow { margin-top: 16px; }
+.cs-flow-t { font-weight: 800; color: #fff; background: var(--c); display: inline-block; padding: 3px 14px; border-radius: 10px 10px 0 0; }
+.cs-flow > .cs-node { border: 2px solid var(--c); border-radius: 0 12px 12px 12px; padding: 10px; background: #fff; }
+.cs-q { font-weight: 800; background: #f5f2ff; border: 1.5px solid #d8cbf7; color: #3b2391; border-radius: 10px; padding: 6px 10px; display: inline-block; }
+.cs-brs { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-inline-start: 10px; }
+.cs-br { border-inline-start: 4px solid var(--c); padding-inline-start: 10px; padding-block: 2px; border-radius: 2px; }
+.cs-br-l { display: inline-flex; gap: 6px; align-items: center; font-weight: 800; color: var(--c); background: var(--cs); border: 1px solid var(--cb); border-radius: 999px; padding: 1px 12px 1px 10px; }
+.cs-arrow { font-size: 10px; }
+.cs-end { margin-top: 5px; background: var(--cs); border: 1.5px dashed var(--c); border-radius: 10px; padding: 5px 10px; }
+.cs-br > .cs-node { margin-top: 8px; }
+/* scenarios */
+.cs-scs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.cs-sc { border: 1px solid var(--cb); border-top: 5px solid var(--c); border-radius: 12px; background: #fff; padding: 8px 10px; }
+.cs-sc-n { font-weight: 800; color: var(--c); font-size: 15px; margin-bottom: 4px; }
+.cs-sc-k { font-size: 12.5px; font-weight: 800; color: var(--text-muted); margin: 6px 0 3px; }
+.cs-sc .cs-list > li { background: var(--cs); padding: 3px 8px; }
+/* comparison table */
+.cs-tt { font-weight: 800; margin-bottom: 6px; }
+.cs-tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid var(--cb); }
+.cs-table { border-collapse: collapse; min-width: 560px; width: 100%; font-size: 13.5px; }
+.cs-table th, .cs-table td { padding: 6px 8px; border-bottom: 1px solid var(--cb); border-inline-start: 1px solid var(--cb); text-align: start; vertical-align: top; }
+.cs-table thead th { background: var(--c); color: #fff; position: sticky; top: 0; }
+.cs-table tbody th { background: var(--cs); color: var(--c); position: sticky; inset-inline-start: 0; }
+.cs-table tbody tr:nth-child(even) td { background: #fafbfe; }
+/* key numbers */
+.cs-nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.cs-numc { background: #fff; border: 1px solid var(--cb); border-radius: 12px; padding: 6px 10px; }
+.cs-numk { font-size: 12.5px; color: var(--text-muted); }
+.cs-numv { font-weight: 800; font-size: 15px; color: #10233d; }
+/* clinical-summary:end */

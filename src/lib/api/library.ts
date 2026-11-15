@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient'
 import { getAuthUser } from './authUser'
 import bookContents from '../../data/bookContents.json'
 import { parseChapterNoteForImport } from '../chapterImport'
+import type { ClinicalSummary } from '../clinicalSummary'
 import { uploadChapterFigureFile } from '../storage'
 import type { BulkCardImportItem, BulkImportError } from '../libraryBulkImport'
 import type {
@@ -50,6 +51,7 @@ interface ChapterRow {
   direction: string | null
   note_format: string | null
   imported_at: string | null
+  clinical_summary?: ClinicalSummary | null
 }
 
 interface CardRow {
@@ -154,6 +156,7 @@ function chapterToDomain(row: ChapterRow): LibraryChapter {
     direction: row.direction,
     noteFormat: row.note_format,
     importedAt: row.imported_at,
+    clinicalSummary: row.clinical_summary ?? null,
   }
 }
 
