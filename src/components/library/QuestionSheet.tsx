@@ -4,6 +4,7 @@
 // shapes the reverse-link index can point to: a board_questions row (any
 // type) and an imported mcq library_card (the chapter's own question bank).
 import { useState } from 'react'
+import { blockDir } from '../../lib/bidiText'
 import type { AnchoredQuestionRef } from '../../lib/reverseLinks'
 import type { McqOptions } from '../../types/domain'
 
@@ -90,7 +91,7 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
             ثبت پاسخ
           </button>
         ) : (
-          options.explanation && <p dir="auto" className="np-small">{plainExplanation(options.explanation)}</p>
+          options.explanation && <p dir={blockDir(options.explanation)} className="np-small">{plainExplanation(options.explanation)}</p>
         )}
       </SheetFrame>
     )
@@ -138,7 +139,7 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
           </button>
         ) : (
           <>
-            {q.explanation && <p dir="auto" className="np-small">{plainExplanation(q.explanation)}</p>}
+            {q.explanation && <p dir={blockDir(q.explanation)} className="np-small">{plainExplanation(q.explanation)}</p>}
             {q.chapterId && (
               <button type="button" className="np-btn ghost sm" onClick={() => onOpenInPractice(q.chapterId as string)}>
                 باز کردن در Practice
@@ -175,7 +176,7 @@ export function QuestionSheet({ refs, onClose, onOpenInPractice, onRecordBoardAt
                 ? (q.fillAnswers ?? []).join(' · ')
                 : q.modelAnswer ?? ''}
           </p>
-          {q.explanation && <p dir="auto" className="np-small">{plainExplanation(q.explanation)}</p>}
+          {q.explanation && <p dir={blockDir(q.explanation)} className="np-small">{plainExplanation(q.explanation)}</p>}
           {!submitted && (
             <div className="form-actions">
               <button type="button" className="np-btn sm" onClick={() => selfGrade(true)}>

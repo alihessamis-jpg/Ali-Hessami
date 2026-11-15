@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { blockDir } from '../../lib/bidiText'
 import { useNavigate } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { addBoardQuestion, deleteBoardQuestion, listBoardQuestions, updateBoardQuestion } from '../../lib/api/boardQuestions'
@@ -464,7 +465,7 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
                   </span>
                 )}
               </p>
-              <p dir="auto" style={{ whiteSpace: 'pre-line' }}>
+              <p dir={blockDir(queue[queueIndex].question)} style={{ whiteSpace: 'pre-line' }}>
                 <strong>{queue[queueIndex].question}</strong>
               </p>
               {queue[queueIndex].source && (
@@ -608,7 +609,7 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
                     </div>
                   ) : (
                     <>
-                      <p className="patient-meta" dir="auto" style={{ whiteSpace: 'pre-line' }}>
+                      <p className="patient-meta" dir={blockDir(queue[queueIndex].modelAnswer ?? '')} style={{ whiteSpace: 'pre-line' }}>
                         <strong>{queue[queueIndex].modelAnswer}</strong>
                       </p>
                       {!submitted && (
@@ -629,7 +630,7 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
               {submitted && (
                 <div>
                   {queue[queueIndex].explanation && (
-                    <p className="patient-meta" dir="auto">
+                    <p className="patient-meta" dir={blockDir(queue[queueIndex].explanation as string)}>
                       {renderExplanation(queue[queueIndex].explanation as string, {
                         keyBase: queue[queueIndex].id,
                         onLinkClick: (anchorId) => {
