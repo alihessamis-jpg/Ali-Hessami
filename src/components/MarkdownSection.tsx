@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
-import { isolateLatinRuns } from '../lib/bidiText'
+import { isLatinOnly, isolateLatinRuns } from '../lib/bidiText'
 
 export interface MakeCardPayload {
   prompt: string
@@ -97,6 +97,29 @@ function TableWithCardButton({
   )
 }
 
+// Each block is explicitly RTL: the global `* { unicode-bidi: plaintext }`
+// rule would otherwise lay out any Persian line that starts with an English
+// term left-to-right. A purely English block keeps its order in one isolate.
+type BlockProps = { node?: HastElement; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>
+function rtlBlock(Tag: 'p' | 'li' | 'td' | 'th' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6') {
+  return function RtlBlock({ node, children, ...rest }: BlockProps) {
+    const raw = node ? hastText(node) : ''
+    return <Tag {...rest} dir="rtl">{isLatinOnly(raw) ? <bdi dir="ltr">{children}</bdi> : children}</Tag>
+  }
+}
+const RTL_BLOCKS = {
+  p: rtlBlock('p'),
+  li: rtlBlock('li'),
+  td: rtlBlock('td'),
+  th: rtlBlock('th'),
+  h1: rtlBlock('h1'),
+  h2: rtlBlock('h2'),
+  h3: rtlBlock('h3'),
+  h4: rtlBlock('h4'),
+  h5: rtlBlock('h5'),
+  h6: rtlBlock('h6'),
+}
+
 export function MarkdownSection({ text, sectionKey, onMakeCard, onMakeCardsFromTable }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<{ top: number; left: number } | null>(null)
@@ -159,6 +182,7 @@ export function MarkdownSection({ text, sectionKey, onMakeCard, onMakeCardsFromT
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          ...RTL_BLOCKS,
           table: (props) => <TableWithCardButton {...props} onMakeCardsFromTable={onMakeCardsFromTable} />,
         }}
       >

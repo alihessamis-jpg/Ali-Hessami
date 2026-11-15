@@ -251,6 +251,23 @@ html.force-reduced-motion .bsw-cover-float {
   unicode-bidi: normal;
 }
 
+/* Inside chapter/Academy text, inline pieces (bold, italic, links, spans)
+   must NOT guess their own direction either: a bold run such as
+   "**AN69 + خون اسیدی ← bradykinin**" starts with an English term, so the
+   plaintext heuristic laid it out LTR and scrambled the Persian inside it,
+   and a bold "**Febrile UTI:**" got its colon on the wrong side. Here they
+   isolate but inherit the block's direction (RTL, or LTR inside a <bdi
+   dir="ltr"> English-only block). Code blocks keep their own LTR layout. */
+.prose [dir='rtl'] :not([dir]):not(pre):not(pre *),
+.academy-markdown [dir='rtl'] :not([dir]):not(pre):not(pre *) {
+  unicode-bidi: isolate;
+}
+.prose pre,
+.academy-markdown pre {
+  direction: ltr;
+  text-align: left;
+}
+
 button {
   font: inherit;
   cursor: pointer;
@@ -7956,7 +7973,7 @@ select.pt-ward:focus {
 }
 
 .enp {
-  text-align: left;
+  text-align: right;
   font-size: 14px;
   color: var(--muted);
 }
