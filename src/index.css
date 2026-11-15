@@ -9673,4 +9673,10 @@ html.force-reduced-motion .pc-ecg-line {
 .cs-numc { background: #fff; border: 1px solid var(--cb); border-radius: 12px; padding: 6px 10px; }
 .cs-numk { font-size: 12.5px; color: var(--text-muted); }
 .cs-numv { font-weight: 800; font-size: 15px; color: #10233d; }
+/* tap-to-source */
+.cs-jump { cursor: pointer; transition: background var(--dur-fast), box-shadow var(--dur-fast); }
+.cs-list > li.cs-jump:hover, .cs-list > li.cs-jump:active, .cs-numc.cs-jump:active, .cs-end.cs-jump:active, .cs-q.cs-jump:active { box-shadow: 0 0 0 2px var(--c); }
+.cs-table tr.cs-jump:active td, .cs-table tr.cs-jump:active th { background: var(--cs); }
+.cs-step-t.cs-jump:active, .cs-step-b.cs-jump:active, .cs-sc-n.cs-jump:active { text-decoration: underline; }
+.cs-hint { font-size: 12px; opacity: .85; margin-top: 8px; }
 /* clinical-summary:end */
