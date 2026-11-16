@@ -11,7 +11,16 @@ interface Props {
 // lib/clinicalSummary.ts, which escapes every text field). Links carry a
 // data-jump anchor id and are handled here by delegation.
 export function ClinicalSummaryBox({ summary, onJump }: Props) {
-  const html = useMemo(() => renderClinicalSummaryHtml(summary), [summary])
+  // A malformed summary must never take the whole Reader page down with it
+  // (an uncaught render error leaves a blank white screen) -- skip the box.
+  const html = useMemo(() => {
+    try {
+      return renderClinicalSummaryHtml(summary)
+    } catch (err) {
+      console.error('Clinical summary failed to render', err)
+      return null
+    }
+  }, [summary])
 
   function handle(e: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) {
     if ('key' in e && e.key !== 'Enter') return
@@ -22,5 +31,6 @@ export function ClinicalSummaryBox({ summary, onJump }: Props) {
     if (id) onJump(id)
   }
 
+  if (!html) return null
   return <div onClick={handle} onKeyDown={handle} dangerouslySetInnerHTML={{ __html: html }} />
 }

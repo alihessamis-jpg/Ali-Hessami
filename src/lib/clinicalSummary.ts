@@ -20,6 +20,9 @@ export interface CsItem {
 export interface CsStep {
   title: string
   body?: string
+  /** alternate key names written by some chapter imports */
+  t?: string
+  d?: string
   items?: CsItem[]
   tone?: CsTone
   ref?: string
@@ -44,9 +47,12 @@ export interface CsFlowNode {
 }
 
 export interface CsFlow {
-  title: string
+  title?: string
   tone?: CsTone
-  root: CsFlowNode
+  /** decision-tree form */
+  root?: CsFlowNode
+  /** linear form: a simple chain of steps, top to bottom */
+  steps?: Array<{ label: string; ref?: string }>
 }
 
 export interface CsScenario {
@@ -56,6 +62,11 @@ export interface CsScenario {
   workup?: CsText[]
   treat?: CsText[]
   ref?: string
+  /** alternate form written by some chapter imports */
+  title?: string
+  when?: string
+  key?: CsText[]
+  plan?: string
 }
 
 export interface CsTable {
@@ -97,7 +108,10 @@ function bidi(s: string): string {
 
 const INLINE_RE = /\*\*(.+?)\*\*|\[\[#([\w-]+)\|([^\]]+)\]\]/g
 
-export function inlineHtml(s: string): string {
+export function inlineHtml(raw: unknown): string {
+  // Stored JSON is not schema-checked: never let a missing/odd field throw
+  // (a throw here blanks the whole Reader page).
+  const s = typeof raw === 'string' ? raw : raw == null ? '' : String(raw)
   let out = ''
   let last = 0
   for (const m of s.matchAll(INLINE_RE)) {
@@ -122,9 +136,10 @@ function refChip(ref?: string): string {
 
 const TAG_ICON: Record<NonNullable<CsItem['tag']>, string> = { red: '🚩', key: '⭐', tip: '💡' }
 
-function items(list: CsItem[]): string {
-  return `<ul class="cs-list">${list
-    .map((it) => {
+function items(list: Array<CsItem | string>): string {
+  return `<ul class="cs-list">${(Array.isArray(list) ? list : [])
+    .map((raw) => {
+      const it: CsItem = typeof raw === 'string' ? { t: raw } : raw ?? { t: '' }
       const tag = it.tag ? `<span class="cs-tag cs-tag-${it.tag}">${TAG_ICON[it.tag]}</span>` : ''
       const cls = [it.tag ? `cs-li-${it.tag}` : '', it.ref ? 'cs-jump' : ''].filter(Boolean).join(' ')
       return `<li class="${cls}"${jumpAttr(it.ref)}>${tag}<span>${inlineHtml(it.t)}${refChip(it.ref)}</span></li>`
@@ -140,8 +155,9 @@ function section(cls: CsTone, icon: string, title: string, body: string, open = 
 
 function steps(list: CsStep[], tone: CsTone): string {
   return `<ol class="cs-steps">${list
+    .map((raw) => (typeof raw === 'string' ? { title: raw } : { ...raw, title: raw.title ?? raw.t ?? '', body: raw.body ?? raw.d }))
     .map(
-      (s, i) =>
+      (s: CsStep, i) =>
         `<li class="cs-step cs-t-${s.tone ?? tone}"><span class="cs-num">${(i + 1).toLocaleString('fa-IR')}</span><div class="cs-step-c"><div class="cs-step-t${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(
           s.title
         )}${refChip(s.ref)}</div>${s.body ? `<div class="cs-step-b${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(s.body)}</div>` : ''}${
@@ -151,9 +167,10 @@ function steps(list: CsStep[], tone: CsTone): string {
     .join('')}</ol>`
 }
 
-function flowNode(n: CsFlowNode, inheritedRef?: string): string {
+function flowNode(n: CsFlowNode | undefined, inheritedRef?: string): string {
+  if (!n) return ''
   const nodeRef = n.ref ?? inheritedRef
-  return `<div class="cs-node"><div class="cs-q${nodeRef ? ' cs-jump' : ''}"${jumpAttr(nodeRef)}>❓ ${inlineHtml(n.q)}${refChip(nodeRef)}</div><div class="cs-brs">${n.branches
+  return `<div class="cs-node"><div class="cs-q${nodeRef ? ' cs-jump' : ''}"${jumpAttr(nodeRef)}>❓ ${inlineHtml(n.q)}${refChip(nodeRef)}</div><div class="cs-brs">${(n.branches ?? [])
     .map(
       (b) =>
         ((ref) => `<div class="cs-br cs-t-${b.tone ?? 'gray'}"><div class="cs-br-l"><span class="cs-arrow">◀</span>${inlineHtml(b.label)}</div>${
@@ -163,10 +180,33 @@ function flowNode(n: CsFlowNode, inheritedRef?: string): string {
     .join('')}</div></div>`
 }
 
+// Linear flow: a chain of steps joined by down-arrows.
+function flowChain(list: Array<{ label: string; ref?: string }>): string {
+  return `<div class="cs-node">${list
+    .map(
+      (st, i) =>
+        `${i > 0 ? '<div class="cs-chain-arrow" aria-hidden="true">⬇</div>' : ''}<div class="cs-q${st.ref ? ' cs-jump' : ''}"${jumpAttr(st.ref)}>${inlineHtml(
+          st.label
+        )}${refChip(st.ref)}</div>`
+    )
+    .join('')}</div>`
+}
+
+function flow(f: CsFlow): string {
+  const body = f.root ? flowNode(f.root) : f.steps?.length ? flowChain(f.steps) : ''
+  return `<div class="cs-flow cs-t-${f.tone ?? 'purple'}">${f.title ? `<div class="cs-flow-t">${inlineHtml(f.title)}</div>` : ''}${body}</div>`
+}
+
 function scenarios(list: CsScenario[]): string {
   const block = (label: string, arr: CsText[] | undefined, fallback?: string) =>
     arr?.length ? `<div class="cs-sc-k">${label}</div>${items(arr.map((x) => (typeof x === 'string' ? { t: x, ref: fallback } : { ...x, ref: x.ref ?? fallback })))}` : ''
   return `<div class="cs-scs">${list
+    .map((s) => ({
+      ...s,
+      name: s.name ?? s.title ?? '',
+      clues: [...(s.when ? [s.when] : []), ...(s.clues ?? s.key ?? [])],
+      treat: s.treat ?? (s.plan ? [s.plan] : undefined),
+    }))
     .map(
       (s) =>
         `<div class="cs-sc cs-t-${s.tone ?? 'blue'}"><div class="cs-sc-n${s.ref ? ' cs-jump' : ''}"${jumpAttr(s.ref)}>${inlineHtml(s.name)}${refChip(s.ref)}</div>${block(
@@ -179,10 +219,12 @@ function scenarios(list: CsScenario[]): string {
 }
 
 function table(t: CsTable): string {
+  if (!Array.isArray(t.cols) || !Array.isArray(t.rows)) return ''
   return `${t.title ? `<div class="cs-tt">${inlineHtml(t.title)}</div>` : ''}<div class="cs-tscroll"><table class="cs-table"><thead><tr>${t.cols
     .map((c) => `<th>${inlineHtml(c)}</th>`)
     .join('')}</tr></thead><tbody>${t.rows
     .map((r, ri) => {
+      r = Array.isArray(r) ? r : []
       const ref = t.rowRefs?.[ri] ?? null
       return `<tr class="${ref ? 'cs-jump' : ''}"${jumpAttr(ref)}>${r
         .map((c, i) => (i === 0 ? `<th>${inlineHtml(c)}${refChip(ref ?? undefined)}</th>` : `<td>${inlineHtml(c)}</td>`))
@@ -213,7 +255,7 @@ export function renderClinicalSummaryHtml(s: ClinicalSummary): string {
         'purple',
         '🧭',
         'الگوریتم تشخیص',
-        s.flows.map((f) => `<div class="cs-flow cs-t-${f.tone ?? 'purple'}"><div class="cs-flow-t">${inlineHtml(f.title)}</div>${flowNode(f.root)}</div>`).join('')
+        s.flows.map(flow).join('')
       )
     )
   if (s.diagnosisSteps?.length) parts.push(section('blue', '🔬', 'قدم‌به‌قدم تا تشخیص', steps(s.diagnosisSteps, 'blue')))
