@@ -9645,6 +9645,7 @@ html.force-reduced-motion .pc-ecg-line {
 .cs-step-c .cs-list { margin-top: 6px; }
 /* decision flow */
 .cs-flow + .cs-flow { margin-top: 16px; }
+.cs-chain-arrow { text-align: center; color: var(--c); font-size: 14px; line-height: 1; margin: 4px 0; }
 .cs-flow-t { font-weight: 800; color: #fff; background: var(--c); display: inline-block; padding: 3px 14px; border-radius: 10px 10px 0 0; }
 .cs-flow > .cs-node { border: 2px solid var(--c); border-radius: 0 12px 12px 12px; padding: 10px; background: #fff; }
 .cs-q { font-weight: 800; background: #f5f2ff; border: 1.5px solid #d8cbf7; color: #3b2391; border-radius: 10px; padding: 6px 10px; display: inline-block; }
