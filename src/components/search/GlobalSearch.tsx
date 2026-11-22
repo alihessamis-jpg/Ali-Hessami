@@ -235,12 +235,26 @@ function SearchOverlay({ initial, onClose }: { initial: string; onClose: () => v
                 <button key={p.id} type="button" className="gs-item gs-patient" onClick={() => go(`/patients/${p.id}`)}>
                   <span className="gs-title" dir="auto">
                     {p.name}
-                    {p.code && <span className="gs-muted"> · {p.code}</span>}
-                    {p.bed && <span className="gs-muted"> · تخت {p.bed}</span>}
                   </span>
-                  {p.diagnosis && (
-                    <span className="gs-snip" dir="auto">
-                      {p.diagnosis}
+                  {(p.code || p.bed || p.diagnosis) && (
+                    <span className="gs-snip">
+                      {[
+                        p.code && (
+                          <span key="c">
+                            کد <bdi>{p.code}</bdi>
+                          </span>
+                        ),
+                        p.bed && (
+                          <span key="b">
+                            تخت <bdi>{p.bed}</bdi>
+                          </span>
+                        ),
+                        p.diagnosis && (
+                          <bdi key="d">{p.diagnosis}</bdi>
+                        ),
+                      ]
+                        .filter(Boolean)
+                        .flatMap((el, i) => (i ? [<span key={`s${i}`}> · </span>, el] : [el]))}
                     </span>
                   )}
                 </button>
