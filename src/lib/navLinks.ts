@@ -16,6 +16,7 @@ import {
   ReferenceIcon,
   ResearchIcon,
   SettingsIcon,
+  SparkleIcon,
   StudyHubIcon,
   TodayIcon,
 } from '../components/icons'
@@ -34,6 +35,7 @@ export const NAV_LINKS: NavLink[] = [
   { to: '/today', label: 'Today', icon: TodayIcon },
   { to: '/patients', label: 'Patients', icon: PatientsIcon },
   { to: '/case-log', label: 'Case Log', icon: CaseLogIcon },
+  { to: '/assistant', label: 'دستیار', icon: SparkleIcon },
   { to: '/academic-activity', label: 'Academic Activity', icon: MilestoneIcon },
   { to: '/reference', label: 'Reference', icon: ReferenceIcon },
   { to: '/calculators', label: 'Calculators', icon: CalculatorIcon },
@@ -52,4 +54,4 @@ export const NAV_LINKS: NavLink[] = [
 
 // The 4 sections that get their own slot in the mobile bottom tab bar;
 // everything else in NAV_LINKS (including Settings) lives in the "More" sheet.
-export const MOBILE_PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log']
+export const MOBILE_PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log', '/assistant']

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CaseLogIcon, DashboardIcon, MoreIcon, PatientsIcon, TodayIcon } from './icons'
+import { CaseLogIcon, DashboardIcon, MoreIcon, PatientsIcon, SparkleIcon, TodayIcon } from './icons'
 import { MoreSheet } from './MoreSheet'
 
 const PRIMARY_TABS = [
@@ -9,6 +9,7 @@ const PRIMARY_TABS = [
   { to: '/today', label: 'Today', icon: TodayIcon },
   { to: '/patients', label: 'Patients', icon: PatientsIcon },
   { to: '/case-log', label: 'Case Log', icon: CaseLogIcon },
+  { to: '/assistant', label: 'دستیار', icon: SparkleIcon },
 ]
 
 export function MobileTabBar({ currentPath }: { currentPath: string }) {

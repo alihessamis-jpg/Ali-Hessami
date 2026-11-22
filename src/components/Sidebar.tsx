@@ -4,8 +4,9 @@ import { OfflineIndicator } from './OfflineIndicator'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { SettingsIcon } from './icons'
 import { NAV_LINKS } from '../lib/navLinks'
+import { GlobalSearchButton } from './search/GlobalSearch'
 
-const PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log']
+const PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log', '/assistant']
 
 export const GROUPS: Array<{ label: string; paths: string[] }> = [
   { label: 'Clinical', paths: ['/academic-activity', '/reference', '/calculators', '/checklists'] },
@@ -43,6 +44,7 @@ export function Sidebar() {
         <span>Nephron</span>
       </Link>
       <nav className="snav">
+        <GlobalSearchButton className="sitem sitem-btn" />
         {PRIMARY_PATHS.map((path) => (
           <SidebarItem key={path} path={path} active={location.pathname === path} />
         ))}

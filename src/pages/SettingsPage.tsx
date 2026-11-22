@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { StorageUsageIndicator } from '../components/StorageUsageIndicator'
 import type { UserSettings } from '../types/domain'
 import { ThresholdArt } from '../components/heroArt/PageArt'
+import { ReindexLibraryCard } from '../components/search/ReindexLibraryCard'
 
 type FormState = Record<keyof UserSettings, string>
 
@@ -280,6 +281,8 @@ export function SettingsPage() {
                   question bank point back to, with a tap-to-answer sheet.
                 </span>
               </section>
+
+              <ReindexLibraryCard />
 
               <section className="np-card np-fade" style={{ animationDelay: '.44s' }}>
                 <h2>Board exam date</h2>
