@@ -6,6 +6,7 @@
 // POST (SSE stream) { conversationId?, mode, patientId?, chapterId?, message, caseText?, debug? }
 //   events: meta · step · delta · reset · sources · done · error
 // POST (JSON)       { action: 'flashcards', messageId }
+// POST (JSON)       { action: 'transcribe', audio: <base64 WAV>, mimeType } -> { text }  (Gemini)
 //
 // Runs as the signed-in user (anon key + their JWT): every tool goes through
 // the SECURITY INVOKER SQL functions from assistant_phase1_retrieval_migration.sql,
@@ -165,6 +166,12 @@ interface ChatBody {
 interface FlashcardBody {
   action: 'flashcards'
   messageId: string
+}
+
+interface TranscribeBody {
+  action: 'transcribe'
+  audio: string
+  mimeType?: string
 }
 
 /** One citable passage. Stored on ai_messages.sources keyed by id ("S3"). */
@@ -998,6 +1005,54 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
   return json({ created: rows.length })
 }
 
+// ------------------------------------------------------------------ transcription
+// Voice input: the browser records a short WAV clip; Gemini transcribes it.
+// Audio is never stored or logged here.
+const MAX_AUDIO_B64 = 6_000_000 // ≈ 4.5 MB WAV ≈ 2+ min at 16 kHz mono
+const AUDIO_TYPES = new Set(['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/aac', 'audio/ogg', 'audio/flac'])
+const TRANSCRIBE_PROMPT =
+  'Transcribe this audio exactly. The speaker is a pediatric nephrologist speaking Persian mixed with English medical terms. ' +
+  'Write Persian words in Persian script and English medical terms, drug names, lab names and units in Latin script ' +
+  '(e.g. prednisolone, eGFR, C3NeF, mg/kg). Output only the transcript — no quotes, labels or commentary. If there is no speech, output nothing.'
+
+async function handleTranscribe(body: TranscribeBody): Promise<Response> {
+  if (!GEMINI_API_KEY) return json({ error: 'تبدیل صدا به متن به GEMINI_API_KEY نیاز دارد.' }, 500)
+  const audio = typeof body.audio === 'string' ? body.audio : ''
+  if (!audio) return json({ error: 'audio is required' }, 400)
+  if (audio.length > MAX_AUDIO_B64) return json({ error: 'ضبط خیلی طولانی است؛ حداکثر حدود ۲ دقیقه.' }, 413)
+  const mimeType = AUDIO_TYPES.has(String(body.mimeType)) ? String(body.mimeType) : 'audio/wav'
+
+  let res: Response | null = null
+  for (const gm of await geminiModels()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: audio } }, { text: TRANSCRIBE_PROMPT }] }],
+          generationConfig: { maxOutputTokens: 4000 },
+        }),
+      })
+      if (res.ok || !RETRYABLE.has(res.status)) break
+      await sleep(1000)
+    }
+    if (res && (res.ok || !RETRYABLE.has(res.status))) break
+  }
+  if (!res || !res.ok) {
+    const status = res?.status ?? 0
+    const detail = (await res?.text().catch(() => ''))?.slice(0, 200)
+    console.error('[assistant] transcribe failed', status, detail)
+    return json({ error: status === 429 ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ کمی بعد دوباره امتحان کن.' : `تبدیل صدا ناموفق بود (${status}).` }, 502)
+  }
+  const j = await res.json()
+  const text = (j.candidates?.[0]?.content?.parts ?? [])
+    .filter((p: GeminiPart) => !p.thought)
+    .map((p: GeminiPart) => p.text ?? '')
+    .join('')
+    .trim()
+  return json({ text })
+}
+
 // ------------------------------------------------------------------ entry
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors() })
@@ -1013,12 +1068,13 @@ Deno.serve(async (req) => {
   } = await db.auth.getUser()
   if (!user) return json({ error: 'Not authenticated' }, 401)
 
-  let body: ChatBody | FlashcardBody
+  let body: ChatBody | FlashcardBody | TranscribeBody
   try {
     body = await req.json()
   } catch {
     return json({ error: 'Invalid JSON body' }, 400)
   }
+  if (body.action === 'transcribe') return handleTranscribe(body)
   if (body.action === 'flashcards') return handleFlashcards(body, db, user.id)
   return handleChat(body as ChatBody, db, user.id)
 })

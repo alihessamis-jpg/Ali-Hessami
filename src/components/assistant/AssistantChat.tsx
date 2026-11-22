@@ -6,6 +6,7 @@ import {
   getConversation,
   getPatientCaseText,
   makeFlashcards,
+  transcribeAudio,
   type AssistantMode,
   type AssistantSource,
 } from '../../lib/api/assistant'
@@ -19,7 +20,7 @@ import {
   speechSupported,
   stopSpeaking,
   unlockSpeech,
-  useDictation,
+  useVoiceInput,
   voicesReady,
 } from '../../lib/speech'
 
@@ -87,10 +88,26 @@ export function AssistantChat({
   const speakRef = useRef(speakOn)
   speakRef.current = speakOn
   const [voiceNote, setVoiceNote] = useState<string | null>(null)
-  const dictBase = useRef('')
-  const dictation = useDictation((finalText, interim) => {
-    setInput(`${dictBase.current}${[finalText, interim].filter(Boolean).join(' ')}`)
+  const [persianVoice, setPersianVoice] = useState(false)
+  const voice = useVoiceInput(transcribeAudio, (text) => {
+    setInput((cur) => (cur.trim() ? `${cur.trim()} ${text}` : text))
+    inputRef.current?.focus()
   })
+
+  // Read-aloud is only offered where the device has a Persian voice
+  // (iOS has none by default, and a non-Persian voice is unintelligible).
+  useEffect(() => {
+    let alive = true
+    void voicesReady().then(() => {
+      if (!alive) return
+      const ok = hasPersianVoice()
+      setPersianVoice(ok)
+      if (!ok && speakRef.current) setSpeakOn(false)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId)
   const [caseText, setCaseText] = useState('')
   const [caseState, setCaseState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -157,7 +174,7 @@ export function AssistantChat({
       if (isPatient && firstTurn && caseState === 'loading') return
       setBusy(true)
       setInput('')
-      dictation.stop()
+      if (voice.state === 'recording') voice.cancel()
       stopSpeaking()
       let spokenText = ''
       let spokenSources: Record<string, AssistantSource> = {}
@@ -223,7 +240,7 @@ export function AssistantChat({
         abortRef.current = null
       }
     },
-    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, caseText, onConversation, dictation],
+    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, caseText, onConversation, voice],
   )
 
   // quick-action from outside (patient chips / «بپرس» on a selection)
@@ -245,13 +262,14 @@ export function AssistantChat({
   }
 
   function toggleMic() {
-    if (dictation.listening) {
-      dictation.stop()
+    if (voice.state === 'transcribing') return
+    if (voice.state === 'recording') {
+      void voice.stop()
       return
     }
     stopSpeaking()
-    dictBase.current = input.trim() ? `${input.trim()} ` : ''
-    dictation.start()
+    setVoiceNote(null)
+    void voice.start()
   }
 
   async function toggleSpeaker() {
@@ -264,25 +282,18 @@ export function AssistantChat({
       return
     }
     unlockSpeech() // inside the tap, so iOS allows speech later
-    await voicesReady()
-    setVoiceNote(
-      hasPersianVoice()
-        ? null
-        : 'صدای فارسی روی این دستگاه پیدا نشد؛ پاسخ با صدای پیش‌فرض خوانده می‌شود. در iPhone/iPad: Settings › Accessibility › Spoken Content › Voices.',
-    )
   }
 
   useEffect(() => {
-    if (!dictation.error) return
+    if (!voice.error) return
     const msg: Record<string, string> = {
-      'not-allowed': 'اجازهٔ میکروفون داده نشد (Settings › Safari › Microphone).',
-      'no-speech': 'صدایی شنیده نشد؛ دوباره امتحان کن.',
-      network: 'تشخیص گفتار به اینترنت نیاز دارد.',
-      unsupported: 'این مرورگر تبدیل گفتار به متن را پشتیبانی نمی‌کند.',
-      other: 'تشخیص گفتار متوقف شد.',
+      'not-allowed': 'اجازهٔ میکروفون داده نشد (Settings › Safari › Microphone، یا تنظیمات اپ).',
+      'too-short': 'صدایی ضبط نشد؛ دکمه را بزن، حرف بزن، بعد دوباره بزن.',
+      unsupported: 'این مرورگر ضبط صدا را پشتیبانی نمی‌کند.',
+      failed: 'تبدیل صدا به متن ناموفق بود؛ دوباره امتحان کن.',
     }
-    setVoiceNote(msg[dictation.error])
-  }, [dictation.error])
+    setVoiceNote(msg[voice.error])
+  }, [voice.error])
 
   function autosize() {
     const t = inputRef.current
@@ -395,16 +406,17 @@ export function AssistantChat({
 
       {voiceNote && <p className="as-voice-note">{voiceNote}</p>}
       <div className="as-composer">
-        {dictation.supported && (
+        {voice.supported && (
           <button
             type="button"
-            className={dictation.listening ? 'as-ib mic live' : 'as-ib mic'}
+            className={voice.state === 'recording' ? 'as-ib mic live' : voice.state === 'transcribing' ? 'as-ib mic busy' : 'as-ib mic'}
             onClick={toggleMic}
-            aria-pressed={dictation.listening}
-            aria-label={dictation.listening ? 'توقف ضبط' : 'صحبت کن'}
-            title={dictation.listening ? 'توقف ضبط' : 'صحبت کن (فارسی)'}
+            disabled={voice.state === 'transcribing'}
+            aria-pressed={voice.state === 'recording'}
+            aria-label={voice.state === 'recording' ? 'پایان ضبط' : 'صحبت کن'}
+            title={voice.state === 'recording' ? 'پایان ضبط' : 'صحبت کن (فارسی)'}
           >
-            <MicIcon />
+            {voice.state === 'transcribing' ? <span className="as-spin" aria-hidden="true" /> : <MicIcon />}
           </button>
         )}
         <textarea
@@ -414,10 +426,16 @@ export function AssistantChat({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={dictation.listening ? 'در حال گوش دادن…' : 'سؤالت را بنویس…'}
+          placeholder={
+            voice.state === 'recording'
+              ? `● در حال ضبط… ${voice.seconds.toLocaleString('fa-IR')} ثانیه`
+              : voice.state === 'transcribing'
+                ? 'در حال تبدیل صدا به متن…'
+                : 'سؤالت را بنویس…'
+          }
           aria-label="پیام"
         />
-        {speechSupported() && (
+        {speechSupported() && persianVoice && (
           <button
             type="button"
             className={speakOn ? 'as-ib spk on' : 'as-ib spk'}

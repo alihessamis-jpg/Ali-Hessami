@@ -10191,3 +10191,5 @@ html.force-reduced-motion .pc-ecg-line {
 @media (prefers-reduced-motion: reduce) { .as-ib.mic.live { animation: none; } }
 .as-voice-note { margin: 0 16px 6px; font-size: 0.78rem; color: var(--as-mute); line-height: 1.7; }
 .as-composer .as-ib { width: 42px; height: 42px; border-radius: 14px; }
+.as-ib.mic.busy { opacity: 1; }
+.as-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--as-line); border-top-color: var(--as-renal); animation: gs-spin 0.8s linear infinite; }
