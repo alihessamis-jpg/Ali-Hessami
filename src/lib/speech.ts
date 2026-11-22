@@ -234,6 +234,7 @@ export function useVoiceInput(transcribe: (wavBase64: string) => Promise<string>
   const [state, setState] = useState<VoiceState>('idle')
   const [seconds, setSeconds] = useState(0)
   const [error, setError] = useState<VoiceError | null>(null)
+  const [errorDetail, setErrorDetail] = useState<string | null>(null)
   const rec = useRef<{ ctx: AudioContext; stream: MediaStream | null; proc: ScriptProcessorNode | null; chunks: Float32Array[]; timer: number } | null>(null)
   const cbs = useRef({ transcribe, onText })
   cbs.current = { transcribe, onText }
@@ -271,7 +272,8 @@ export function useVoiceInput(transcribe: (wavBase64: string) => Promise<string>
       const text = (await cbs.current.transcribe(b64)).trim()
       if (text) cbs.current.onText(text)
       else setError('too-short')
-    } catch {
+    } catch (e) {
+      setErrorDetail((e as Error)?.message ?? null)
       setError('failed')
     } finally {
       setState('idle')
@@ -284,6 +286,7 @@ export function useVoiceInput(transcribe: (wavBase64: string) => Promise<string>
       return
     }
     setError(null)
+    setErrorDetail(null)
     // Create/resume the AudioContext synchronously inside the tap (iOS rule).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Ctx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext
@@ -325,5 +328,5 @@ export function useVoiceInput(transcribe: (wavBase64: string) => Promise<string>
   }, [teardown])
 
   useEffect(() => () => void teardown(), [teardown])
-  return { state, seconds, error, start, stop, cancel, supported: recordingSupported() }
+  return { state, seconds, error, errorDetail, start, stop, cancel, supported: recordingSupported() }
 }

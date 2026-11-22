@@ -10193,3 +10193,9 @@ html.force-reduced-motion .pc-ecg-line {
 .as-composer .as-ib { width: 42px; height: 42px; border-radius: 14px; }
 .as-ib.mic.busy { opacity: 1; }
 .as-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--as-line); border-top-color: var(--as-renal); animation: gs-spin 0.8s linear infinite; }
+/* iOS keeps :hover after a tap — pin the composer buttons' own colours */
+.as-ib.mic:hover, .as-ib.mic:focus, .as-ib.spk:hover, .as-ib.spk:focus { background: var(--as-renal-soft); color: var(--as-ink); }
+.as-ib.spk.on:hover, .as-ib.spk.on:focus { background: var(--as-teal); color: #fff; }
+.as-ib.mic.live:hover, .as-ib.mic.live:focus { background: #c0392b; color: #fff; }
+.as-ib.send:hover, .as-ib.send:focus { background: var(--as-renal); color: #fff; }
+.as-ib.stop:hover, .as-ib.stop:focus { background: #c0392b; color: #fff; }
