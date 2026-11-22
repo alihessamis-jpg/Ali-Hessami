@@ -24,8 +24,33 @@ function inline(s: string, known: (id: string) => boolean): string {
     )
 }
 
+const SUP: Record<string, string> = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻', '+': '⁺' }
+
+/** Models sometimes answer with inline LaTeX ($\\ge 2\\text{ mg/mg}$); turn the common bits into plain text. */
+export function delatex(s: string): string {
+  return s.replace(/\$([^$\n]{1,200})\$/g, (_m, body: string) =>
+    body
+      .replace(/\\text\{([^}]*)\}/g, '$1')
+      .replace(/\\mathrm\{([^}]*)\}/g, '$1')
+      .replace(/\\(?:ge|geq)\b/g, '≥')
+      .replace(/\\(?:le|leq)\b/g, '≤')
+      .replace(/\\times\b/g, '×')
+      .replace(/\\(?:approx|sim)\b/g, '≈')
+      .replace(/\\pm\b/g, '±')
+      .replace(/\\mu\b/g, 'μ')
+      .replace(/\\rightarrow|\\to\b/g, '→')
+      .replace(/\\%/g, '%')
+      .replace(/\^\{([0-9+-]+)\}|\^([0-9+-])/g, (_x, a?: string, b?: string) => [...(a ?? b ?? '')].map((c) => SUP[c] ?? c).join(''))
+      .replace(/_\{([^}]*)\}|_([A-Za-z0-9])/g, '$1$2')
+      .replace(/\\[a-zA-Z]+/g, '')
+      .replace(/[{}]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
+}
+
 export function renderAnswer(src: string, known: (id: string) => boolean = () => true): string {
-  const L = esc(src).split('\n')
+  const L = esc(delatex(src)).split('\n')
   let h = ''
   let list: 'ul' | 'ol' | null = null
   let i = 0

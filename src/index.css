@@ -10182,3 +10182,12 @@ html.force-reduced-motion .pc-ecg-line {
 .as-tag.study { background: var(--as-teal-bg); color: var(--as-teal); }
 .as-del { border: 0; background: none; color: var(--as-mute); padding: 0 14px; cursor: pointer; font-size: 0.9rem; }
 @media (prefers-reduced-motion: reduce) { .as-fab { transition: none; } }
+
+/* ---- Assistant phase 3: voice ---- */
+.as-ib.mic, .as-ib.spk { background: var(--as-renal-soft); color: var(--as-ink); }
+.as-ib.spk.on { background: var(--as-teal); color: #fff; }
+.as-ib.mic.live { background: #c0392b; color: #fff; animation: as-pulse 1.2s ease-in-out infinite; }
+@keyframes as-pulse { 50% { box-shadow: 0 0 0 8px rgba(192, 57, 43, 0.2); } }
+@media (prefers-reduced-motion: reduce) { .as-ib.mic.live { animation: none; } }
+.as-voice-note { margin: 0 16px 6px; font-size: 0.78rem; color: var(--as-mute); line-height: 1.7; }
+.as-composer .as-ib { width: 42px; height: 42px; border-radius: 14px; }

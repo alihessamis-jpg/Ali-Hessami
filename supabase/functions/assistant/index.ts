@@ -52,10 +52,13 @@ STRICT SOURCING RULES
 - Every medical fact, criterion, number and drug dose must come from the user's own library, retrieved with the tools in THIS turn: search_library, search_cards, search_questions, chapter_outline / read_section, drug_reference. Do not use outside knowledge for facts, criteria or doses.
 - Cite after every sentence or bullet that states a fact, using the source ids returned by the tools, like [S4] or [S2, S7]. Never invent ids or page numbers.
 - If the library has nothing on a point, write «${NOT_FOUND}» for that point and suggest what to look up; do not fill the gap from memory.
+- First search the key terms of the user's actual question (translate Persian medical words to English too, e.g. «کلسترول» → cholesterol, hyperlipidemia) and answer THAT question first and directly; add only brief related context after it.
+- A citation [S#] may only follow a statement that the cited passage itself contains. If no retrieved passage states it, do not cite anything for it — write «${NOT_FOUND}» instead.
 - Search before answering. Use several searches with different keywords: English medical terms as they appear in textbooks (e.g. "steroid-resistant nephrotic", "C3NeF", "rituximab"), and Persian when useful (e.g. «سندرم نفروتیک»). 1–4 short terms per search. For a patient case run at least 4–6 searches (each main problem, each differential, each drug).
 - When a passage looks relevant but is cut short, read the whole section with read_section.
 - Language: answer in Persian; keep medical terms, drug names and units in English.
 - Format: short headings (###), bullets, a table when comparing. Be concise and practical.
+- Plain text only: no LaTeX and no $…$ math. Write symbols directly: ≥, ≤, ×, ², mg/m², μmol/L.
 
 PATIENT MODE — reason step by step, in this order:
 1) خلاصهٔ مسئله (one-liner)
@@ -542,8 +545,8 @@ interface GeminiContent {
 }
 
 /** One streamed Gemini round: forwards answer text as it arrives, collects function calls. */
-async function geminiRound(contents: GeminiContent[], send: LoopIO['send']) {
-  const res = await fetch(`${GEMINI_BASE}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`, {
+async function geminiRound(model: string, contents: GeminiContent[], send: LoopIO['send']) {
+  const res = await fetch(`${GEMINI_BASE}/models/${model}:streamGenerateContent?alt=sse`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
     body: JSON.stringify({
@@ -604,14 +607,75 @@ async function geminiRound(contents: GeminiContent[], send: LoopIO['send']) {
   return { parts, calls, text, finish, promptTokens, outTokens }
 }
 
+// Models to try, in order: GEMINI_MODEL, then GEMINI_FALLBACK_MODELS (comma
+// list) or — if unset — other Flash text models this key can use, read from
+// Google's model list (newest first, "lite" last). Cached per instance.
+let geminiModelsCache: string[] | null = null
+async function geminiModels(): Promise<string[]> {
+  if (geminiModelsCache) return geminiModelsCache
+  const list = [GEMINI_MODEL]
+  const env = Deno.env.get('GEMINI_FALLBACK_MODELS')
+  if (env) {
+    list.push(...env.split(',').map((x) => x.trim()).filter(Boolean))
+  } else {
+    try {
+      const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': GEMINI_API_KEY! } })
+      if (res.ok) {
+        const j = await res.json()
+        const ver = (n: string) => Number(n.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0)
+        const names: string[] = (j.models ?? [])
+          // deno-lint-ignore no-explicit-any
+          .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+          // deno-lint-ignore no-explicit-any
+          .map((m: any) => String(m.name).replace(/^models\//, ''))
+          .filter((n: string) => /^gemini-[\d.]+-flash/.test(n) && !/(image|tts|audio|live|thinking-exp|embedding)/.test(n))
+          .filter((n: string) => n !== GEMINI_MODEL)
+          .sort((a: string, b: string) => Number(a.includes('lite')) - Number(b.includes('lite')) || ver(b) - ver(a))
+        list.push(...names.slice(0, 3))
+      }
+    } catch (e) {
+      console.error('[assistant] model list failed', e)
+    }
+  }
+  geminiModelsCache = [...new Set(list)]
+  console.log('[assistant] gemini models', JSON.stringify(geminiModelsCache))
+  return geminiModelsCache
+}
+
+const RETRYABLE = new Set([429, 500, 502, 503, 504])
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[], userTurn: string, io: LoopIO): Promise<LoopResult> {
   const contents: GeminiContent[] = [
     ...history.map((h): GeminiContent => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.text }] })),
     { role: 'user', parts: [{ text: userTurn }] },
   ]
   const usage = { input: 0, output: 0, cacheRead: 0 }
+  const models = await geminiModels()
+  let mi = 0
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const r = await geminiRound(contents, io.send)
+    let r: Awaited<ReturnType<typeof geminiRound>> | null = null
+    for (let attempt = 0; !r; attempt++) {
+      try {
+        r = await geminiRound(models[mi], contents, io.send)
+      } catch (e) {
+        if (!(e instanceof ProviderError) || !RETRYABLE.has(e.status)) throw e
+        // same model once more, then the next one (model switch only before the
+        // first tool round, so thought signatures stay with the model that made them)
+        if (attempt === 0) {
+          await sleep(1500)
+          continue
+        }
+        if (round === 0 && mi + 1 < models.length) {
+          mi++
+          attempt = -1
+          io.step(`Gemini شلوغ است؛ تلاش با ${models[mi]}`)
+          continue
+        }
+        throw e
+      }
+    }
+    io.model = models[mi]
     usage.input += r.promptTokens
     usage.output += r.outTokens
     if (['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION'].includes(r.finish)) {
@@ -783,6 +847,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
         const io: LoopIO = { send, step, db, reg, chapterId: conv.chapter_id, mode: conv.mode, model }
         const out =
           PROVIDER === 'gemini' ? await loopGemini(historyText, userTurn, io) : await loopAnthropic(messages, io)
+        model = io.model
         finalText = out.text
         stopNote = out.stop
         usage = out.usage
@@ -814,6 +879,8 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
           msg =
             e.status === 429
               ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ یک دقیقه بعد دوباره بپرس.'
+              : e.status >= 500
+                ? 'سرورهای رایگان Gemini الان شلوغ‌اند (همهٔ مدل‌های جایگزین هم امتحان شد). چند دقیقه بعد دوباره بپرس.'
               : e.status === 400 || e.status === 403
                 ? `کلید یا درخواست Gemini پذیرفته نشد (${e.status}): ${e.message.slice(0, 300)}`
                 : `خطای Gemini (${e.status}): ${e.message.slice(0, 300)}`
@@ -875,15 +942,19 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
   }
   let text = ''
   if (PROVIDER === 'gemini') {
-    const res = await fetch(`${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 8000 },
-      }),
-    })
-    if (!res.ok) return json({ error: `Gemini (${res.status}): ${(await res.text()).slice(0, 300)}` }, 502)
+    let res: Response | null = null
+    for (const gm of await geminiModels()) {
+      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 8000 },
+        }),
+      })
+      if (res.ok || !RETRYABLE.has(res.status)) break
+    }
+    if (!res || !res.ok) return json({ error: `Gemini (${res?.status}): ${(await res?.text())?.slice(0, 300)}` }, 502)
     const j = await res.json()
     text = (j.candidates?.[0]?.content?.parts ?? []).filter((p: GeminiPart) => !p.thought).map((p: GeminiPart) => p.text ?? '').join('')
   } else {
