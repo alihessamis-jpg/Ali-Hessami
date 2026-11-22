@@ -57,7 +57,7 @@ export function ReindexLibraryCard() {
           <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — سریع‌تر و ارزان‌تر (پیش‌فرض)</option>
           <option value="claude-opus-5-5">Claude Opus 5.5 — استدلال عمیق‌تر برای کیس‌های پیچیده</option>
         </select>
-        <span className="np-small">مطالعه و سؤالات کلی همیشه با Sonnet 5.5 اجرا می‌شوند.</span>
+        <span className="np-small">الان دستیار با Gemini (سطح رایگان، با کلید GEMINI_API_KEY) کار می‌کند. این انتخاب فقط وقتی اثر دارد که ANTHROPIC_API_KEY هم ثبت شود.</span>
       </label>
       {msg && <span className="np-small">{msg}</span>}
     </section>

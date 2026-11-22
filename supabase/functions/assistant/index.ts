@@ -1,5 +1,8 @@
 // دستیار Nephron — the library-grounded assistant (Assistant phase 2).
 //
+// Model: Claude when ANTHROPIC_API_KEY is set, otherwise Gemini (GEMINI_API_KEY,
+// free tier). ASSISTANT_PROVIDER=anthropic|gemini forces one.
+//
 // POST (SSE stream) { conversationId?, mode, patientId?, chapterId?, message, caseText?, debug? }
 //   events: meta · step · delta · reset · sources · done · error
 // POST (JSON)       { action: 'flashcards', messageId }
@@ -21,6 +24,18 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.4
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash'
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+// Provider: ASSISTANT_PROVIDER overrides; otherwise Claude when its key is set,
+// else Gemini (free tier — Google may use free-tier prompts to improve its
+// products; the user chose this knowingly).
+const PROVIDER: 'anthropic' | 'gemini' | null = (() => {
+  const forced = Deno.env.get('ASSISTANT_PROVIDER')
+  if (forced === 'anthropic' && ANTHROPIC_API_KEY) return 'anthropic'
+  if (forced === 'gemini' && GEMINI_API_KEY) return 'gemini'
+  return ANTHROPIC_API_KEY ? 'anthropic' : GEMINI_API_KEY ? 'gemini' : null
+})()
 
 const DEFAULT_MODEL = 'claude-sonnet-5-5'
 const ALLOWED_MODELS = new Set(['claude-sonnet-5-5', 'claude-opus-5-5'])
@@ -120,6 +135,15 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
 ]
+
+// Same tools in Gemini's function-declaration shape.
+const GEMINI_TOOLS = TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.input_schema }))
+
+class ProviderError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+  }
+}
 
 // ------------------------------------------------------------------ types
 type Mode = 'study' | 'patient' | 'general'
@@ -438,6 +462,182 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
   }
 }
 
+// ------------------------------------------------------------------ model loops
+interface LoopIO {
+  send: (event: string, data: unknown) => void
+  step: (t: string) => void
+  db: SupabaseClient
+  reg: Registry
+  chapterId: string | null
+  mode: Mode
+  model: string
+}
+interface LoopResult {
+  text: string
+  stop: string
+  usage: { input: number; output: number; cacheRead: number }
+}
+
+async function loopAnthropic(messages: Anthropic.Beta.BetaMessageParam[], io: LoopIO): Promise<LoopResult> {
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+  const usage = { input: 0, output: 0, cacheRead: 0 }
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const s = client.beta.messages.stream({
+      model: io.model,
+      max_tokens: 16000,
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      tools: TOOLS,
+      messages,
+      thinking: { type: 'adaptive' },
+      output_config: { effort: io.mode === 'patient' ? 'high' : 'medium' },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+    })
+    s.on('text', (delta) => io.send('delta', { text: delta }))
+    const msg = await s.finalMessage()
+    usage.input += msg.usage.input_tokens
+    usage.output += msg.usage.output_tokens
+    usage.cacheRead += msg.usage.cache_read_input_tokens ?? 0
+
+    const toolUses = msg.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use')
+    const text = msg.content
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+
+    if (msg.stop_reason === 'refusal') return { text, stop: 'refusal', usage }
+    if (msg.stop_reason === 'pause_turn') {
+      messages.push({ role: 'assistant', content: msg.content })
+      continue
+    }
+    if (msg.stop_reason === 'max_tokens') return { text, stop: 'truncated', usage }
+    if (!toolUses.length || msg.stop_reason === 'end_turn') return { text, stop: '', usage }
+
+    // text streamed before tool calls is not the answer — tell the client to drop it
+    io.send('reset', {})
+    messages.push({ role: 'assistant', content: msg.content })
+    const results = await Promise.all(
+      toolUses.map(async (tu): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
+        try {
+          const out = await runTool(tu.name, tu.input, io)
+          return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) }
+        } catch (e) {
+          return { type: 'tool_result', tool_use_id: tu.id, is_error: true, content: `tool failed: ${(e as Error)?.message ?? e}` }
+        }
+      }),
+    )
+    messages.push({ role: 'user', content: results })
+    if (round === MAX_TOOL_ROUNDS - 2) {
+      messages.push({ role: 'user', content: 'Tool budget reached: answer now from what you have, with citations.' })
+    }
+  }
+  return { text: '', stop: 'truncated', usage }
+}
+
+// deno-lint-ignore no-explicit-any
+type GeminiPart = Record<string, any>
+interface GeminiContent {
+  role: 'user' | 'model'
+  parts: GeminiPart[]
+}
+
+/** One streamed Gemini round: forwards answer text as it arrives, collects function calls. */
+async function geminiRound(contents: GeminiContent[], send: LoopIO['send']) {
+  const res = await fetch(`${GEMINI_BASE}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents,
+      tools: [{ functionDeclarations: GEMINI_TOOLS }],
+      generationConfig: { maxOutputTokens: 16000 },
+    }),
+  })
+  if (!res.ok || !res.body) throw new ProviderError(res.status, await res.text().catch(() => ''))
+
+  const parts: GeminiPart[] = []
+  const calls: { id?: string; name: string; args: unknown }[] = []
+  let text = ''
+  let finish = ''
+  let promptTokens = 0
+  let outTokens = 0
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  const handle = (line: string) => {
+    if (!line.startsWith('data:')) return
+    const raw = line.slice(5).trim()
+    if (!raw) return
+    // deno-lint-ignore no-explicit-any
+    let j: any
+    try {
+      j = JSON.parse(raw)
+    } catch {
+      return
+    }
+    const cand = j.candidates?.[0]
+    for (const p of cand?.content?.parts ?? []) {
+      parts.push(p) // kept verbatim (thought signatures must go back unchanged)
+      if (p.functionCall) calls.push(p.functionCall)
+      else if (typeof p.text === 'string' && !p.thought) {
+        text += p.text
+        send('delta', { text: p.text })
+      }
+    }
+    if (cand?.finishReason) finish = cand.finishReason
+    if (j.usageMetadata) {
+      promptTokens = j.usageMetadata.promptTokenCount ?? promptTokens
+      outTokens = (j.usageMetadata.candidatesTokenCount ?? 0) + (j.usageMetadata.thoughtsTokenCount ?? 0)
+    }
+  }
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buf += dec.decode(value, { stream: true })
+    let i: number
+    while ((i = buf.indexOf('\n')) >= 0) {
+      handle(buf.slice(0, i).replace(/\r$/, ''))
+      buf = buf.slice(i + 1)
+    }
+  }
+  if (buf) handle(buf)
+  return { parts, calls, text, finish, promptTokens, outTokens }
+}
+
+async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[], userTurn: string, io: LoopIO): Promise<LoopResult> {
+  const contents: GeminiContent[] = [
+    ...history.map((h): GeminiContent => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.text }] })),
+    { role: 'user', parts: [{ text: userTurn }] },
+  ]
+  const usage = { input: 0, output: 0, cacheRead: 0 }
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const r = await geminiRound(contents, io.send)
+    usage.input += r.promptTokens
+    usage.output += r.outTokens
+    if (['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION'].includes(r.finish)) {
+      return { text: r.text, stop: 'refusal', usage }
+    }
+    if (!r.calls.length) return { text: r.text, stop: r.finish === 'MAX_TOKENS' ? 'truncated' : '', usage }
+
+    io.send('reset', {})
+    contents.push({ role: 'model', parts: r.parts })
+    const responses: GeminiPart[] = await Promise.all(
+      r.calls.map(async (fc) => {
+        let out: unknown
+        try {
+          out = await runTool(fc.name, fc.args ?? {}, io)
+        } catch (e) {
+          out = { error: `tool failed: ${(e as Error)?.message ?? e}` }
+        }
+        return { functionResponse: { ...(fc.id ? { id: fc.id } : {}), name: fc.name, response: { result: out } } }
+      }),
+    )
+    if (round === MAX_TOOL_ROUNDS - 2) responses.push({ text: 'Tool budget reached: answer now from what you have, with citations.' })
+    contents.push({ role: 'user', parts: responses })
+  }
+  return { text: '', stop: 'truncated', usage }
+}
+
 // ------------------------------------------------------------------ chat (SSE)
 async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): Promise<Response> {
   const message = String(body.message ?? '').trim()
@@ -469,7 +669,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
   }
 
   // ---- settings (model for patient cases)
-  let model = DEFAULT_MODEL
+  let model: string = DEFAULT_MODEL
   if (conv.mode === 'patient') {
     const { data } = await db.from('user_settings').select('assistant_patient_model').maybeSingle()
     if (data?.assistant_patient_model && ALLOWED_MODELS.has(data.assistant_patient_model)) model = data.assistant_patient_model
@@ -555,8 +755,9 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
     meta: { sent: userTurn, case: caseText ? scrub(caseText, idTokens).text : undefined },
   })
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
   const enc = new TextEncoder()
+  const historyText = history.map((h) => ({ role: h.role as 'user' | 'assistant', text: String(h.content) }))
+  if (PROVIDER === 'gemini') model = GEMINI_MODEL
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -570,76 +771,21 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
         conversationId: conv.id,
         mode: conv.mode,
         model,
+        provider: PROVIDER,
         privacy,
         ...(body.debug ? { payloadPreview: userTurn.slice(0, 4000) } : {}),
       })
 
       let finalText = ''
       let stopNote = ''
-      const usage = { input: 0, output: 0, cacheRead: 0 }
+      let usage = { input: 0, output: 0, cacheRead: 0 }
       try {
-        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-          const s = client.beta.messages.stream({
-            model,
-            max_tokens: 16000,
-            system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-            tools: TOOLS,
-            messages,
-            thinking: { type: 'adaptive' },
-            output_config: { effort: conv.mode === 'patient' ? 'high' : 'medium' },
-            betas: ['server-side-fallback-2026-07-01'],
-            fallbacks: 'default',
-          })
-          s.on('text', (delta) => send('delta', { text: delta }))
-          const msg = await s.finalMessage()
-          usage.input += msg.usage.input_tokens
-          usage.output += msg.usage.output_tokens
-          usage.cacheRead += msg.usage.cache_read_input_tokens ?? 0
-
-          const toolUses = msg.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use')
-          const text = msg.content
-            .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-            .map((b) => b.text)
-            .join('')
-
-          if (msg.stop_reason === 'refusal') {
-            finalText = text
-            stopNote = 'refusal'
-            break
-          }
-          if (msg.stop_reason === 'pause_turn') {
-            messages.push({ role: 'assistant', content: msg.content })
-            continue
-          }
-          if (!toolUses.length || msg.stop_reason === 'end_turn') {
-            finalText = text
-            if (msg.stop_reason === 'max_tokens') stopNote = 'truncated'
-            break
-          }
-          if (msg.stop_reason === 'max_tokens') {
-            finalText = text
-            stopNote = 'truncated'
-            break
-          }
-
-          // text streamed before tool calls is not the answer — tell the client to drop it
-          send('reset', {})
-          messages.push({ role: 'assistant', content: msg.content })
-          const results = await Promise.all(
-            toolUses.map(async (tu): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
-              try {
-                const out = await runTool(tu.name, tu.input, { db, reg, chapterId: conv.chapter_id, step })
-                return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) }
-              } catch (e) {
-                return { type: 'tool_result', tool_use_id: tu.id, is_error: true, content: `tool failed: ${(e as Error)?.message ?? e}` }
-              }
-            }),
-          )
-          messages.push({ role: 'user', content: results })
-          if (round === MAX_TOOL_ROUNDS - 2) {
-            messages.push({ role: 'user', content: 'Tool budget reached: answer now from what you have, with citations.' })
-          }
-        }
+        const io: LoopIO = { send, step, db, reg, chapterId: conv.chapter_id, mode: conv.mode, model }
+        const out =
+          PROVIDER === 'gemini' ? await loopGemini(historyText, userTurn, io) : await loopAnthropic(messages, io)
+        finalText = out.text
+        stopNote = out.stop
+        usage = out.usage
 
         // drop citation ids the model invented; keep only registered ones
         finalText = finalText.replace(/\[(S\d+(?:\s*[,،]\s*S\d+)*)\]/g, (_m, g: string) => {
@@ -654,7 +800,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
 
         const { data: saved } = await db
           .from('ai_messages')
-          .insert({ conversation_id: conv.id, role: 'assistant', content: finalText, sources, meta: { model, steps, usage, stop: stopNote || undefined } })
+          .insert({ conversation_id: conv.id, role: 'assistant', content: finalText, sources, meta: { model, provider: PROVIDER, steps, usage, stop: stopNote || undefined } })
           .select('id')
           .single()
         await db.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id)
@@ -664,7 +810,14 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
         send('done', { messageId: saved?.id ?? null, conversationId: conv.id, stop: stopNote || null })
       } catch (e) {
         let msg = 'خطای ناشناخته'
-        if (e instanceof Anthropic.AuthenticationError) msg = 'کلید ANTHROPIC_API_KEY نامعتبر است.'
+        if (e instanceof ProviderError) {
+          msg =
+            e.status === 429
+              ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ یک دقیقه بعد دوباره بپرس.'
+              : e.status === 400 || e.status === 403
+                ? `کلید یا درخواست Gemini پذیرفته نشد (${e.status}): ${e.message.slice(0, 300)}`
+                : `خطای Gemini (${e.status}): ${e.message.slice(0, 300)}`
+        } else if (e instanceof Anthropic.AuthenticationError) msg = 'کلید ANTHROPIC_API_KEY نامعتبر است.'
         else if (e instanceof Anthropic.RateLimitError) msg = 'محدودیت موقت؛ یک دقیقه بعد دوباره بپرس.'
         else if (e instanceof Anthropic.APIError) msg = `خطای API (${e.status}): ${e.message}`
         else if (e instanceof Error) msg = e.message
@@ -682,6 +835,20 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
 }
 
 // ------------------------------------------------------------------ flashcards
+// Claude structured outputs need additionalProperties:false on every object.
+// deno-lint-ignore no-explicit-any
+function addNoExtra(schema: any): any {
+  if (Array.isArray(schema)) return schema.map(addNoExtra)
+  if (schema && typeof schema === 'object') {
+    // deno-lint-ignore no-explicit-any
+    const out: any = {}
+    for (const [k, v] of Object.entries(schema)) out[k] = addNoExtra(v)
+    if (schema.type === 'object') out.additionalProperties = false
+    return out
+  }
+  return schema
+}
+
 async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId: string): Promise<Response> {
   if (!isUuid(body.messageId)) return json({ error: 'messageId required' }, 400)
   const { data: m, error } = await db.from('ai_messages').select('content, sources, role').eq('id', body.messageId).maybeSingle()
@@ -690,41 +857,48 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
   const sources = Object.values((m.sources ?? {}) as Record<string, Source>).filter((s) => s.chapterId)
   if (!sources.length) return json({ error: 'این پاسخ منبعی از فصل‌های کتاب ندارد؛ کارت ساخته نشد.' }, 422)
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
   const srcText = sources.map((s) => `[${s.id}] ${s.label} — ${s.heading}\n${s.text}`).join('\n\n---\n\n')
-  const resp = await client.messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: 8000,
-    output_config: {
-      effort: 'low',
-      format: {
-        type: 'json_schema',
-        schema: {
+  const prompt = `Make 3–6 board-style flashcards (Persian, medical terms in English) from this assistant answer. Every card must be fully supported by ONE of the sources below; set source_id to that source's id. No facts from outside the sources.\n\nANSWER:\n${m.content}\n\nSOURCES:\n${srcText}`
+  const schema = {
+    type: 'object',
+    required: ['cards'],
+    properties: {
+      cards: {
+        type: 'array',
+        items: {
           type: 'object',
-          additionalProperties: false,
-          required: ['cards'],
-          properties: {
-            cards: {
-              type: 'array',
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['front', 'back', 'source_id'],
-                properties: { front: { type: 'string' }, back: { type: 'string' }, source_id: { type: 'string' } },
-              },
-            },
-          },
+          required: ['front', 'back', 'source_id'],
+          properties: { front: { type: 'string' }, back: { type: 'string' }, source_id: { type: 'string' } },
         },
       },
     },
-    messages: [
-      {
-        role: 'user',
-        content: `Make 3–6 board-style flashcards (Persian, medical terms in English) from this assistant answer. Every card must be fully supported by ONE of the sources below; set source_id to that source's id. No facts from outside the sources.\n\nANSWER:\n${m.content}\n\nSOURCES:\n${srcText}`,
+  }
+  let text = ''
+  if (PROVIDER === 'gemini') {
+    const res = await fetch(`${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 8000 },
+      }),
+    })
+    if (!res.ok) return json({ error: `Gemini (${res.status}): ${(await res.text()).slice(0, 300)}` }, 502)
+    const j = await res.json()
+    text = (j.candidates?.[0]?.content?.parts ?? []).filter((p: GeminiPart) => !p.thought).map((p: GeminiPart) => p.text ?? '').join('')
+  } else {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+    const resp = await client.messages.create({
+      model: DEFAULT_MODEL,
+      max_tokens: 8000,
+      output_config: {
+        effort: 'low',
+        format: { type: 'json_schema', schema: addNoExtra(schema) },
       },
-    ],
-  })
-  const text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('')
+      messages: [{ role: 'user', content: prompt }],
+    })
+    text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('')
+  }
   let cards: { front: string; back: string; source_id: string }[] = []
   try {
     cards = JSON.parse(text).cards ?? []
@@ -757,8 +931,8 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors() })
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
-  if (!ANTHROPIC_API_KEY) {
-    return json({ error: 'ANTHROPIC_API_KEY تنظیم نشده — Supabase → Project Settings → Edge Functions → Secrets.' }, 500)
+  if (!PROVIDER) {
+    return json({ error: 'هیچ کلید هوش مصنوعی تنظیم نشده (GEMINI_API_KEY یا ANTHROPIC_API_KEY) — Supabase → Edge Functions → Secrets.' }, 500)
   }
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return json({ error: 'Missing Authorization header' }, 401)
