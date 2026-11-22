@@ -10,7 +10,18 @@ import {
   type AssistantSource,
 } from '../../lib/api/assistant'
 import { addProgressNote } from '../../lib/api/notes'
-import { cleanPassage, renderAnswer } from '../../lib/assistantMarkdown'
+import { cleanPassage, delatex, renderAnswer } from '../../lib/assistantMarkdown'
+import {
+  getSpeakPref,
+  hasPersianVoice,
+  setSpeakPref,
+  speak,
+  speechSupported,
+  stopSpeaking,
+  unlockSpeech,
+  useDictation,
+  voicesReady,
+} from '../../lib/speech'
 
 export const STUDY_CHIPS = [
   'این فصل رو خلاصه کن: نقشه ذهنی + نکات بورد',
@@ -72,6 +83,14 @@ export function AssistantChat({
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [input, setInput] = useState(initialPrompt && !autoSend ? initialPrompt : '')
   const [busy, setBusy] = useState(false)
+  const [speakOn, setSpeakOn] = useState(getSpeakPref)
+  const speakRef = useRef(speakOn)
+  speakRef.current = speakOn
+  const [voiceNote, setVoiceNote] = useState<string | null>(null)
+  const dictBase = useRef('')
+  const dictation = useDictation((finalText, interim) => {
+    setInput(`${dictBase.current}${[finalText, interim].filter(Boolean).join(' ')}`)
+  })
   const [loadingHistory, setLoadingHistory] = useState(!!initialConversationId)
   const [caseText, setCaseText] = useState('')
   const [caseState, setCaseState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -138,6 +157,10 @@ export function AssistantChat({
       if (isPatient && firstTurn && caseState === 'loading') return
       setBusy(true)
       setInput('')
+      dictation.stop()
+      stopSpeaking()
+      let spokenText = ''
+      let spokenSources: Record<string, AssistantSource> = {}
       const aKey = nextKey()
       setMessages((ms) => [
         ...ms,
@@ -175,9 +198,18 @@ export function AssistantChat({
             onStep: (t) => patch((m) => ({ ...m, steps: [...m.steps, t] })),
             onDelta: (t) => patch((m) => ({ ...m, text: m.text + t })),
             onReset: () => patch((m) => ({ ...m, text: '' })),
-            onFinal: (t) => patch((m) => ({ ...m, text: t })),
-            onSources: (s) => patch((m) => ({ ...m, sources: s })),
-            onDone: (d) => patch((m) => ({ ...m, id: d.messageId, pending: false, stop: d.stop })),
+            onFinal: (t) => {
+              spokenText = t
+              patch((m) => ({ ...m, text: t }))
+            },
+            onSources: (s) => {
+              spokenSources = s
+              patch((m) => ({ ...m, sources: s }))
+            },
+            onDone: (d) => {
+              patch((m) => ({ ...m, id: d.messageId, pending: false, stop: d.stop }))
+              if (speakRef.current && spokenText) speak(answerPlainText(delatex(spokenText), spokenSources, false))
+            },
             onError: (e) => patch((m) => ({ ...m, pending: false, error: e })),
           },
           ctrl.signal,
@@ -191,7 +223,7 @@ export function AssistantChat({
         abortRef.current = null
       }
     },
-    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, caseText, onConversation],
+    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, caseText, onConversation, dictation],
   )
 
   // quick-action from outside (patient chips / «بپرس» on a selection)
@@ -211,6 +243,46 @@ export function AssistantChat({
       void send(input)
     }
   }
+
+  function toggleMic() {
+    if (dictation.listening) {
+      dictation.stop()
+      return
+    }
+    stopSpeaking()
+    dictBase.current = input.trim() ? `${input.trim()} ` : ''
+    dictation.start()
+  }
+
+  async function toggleSpeaker() {
+    const next = !speakOn
+    setSpeakOn(next)
+    setSpeakPref(next)
+    if (!next) {
+      stopSpeaking()
+      setVoiceNote(null)
+      return
+    }
+    unlockSpeech() // inside the tap, so iOS allows speech later
+    await voicesReady()
+    setVoiceNote(
+      hasPersianVoice()
+        ? null
+        : 'صدای فارسی روی این دستگاه پیدا نشد؛ پاسخ با صدای پیش‌فرض خوانده می‌شود. در iPhone/iPad: Settings › Accessibility › Spoken Content › Voices.',
+    )
+  }
+
+  useEffect(() => {
+    if (!dictation.error) return
+    const msg: Record<string, string> = {
+      'not-allowed': 'اجازهٔ میکروفون داده نشد (Settings › Safari › Microphone).',
+      'no-speech': 'صدایی شنیده نشد؛ دوباره امتحان کن.',
+      network: 'تشخیص گفتار به اینترنت نیاز دارد.',
+      unsupported: 'این مرورگر تبدیل گفتار به متن را پشتیبانی نمی‌کند.',
+      other: 'تشخیص گفتار متوقف شد.',
+    }
+    setVoiceNote(msg[dictation.error])
+  }, [dictation.error])
 
   function autosize() {
     const t = inputRef.current
@@ -321,7 +393,20 @@ export function AssistantChat({
         </div>
       )}
 
+      {voiceNote && <p className="as-voice-note">{voiceNote}</p>}
       <div className="as-composer">
+        {dictation.supported && (
+          <button
+            type="button"
+            className={dictation.listening ? 'as-ib mic live' : 'as-ib mic'}
+            onClick={toggleMic}
+            aria-pressed={dictation.listening}
+            aria-label={dictation.listening ? 'توقف ضبط' : 'صحبت کن'}
+            title={dictation.listening ? 'توقف ضبط' : 'صحبت کن (فارسی)'}
+          >
+            <MicIcon />
+          </button>
+        )}
         <textarea
           ref={inputRef}
           rows={1}
@@ -329,9 +414,21 @@ export function AssistantChat({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="سؤالت را بنویس…"
+          placeholder={dictation.listening ? 'در حال گوش دادن…' : 'سؤالت را بنویس…'}
           aria-label="پیام"
         />
+        {speechSupported() && (
+          <button
+            type="button"
+            className={speakOn ? 'as-ib spk on' : 'as-ib spk'}
+            onClick={() => void toggleSpeaker()}
+            aria-pressed={speakOn}
+            aria-label={speakOn ? 'خواندن پاسخ‌ها با صدا: روشن' : 'خواندن پاسخ‌ها با صدا: خاموش'}
+            title="خواندن پاسخ با صدا"
+          >
+            <SpeakerIcon on={speakOn} />
+          </button>
+        )}
         {busy ? (
           <button type="button" className="as-ib stop" onClick={() => abortRef.current?.abort()} aria-label="توقف">
             ■
@@ -457,5 +554,23 @@ function AnswerBubble({
         )}
       </div>
     </div>
+  )
+}
+
+function MicIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </svg>
+  )
+}
+
+function SpeakerIcon({ on }: { on: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4z" />
+      {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="m17 9 4 6m0-6-4 6" />}
+    </svg>
   )
 }
