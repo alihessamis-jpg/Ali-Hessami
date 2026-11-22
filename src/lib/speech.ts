@@ -157,3 +157,173 @@ export function setSpeakPref(on: boolean) {
     /* private mode */
   }
 }
+
+// ---------------------------------------------------------------- recorder
+// Voice input that works on iOS: record raw audio with Web Audio, encode a
+// 16 kHz mono WAV in the browser, and let the server transcribe it (Gemini).
+// Safari's own SpeechRecognition doesn't handle Persian reliably on iOS.
+
+export type VoiceState = 'idle' | 'recording' | 'transcribing'
+export type VoiceError = 'not-allowed' | 'unsupported' | 'too-short' | 'failed'
+
+const TARGET_RATE = 16000
+const MAX_SECONDS = 120
+
+function downsample(input: Float32Array, from: number, to: number): Float32Array {
+  if (from === to) return input
+  const ratio = from / to
+  const out = new Float32Array(Math.floor(input.length / ratio))
+  for (let i = 0; i < out.length; i++) {
+    // average the source samples that fall into this output sample
+    const start = Math.floor(i * ratio)
+    const end = Math.min(input.length, Math.floor((i + 1) * ratio))
+    let sum = 0
+    for (let j = start; j < end; j++) sum += input[j]
+    out[i] = sum / Math.max(1, end - start)
+  }
+  return out
+}
+
+function encodeWav(samples: Float32Array, rate: number): Blob {
+  const buf = new ArrayBuffer(44 + samples.length * 2)
+  const v = new DataView(buf)
+  const str = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)))
+  str(0, 'RIFF')
+  v.setUint32(4, 36 + samples.length * 2, true)
+  str(8, 'WAVE')
+  str(12, 'fmt ')
+  v.setUint32(16, 16, true)
+  v.setUint16(20, 1, true) // PCM
+  v.setUint16(22, 1, true) // mono
+  v.setUint32(24, rate, true)
+  v.setUint32(28, rate * 2, true)
+  v.setUint16(32, 2, true)
+  v.setUint16(34, 16, true)
+  str(36, 'data')
+  v.setUint32(40, samples.length * 2, true)
+  let o = 44
+  for (const x of samples) {
+    const s = Math.max(-1, Math.min(1, x))
+    v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+    o += 2
+  }
+  return new Blob([buf], { type: 'audio/wav' })
+}
+
+function blobToBase64(b: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).replace(/^data:[^,]+,/, ''))
+    r.onerror = () => reject(r.error)
+    r.readAsDataURL(b)
+  })
+}
+
+export const recordingSupported = () =>
+  typeof navigator !== 'undefined' &&
+  !!navigator.mediaDevices?.getUserMedia &&
+  typeof window !== 'undefined' &&
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  !!(window.AudioContext || (window as any).webkitAudioContext)
+
+/**
+ * Tap to record, tap again to stop; `transcribe(base64Wav)` turns the clip
+ * into text, which is handed to `onText`.
+ */
+export function useVoiceInput(transcribe: (wavBase64: string) => Promise<string>, onText: (text: string) => void) {
+  const [state, setState] = useState<VoiceState>('idle')
+  const [seconds, setSeconds] = useState(0)
+  const [error, setError] = useState<VoiceError | null>(null)
+  const rec = useRef<{ ctx: AudioContext; stream: MediaStream | null; proc: ScriptProcessorNode | null; chunks: Float32Array[]; timer: number } | null>(null)
+  const cbs = useRef({ transcribe, onText })
+  cbs.current = { transcribe, onText }
+
+  const teardown = useCallback(() => {
+    const r = rec.current
+    if (!r) return null
+    window.clearInterval(r.timer)
+    r.proc?.disconnect()
+    r.stream?.getTracks().forEach((t) => t.stop())
+    const rate = r.ctx.sampleRate
+    void r.ctx.close().catch(() => {})
+    rec.current = null
+    return { chunks: r.chunks, rate }
+  }, [])
+
+  const stop = useCallback(async () => {
+    const got = teardown()
+    if (!got) return
+    const total = got.chunks.reduce((n, c) => n + c.length, 0)
+    if (total / got.rate < 0.6) {
+      setState('idle')
+      setError('too-short')
+      return
+    }
+    const merged = new Float32Array(total)
+    let o = 0
+    for (const c of got.chunks) {
+      merged.set(c, o)
+      o += c.length
+    }
+    setState('transcribing')
+    try {
+      const b64 = await blobToBase64(encodeWav(downsample(merged, got.rate, TARGET_RATE), TARGET_RATE))
+      const text = (await cbs.current.transcribe(b64)).trim()
+      if (text) cbs.current.onText(text)
+      else setError('too-short')
+    } catch {
+      setError('failed')
+    } finally {
+      setState('idle')
+    }
+  }, [teardown])
+
+  const start = useCallback(async () => {
+    if (!recordingSupported()) {
+      setError('unsupported')
+      return
+    }
+    setError(null)
+    // Create/resume the AudioContext synchronously inside the tap (iOS rule).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Ctx: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext
+    const ctx = new Ctx()
+    void ctx.resume()
+    const r = { ctx, stream: null as MediaStream | null, proc: null as ScriptProcessorNode | null, chunks: [] as Float32Array[], timer: 0 }
+    rec.current = r
+    setSeconds(0)
+    setState('recording')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
+      if (rec.current !== r) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      r.stream = stream
+      const src = ctx.createMediaStreamSource(stream)
+      const proc = ctx.createScriptProcessor(4096, 1, 1)
+      proc.onaudioprocess = (e) => r.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))
+      src.connect(proc)
+      proc.connect(ctx.destination) // output stays silent; needed for processing to run
+      r.proc = proc
+      const t0 = Date.now()
+      r.timer = window.setInterval(() => {
+        const s = Math.floor((Date.now() - t0) / 1000)
+        setSeconds(s)
+        if (s >= MAX_SECONDS) void stop()
+      }, 250)
+    } catch (e) {
+      teardown()
+      setState('idle')
+      setError((e as DOMException)?.name === 'NotAllowedError' ? 'not-allowed' : 'failed')
+    }
+  }, [stop, teardown])
+
+  const cancel = useCallback(() => {
+    teardown()
+    setState('idle')
+  }, [teardown])
+
+  useEffect(() => () => void teardown(), [teardown])
+  return { state, seconds, error, start, stop, cancel, supported: recordingSupported() }
+}

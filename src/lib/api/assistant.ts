@@ -139,6 +139,18 @@ export async function askAssistant(params: AskParams, h: StreamHandlers, signal?
   }
 }
 
+/** Voice input: base64 WAV -> text (server transcribes with Gemini; audio isn't stored). */
+export async function transcribeAudio(wavBase64: string): Promise<string> {
+  const res = await fetch(FN_URL, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ action: 'transcribe', audio: wavBase64, mimeType: 'audio/wav' }),
+  })
+  const j = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(j?.error ?? `خطا (${res.status})`)
+  return String(j.text ?? '')
+}
+
 export async function makeFlashcards(messageId: string): Promise<number> {
   const res = await fetch(FN_URL, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'flashcards', messageId }) })
   const j = await res.json().catch(() => ({}))
