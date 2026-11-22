@@ -6,7 +6,7 @@ import { SettingsIcon } from './icons'
 import { NAV_LINKS } from '../lib/navLinks'
 import { GlobalSearchButton } from './search/GlobalSearch'
 
-const PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log']
+const PRIMARY_PATHS = ['/', '/today', '/patients', '/case-log', '/assistant']
 
 export const GROUPS: Array<{ label: string; paths: string[] }> = [
   { label: 'Clinical', paths: ['/academic-activity', '/reference', '/calculators', '/checklists'] },

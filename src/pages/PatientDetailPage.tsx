@@ -47,6 +47,9 @@ import {
   VaccineIcon,
 } from '../components/icons'
 import type { GrowthEntry, LabEntry, Patient } from '../types/domain'
+import { SparkleIcon } from '../components/icons'
+import { useAssistant } from '../components/assistant/AssistantProvider'
+import { PATIENT_CHIPS } from '../components/assistant/AssistantChat'
 import type { ComponentType, SVGProps } from 'react'
 
 export type Tab =
@@ -102,6 +105,7 @@ function findTab(id: Tab) {
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { open: openAssistant } = useAssistant()
   // Set by the offline-download crawler (lib/offlinePrep.ts): mount every
   // tab at once, hidden, so all of this patient's data gets saved offline.
   const [searchParams] = useSearchParams()
@@ -301,7 +305,24 @@ export function PatientDetailPage() {
           />
         </svg>
 
+        <div className="pc-ai-chips" dir="rtl">
+          {['تحلیل قدم‌به‌قدم', 'تشخیص‌های افتراقی', 'چک دوز داروها', 'workup بعدی'].map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              className="pc-ai-chip"
+              onClick={() => openAssistant({ mode: 'patient', patientId: id, prompt: PATIENT_CHIPS[i] })}
+            >
+              ✨ {label}
+            </button>
+          ))}
+        </div>
+
         <div className="pc-actions">
+          <button type="button" className="np-btn white sm" onClick={() => openAssistant({ mode: 'patient', patientId: id })}>
+            <SparkleIcon width={16} height={16} aria-hidden="true" />
+            تحلیل با دستیار
+          </button>
           <Link to={`/study/personal-cases/new?patientId=${id}`} className="np-btn white sm">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5" />

@@ -46,6 +46,9 @@ import {
   rejectBoardQuestionSuggestion,
 } from '../lib/api/boardQuestions'
 import { addBoardQuestionAttempt } from '../lib/api/boardQuestionAttempts'
+import { SelectionAsk } from '../components/assistant/SelectionAsk'
+import { useAssistant } from '../components/assistant/AssistantProvider'
+import { STUDY_CHIPS } from '../components/assistant/AssistantChat'
 import type {
   AcademyTopic,
   BoardQuestion,
@@ -167,6 +170,7 @@ function MissingFigureRow({
 
 export function ReaderPage() {
   const { id } = useParams<{ id: string }>()
+  const { open: openAssistant } = useAssistant()
   const navigate = useNavigate()
   const [chapter, setChapter] = useState<LibraryChapter | null>(null)
   const [cards, setCards] = useState<LibraryCard[]>([])
@@ -900,6 +904,18 @@ export function ReaderPage() {
             </span>
             <h1 style={{ position: 'relative', zIndex: 2 }}>{chapter.title}</h1>
           </div>
+          <div className="pc-ai-chips reader" dir="rtl">
+            {['خلاصه + نقشه ذهنی', '۵ سؤال بورد و تصحیح', 'تله‌ها', 'سناریوی بالینی'].map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                className="pc-ai-chip"
+                onClick={() => openAssistant({ mode: 'study', chapterId: chapter.id, prompt: STUDY_CHIPS[i], autoSend: true })}
+              >
+                ✨ {label}
+              </button>
+            ))}
+          </div>
           <div className="rmeta">
             <span className="chip2">
               p. {chapter.startPage}–{chapter.endPage} · {chapter.pages} pp
@@ -1002,6 +1018,7 @@ export function ReaderPage() {
         )}
 
         <div className="stack">
+          <SelectionAsk containerRef={articleRef} chapterId={chapter.id} />
           <article className="art-card np-fade" ref={articleRef}>
             {offlineFallback && (
               <p className="np-small" style={{ color: '#93590B', background: '#FDF0D5', padding: '8px 12px', borderRadius: 10 }}>

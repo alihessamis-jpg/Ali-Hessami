@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getAssistantPatientModel, setAssistantPatientModel, type AssistantModel } from '../../lib/api/assistant'
 import { reindexLibrary } from '../../lib/api/search'
 import { describeError } from '../../lib/describeError'
 
@@ -10,6 +11,23 @@ import { describeError } from '../../lib/describeError'
 export function ReindexLibraryCard() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [model, setModel] = useState<AssistantModel | null>(null)
+
+  useEffect(() => {
+    getAssistantPatientModel().then(setModel).catch(() => setModel('claude-sonnet-5-5'))
+  }, [])
+
+  async function changeModel(m: AssistantModel) {
+    const prev = model
+    setModel(m)
+    try {
+      await setAssistantPatientModel(m)
+      setMsg('مدل کیس‌های بیمار ذخیره شد')
+    } catch (e) {
+      setModel(prev)
+      setMsg(`خطا: ${describeError(e, 'ذخیره نشد')}`)
+    }
+  }
 
   async function run() {
     setBusy(true)
@@ -33,6 +51,14 @@ export function ReindexLibraryCard() {
       <button type="button" onClick={() => void run()} disabled={busy} style={{ alignSelf: 'flex-start' }}>
         {busy ? 'در حال بازسازی…' : 'بازسازی نمایه'}
       </button>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+        <span>مدل دستیار برای کیس‌های بیمار</span>
+        <select value={model ?? ''} disabled={!model} onChange={(e) => void changeModel(e.target.value as AssistantModel)}>
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — سریع‌تر و ارزان‌تر (پیش‌فرض)</option>
+          <option value="claude-opus-5-5">Claude Opus 5.5 — استدلال عمیق‌تر برای کیس‌های پیچیده</option>
+        </select>
+        <span className="np-small">مطالعه و سؤالات کلی همیشه با Sonnet 5.5 اجرا می‌شوند.</span>
+      </label>
       {msg && <span className="np-small">{msg}</span>}
     </section>
   )
