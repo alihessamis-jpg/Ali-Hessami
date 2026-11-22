@@ -10199,3 +10199,131 @@ html.force-reduced-motion .pc-ecg-line {
 .as-ib.mic.live:hover, .as-ib.mic.live:focus { background: #c0392b; color: #fff; }
 .as-ib.send:hover, .as-ib.send:focus { background: var(--as-renal); color: #fff; }
 .as-ib.stop:hover, .as-ib.stop:focus { background: #c0392b; color: #fff; }
+
+/* =====================================================================
+   Assistant phase 4 — design pass
+   Palette from the assistant prototype: renal bordeaux, teal for sources,
+   warm white; dark values follow the system setting. Applies to the
+   assistant sheet/page and the global search overlay.
+   ===================================================================== */
+:root {
+  --as-err: #b3261e;
+  --as-toast-bg: #2a1418;
+  --as-toast-ink: #fff;
+  --as-focus: #0f8b8d;
+  --as-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --as-renal: #d25a6a;
+    --as-renal-soft: #2a191c;
+    --as-teal: #3fc9cb;
+    --as-teal-bg: #0f2a2b;
+    --as-ink: #f5e9ea;
+    --as-mute: #b89ca0;
+    --as-line: #3a2328;
+    --as-card: #1f1215;
+    --as-bg: #140b0d;
+    --as-err: #ff8a80;
+    --as-toast-bg: #f5e9ea;
+    --as-toast-ink: #2a1418;
+    --as-focus: #3fc9cb;
+  }
+  /* search overlay: re-point the app tokens it uses, only inside it */
+  .gs-panel {
+    --surface: #161b26;
+    --surface-tint: #1f2635;
+    --border: #2b3447;
+    --text: #e8eef8;
+    --text-muted: #9aa8bf;
+    color-scheme: dark;
+  }
+  .gs-src, .gs-link, .gs-q-body li.correct { color: #3fc9cb; }
+  .gs-snip mark { background: rgba(63, 201, 203, 0.22); }
+  .gs-backdrop, .as-backdrop { background: rgba(0, 0, 0, 0.55); }
+  .as-sheet, .as-chat.as-v-page, .as-page { color-scheme: dark; }
+  .as-sheet { box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6); }
+  .as-composer { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
+  .as-msg.u .as-b { color: #1b0c0f; }
+  .as-ib.send, .as-ib.send:hover, .as-ib.send:focus, .as-chip.on, .as-chip.solid { color: #1b0c0f; }
+  .pc-ai-chips.reader .pc-ai-chip { background: var(--as-card); }
+}
+
+/* the «دستیار» page is one continuous surface, edge to edge */
+.np-page.as-page {
+  background: var(--as-bg);
+  color: var(--as-ink);
+  box-shadow: 0 0 0 100vmax var(--as-bg);
+  clip-path: inset(0 -100vmax);
+  min-height: calc(100dvh - 60px);
+}
+.as-page .as-hint { color: var(--as-mute); }
+.as-select { background: var(--as-card); color: var(--as-ink); border: 1px solid var(--as-line); }
+
+.as-err { color: var(--as-err); }
+.as-toast { background: var(--as-toast-bg); color: var(--as-toast-ink); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+
+/* type: Persian-first, tabular figures for doses and labs */
+.as-chat, .as-page, .gs-panel { font-feature-settings: 'tnum' 1; -webkit-font-smoothing: antialiased; }
+.as-ans { line-height: 1.95; }
+.as-ans h3 { letter-spacing: -0.01em; }
+.as-ans b { color: var(--as-ink); font-weight: 700; }
+
+/* focus: one visible ring, teal like the sources */
+.as-chip:focus-visible, .as-mini:focus-visible, .as-ib:focus-visible, .as-ans .cite:focus-visible,
+.as-src-open:focus-visible, .as-fab:focus-visible, .as-sheet-close:focus-visible, .gs-item:focus-visible,
+.gs-close:focus-visible, .pc-ai-chip:focus-visible, .as-ask-sel:focus-visible {
+  outline: 2px solid var(--as-focus);
+  outline-offset: 2px;
+}
+
+/* motion: short, ease-out, transform/opacity only */
+@keyframes as-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes as-fade { from { opacity: 0; } to { opacity: 1; } }
+.as-msg { animation: as-in 0.24s var(--as-ease) both; }
+.as-steps div { animation: as-fade 0.2s ease-out both; }
+.as-src.flash { animation: as-fade 0.2s ease-out; }
+.as-toast { animation: as-in 0.2s var(--as-ease) both; }
+.as-chip, .as-mini, .as-ib, .pc-ai-chip, .as-ans .cite, .gs-item, .as-fab, .as-ask-sel {
+  transition: transform 0.12s var(--as-ease), background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+.as-chip:active, .as-mini:active, .as-ib:active:not(:disabled), .pc-ai-chip:active, .as-ans .cite:active, .as-ask-sel:active {
+  transform: scale(0.96);
+}
+.as-ans .cite:hover { background: var(--as-teal); color: var(--as-card); }
+.as-srcs summary { list-style: none; }
+.as-srcs summary::-webkit-details-marker { display: none; }
+.as-srcs summary::before { content: '▸ '; display: inline-block; transition: transform 0.15s ease; }
+.as-srcs[open] summary::before { transform: rotate(90deg); }
+.as-chip, .as-mini, .as-ib, .as-fab, .pc-ai-chip, .as-ans .cite { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+@media (prefers-reduced-motion: reduce) {
+  .as-msg, .as-steps div, .as-src.flash, .as-toast { animation: none; }
+  .as-chip, .as-mini, .as-ib, .pc-ai-chip, .as-ans .cite, .gs-item, .as-fab, .as-ask-sel { transition: none; }
+  .as-chip:active, .as-mini:active, .as-ib:active:not(:disabled), .pc-ai-chip:active, .as-ans .cite:active, .as-ask-sel:active { transform: none; }
+  .as-srcs summary::before { transition: none; }
+  .as-spin, .gs-spin { animation-duration: 2.4s; }
+}
+@media (prefers-color-scheme: dark) {
+  .as-ctx-kind, .as-tag.patient, .as-ib.spk.on, .as-ib.spk.on:hover, .as-ib.spk.on:focus { color: #1b0c0f; }
+  @media (hover: hover) { .as-chip:hover { color: #1b0c0f; } }
+}
+/* six tabs since «دستیار» joined — keep every label on one line */
+@media (max-width: 768px) {
+  .mobile-tab-bar-item { min-width: 0; }
+  .mobile-tab-bar-item span { white-space: nowrap; font-size: 10.5px; letter-spacing: -0.01em; }
+}
+
+/* Persian-first blocks in the assistant and search. The global
+   `* { unicode-bidi: plaintext }` guesses each line's direction from its
+   first letter, so «Rituximab یک monoclonal …» was laid out LTR. Blocks
+   here are always RTL; inline runs (bold doses like "60 mg/m²/day", codes)
+   keep their own plaintext detection so numbers and units never flip. */
+.as-ans :is(p, li, h3, td, th, blockquote),
+.as-src-sec,
+.gs-panel :is(.gs-snip, .gs-title, .gs-q-body p, .gs-q-body li) {
+  direction: rtl;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+.as-ans :is(ul, ol), .gs-q-body ol { direction: rtl; unicode-bidi: isolate; }
