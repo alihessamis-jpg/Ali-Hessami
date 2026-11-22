@@ -290,10 +290,10 @@ export function AssistantChat({
       'not-allowed': 'اجازهٔ میکروفون داده نشد (Settings › Safari › Microphone، یا تنظیمات اپ).',
       'too-short': 'صدایی ضبط نشد؛ دکمه را بزن، حرف بزن، بعد دوباره بزن.',
       unsupported: 'این مرورگر ضبط صدا را پشتیبانی نمی‌کند.',
-      failed: 'تبدیل صدا به متن ناموفق بود؛ دوباره امتحان کن.',
+      failed: voice.errorDetail ?? 'تبدیل صدا به متن ناموفق بود؛ دوباره امتحان کن.',
     }
     setVoiceNote(msg[voice.error])
-  }, [voice.error])
+  }, [voice.error, voice.errorDetail])
 
   function autosize() {
     const t = inputRef.current

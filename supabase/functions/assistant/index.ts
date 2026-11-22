@@ -618,7 +618,14 @@ async function geminiRound(model: string, contents: GeminiContent[], send: LoopI
 // list) or — if unset — other Flash text models this key can use, read from
 // Google's model list (newest first, "lite" last). Cached per instance.
 let geminiModelsCache: string[] | null = null
+// The model that last answered (per warm instance) is tried first — the
+// default one is often the busiest on the free tier.
+let lastGoodModel: string | null = null
 async function geminiModels(): Promise<string[]> {
+  const list = await geminiModelList()
+  return lastGoodModel && list.includes(lastGoodModel) ? [lastGoodModel, ...list.filter((m) => m !== lastGoodModel)] : list
+}
+async function geminiModelList(): Promise<string[]> {
   if (geminiModelsCache) return geminiModelsCache
   const list = [GEMINI_MODEL]
   const env = Deno.env.get('GEMINI_FALLBACK_MODELS')
@@ -683,6 +690,7 @@ async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[
       }
     }
     io.model = models[mi]
+    lastGoodModel = models[mi]
     usage.input += r.promptTokens
     usage.output += r.outTokens
     if (['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION'].includes(r.finish)) {
@@ -1022,27 +1030,53 @@ async function handleTranscribe(body: TranscribeBody): Promise<Response> {
   if (audio.length > MAX_AUDIO_B64) return json({ error: 'ضبط خیلی طولانی است؛ حداکثر حدود ۲ دقیقه.' }, 413)
   const mimeType = AUDIO_TYPES.has(String(body.mimeType)) ? String(body.mimeType) : 'audio/wav'
 
+  // One request body for every attempt (the audio is large); each call is
+  // capped at 25 s and the whole job at ~50 s, well inside the function's
+  // limits, and the next model is tried when one is busy or slow.
+  const reqBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: audio } }, { text: TRANSCRIBE_PROMPT }] }],
+    generationConfig: { maxOutputTokens: 4000 },
+  })
+  const deadline = Date.now() + 50_000
   let res: Response | null = null
+  let lastStatus = 0
   for (const gm of await geminiModels()) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const left = deadline - Date.now()
+    if (left < 5_000) break
+    try {
       res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: audio } }, { text: TRANSCRIBE_PROMPT }] }],
-          generationConfig: { maxOutputTokens: 4000 },
-        }),
+        body: reqBody,
+        signal: AbortSignal.timeout(Math.min(25_000, left)),
       })
-      if (res.ok || !RETRYABLE.has(res.status)) break
-      await sleep(1000)
+    } catch {
+      console.error('[assistant] transcribe timeout', gm)
+      res = null
+      lastStatus = 504
+      continue
     }
-    if (res && (res.ok || !RETRYABLE.has(res.status))) break
+    if (res.ok) {
+      lastGoodModel = gm
+      break
+    }
+    lastStatus = res.status
+    console.error('[assistant] transcribe', gm, res.status, (await res.text().catch(() => '')).slice(0, 200))
+    if (!RETRYABLE.has(res.status)) break
+    res = null
   }
   if (!res || !res.ok) {
-    const status = res?.status ?? 0
-    const detail = (await res?.text().catch(() => ''))?.slice(0, 200)
-    console.error('[assistant] transcribe failed', status, detail)
-    return json({ error: status === 429 ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ کمی بعد دوباره امتحان کن.' : `تبدیل صدا ناموفق بود (${status}).` }, 502)
+    return json(
+      {
+        error:
+          lastStatus === 429
+            ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ کمی بعد دوباره امتحان کن.'
+            : lastStatus >= 500
+              ? 'سرورهای رایگان Gemini الان شلوغ‌اند؛ چند لحظه بعد دوباره امتحان کن.'
+              : `تبدیل صدا ناموفق بود (${lastStatus}).`,
+      },
+      502,
+    )
   }
   const j = await res.json()
   const text = (j.candidates?.[0]?.content?.parts ?? [])
