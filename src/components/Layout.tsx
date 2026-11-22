@@ -7,6 +7,7 @@ import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { MobileTabBar } from './MobileTabBar'
 import { Sidebar } from './Sidebar'
 import { NAV_LINKS } from '../lib/navLinks'
+import { GlobalSearchButton, GlobalSearchProvider } from './search/GlobalSearch'
 
 export function Layout({ children }: { children: ReactNode }) {
   const { session, signOut } = useAuth()
@@ -17,6 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
   if (!session) return <>{children}</>
 
   return (
+    <GlobalSearchProvider>
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="brand">
@@ -38,6 +40,7 @@ export function Layout({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
+        <GlobalSearchButton />
         <div className="header-actions">
           <OfflineIndicator />
           <StorageUsageIndicator />
@@ -63,5 +66,6 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
       {location.pathname !== '/academy/review' && <MobileTabBar currentPath={location.pathname} />}
     </div>
+    </GlobalSearchProvider>
   )
 }

@@ -212,6 +212,7 @@ create trigger library_chapter_parts_chunks
 
 -- ---------------------------------------------------------------- search
 -- Book passages. AND-match first; if that finds nothing, OR-match.
+-- Ranking = pgroonga score + bonus for the exact phrase.
 create or replace function public.search_library(q text, chapter uuid default null, k int default 8)
 returns table (
   chunk_id uuid, book_id uuid, book_title text, chapter_id uuid, chapter_number int, chapter_title text,
@@ -224,6 +225,7 @@ as $$
 declare
   qq text;
   pass int;
+  phrase text := lower(ai_norm(q));
 begin
   for pass in 1 .. 2 loop
     qq := ai_query(q, pass = 2);
@@ -234,6 +236,9 @@ begin
              ch.page_from, ch.page_to, ch.content,
              array_to_string((pgroonga_snippet_html(ch.content, pgroonga_query_extract_keywords(qq), 180))[1:2], ' … '),
              pgroonga_score(ch.tableoid, ch.ctid)
+               -- exact phrase in heading/chapter title, then anywhere in the chunk
+               + case when strpos(lower(ch.heading), phrase) > 0 or strpos(lower(c.title), phrase) > 0 then 15 else 0 end
+               + case when strpos(lower(ch.content), phrase) > 0 then 5 else 0 end
       from library_chunks ch
       join library_chapters c on c.id = ch.chapter_id
       left join library_books b on b.id = ch.book_id
