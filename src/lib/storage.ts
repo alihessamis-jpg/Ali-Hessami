@@ -132,10 +132,21 @@ export async function deleteFollowUpAttachmentFile(path: string): Promise<void> 
 }
 
 // v1.3: book figures (`chapter-figures` bucket, its own private bucket so the
-// RLS policy stays scoped to figure images -- path is userId/chNN/figureKey.ext).
-export async function uploadChapterFigureFile(userId: string, chapterNumber: number, figureKey: string, file: File): Promise<string> {
+// RLS policy stays scoped to figure images). The path is
+// userId/bookId/chNN/figureKey.ext -- the bookId segment matters because two
+// books can both have a "chapter 3" whose note uses the figure key
+// `ch3-fig1-img`; without it the second book's upload overwrites the first's
+// image. Rows written before this segment existed keep their old
+// userId/chNN/... path and still resolve, since reads use the stored path.
+export async function uploadChapterFigureFile(
+  userId: string,
+  bookId: string,
+  chapterNumber: number,
+  figureKey: string,
+  file: File
+): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `${userId}/ch${chapterNumber}/${figureKey}${ext ? `.${ext}` : ''}`
+  const path = `${userId}/${bookId}/ch${chapterNumber}/${figureKey}${ext ? `.${ext}` : ''}`
   const { error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).upload(path, file, { upsert: true })
   if (error) throw error
   return path

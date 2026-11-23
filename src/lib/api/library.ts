@@ -549,7 +549,23 @@ export async function addLibraryChapterFigure(
   file: File
 ): Promise<LibraryChapterFigure> {
   const userId = await currentUserId()
-  const storagePath = await uploadChapterFigureFile(userId, chapterNumber, figureKey, file)
+  // The storage path is scoped by book as well as chapter: figure keys like
+  // `ch3-fig1-img` repeat across books, so without the book segment one book's
+  // chapter 3 figures overwrite another's. Resolved from the chapter so the
+  // callers' signatures stay unchanged.
+  const { data: chapterRow, error: chapterError } = await supabase
+    .from('library_chapters')
+    .select('book_id')
+    .eq('id', chapterId)
+    .single()
+  if (chapterError) throw chapterError
+  const storagePath = await uploadChapterFigureFile(
+    userId,
+    (chapterRow as { book_id: string }).book_id,
+    chapterNumber,
+    figureKey,
+    file
+  )
   const { data, error } = await supabase
     .from('library_chapter_figures')
     .upsert(
