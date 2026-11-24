@@ -1,10 +1,27 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { deriveLusSessionFields, suggestLusGuidedDecision, EMPTY_LUS_ZONES } from '../../lib/lusStudy'
+import {
+  deriveLusSessionFields,
+  suggestLusGuidedDecision,
+  EMPTY_LUS_ZONES,
+  weightDeviationPct,
+  ivcCollapsibilityPct,
+  urrPct,
+  spKtVDaugirdas,
+  lusIvcAgreement,
+  LUS_IVC_AGREEMENT_LABELS,
+  bpIndex,
+  newTargetWeight,
+  bpGatePassed,
+  STUDY_DAYS,
+} from '../../lib/lusStudy'
 import { formatAge, yearsSince } from '../../lib/patientAge'
+import { ageInMonths, ageInYears, heightForAgePercentile, normalizeSex } from '../../lib/growth'
 import type { LusStudySessionWithPatient } from '../../lib/api/lusStudy'
 import type {
   InvestigatorVolumeAssessment,
+  IvcImpression,
   LusGuidedDecision,
+  LusImageQuality,
   LusStudyGroup,
   LusStudySessionDraft,
   LusZoneScores,
@@ -16,6 +33,8 @@ interface Props {
   patientId: string
   studyGroup: LusStudyGroup
   patientAge?: number | null
+  patientSex?: string | null
+  patientDob?: string | null
   underlyingDisease?: string | null
   dialysisStartDate?: string | null
   defaultHeightCm?: number | null
@@ -37,6 +56,85 @@ const ZONE_OPTIONS = [
   { value: 2, label: '2 — Confluent B-lines' },
   { value: 3, label: '3 — Consolidation' },
 ]
+
+const INTRADIALYTIC_SYMPTOMS = [
+  'Dizziness / light-headedness',
+  'Nausea / vomiting',
+  'Headache',
+  'Abdominal pain',
+  'Muscle cramp',
+  'Restlessness / yawning',
+  'Chest pain',
+  'Seizure',
+]
+
+// Free-entry numeric/text fields added for the thesis protocol; kept in one
+// record so each one doesn't need its own useState pair.
+const EXTRA_TEXT_KEYS = [
+  'studyDay',
+  'lusOperator',
+  'lusImageQuality',
+  'postLusMinutesAfterHd',
+  'preHdHeartRate',
+  'preHdRespRate',
+  'preHdSpo2',
+  'postHdHeartRate',
+  'postHdSpo2',
+  'preIvcImpression',
+  'postIvcImpression',
+  'intradialyticNadirSbp',
+  'intradialyticNadirDbp',
+  'interdialyticHomeSbp',
+  'interdialyticHomeDbp',
+  'antihypertensiveCount',
+  'antihypertensiveChangeNote',
+  'plannedUfMl',
+  'bloodFlowMlMin',
+  'dialysateSodium',
+  'dialysateTempC',
+  'salineVolumeMl',
+  'adverseEventNote',
+  'labUreaPre',
+  'labUreaPost',
+  'labHb',
+  'labAlbumin',
+  'labSodium',
+  'labPotassium',
+  'labNtProbnp',
+  'adjustmentStep',
+] as const
+type ExtraTextKey = (typeof EXTRA_TEXT_KEYS)[number]
+const EXTRA_TEXT_STRING_KEYS: ExtraTextKey[] = [
+  'lusOperator',
+  'lusImageQuality',
+  'preIvcImpression',
+  'postIvcImpression',
+  'antihypertensiveChangeNote',
+  'adverseEventNote',
+]
+
+const EXTRA_BOOL_KEYS = [
+  'midWeekSession',
+  'operatorBlinded',
+  'preHdHepatomegaly',
+  'antihypertensiveChanged',
+  'hospitalization',
+  'extraDialysisSession',
+  'adjustmentImplemented',
+] as const
+type ExtraBoolKey = (typeof EXTRA_BOOL_KEYS)[number]
+
+const BP_CATEGORY_LABEL: Record<string, string> = {
+  normal: 'Normal',
+  elevated: 'Elevated',
+  stage1: 'Stage 1 HTN',
+  stage2: 'Stage 2 HTN',
+}
+
+function fmtIdx(r: { sbpIndex: number | null; dbpIndex: number | null; category: string | null }): string {
+  if (r.sbpIndex == null && r.category == null) return '—'
+  return `SBP index ${r.sbpIndex?.toFixed(2) ?? '—'} · DBP index ${r.dbpIndex?.toFixed(2) ?? '—'} · ${r.category ? BP_CATEGORY_LABEL[r.category] ?? r.category : '—'}`
+}
 
 const ADJUSTMENT_REASONS = ['LUS findings', 'IVC findings', 'Clinical signs', 'Blood pressure', 'Combination of findings', 'Other']
 
@@ -102,6 +200,8 @@ export function LusStudySessionForm({
   patientId,
   studyGroup,
   patientAge,
+  patientSex,
+  patientDob,
   underlyingDisease,
   dialysisStartDate,
   defaultHeightCm,
@@ -171,6 +271,35 @@ export function LusStudySessionForm({
   )
   const [notes, setNotes] = useState(existing?.notes ?? '')
 
+  const [extra, setExtra] = useState<Record<ExtraTextKey, string>>(() => {
+    const src = (existing ?? {}) as Record<string, unknown>
+    const init = {} as Record<ExtraTextKey, string>
+    for (const k of EXTRA_TEXT_KEYS) init[k] = src[k] == null ? '' : String(src[k])
+    return init
+  })
+  const [flags, setFlags] = useState<Record<ExtraBoolKey, boolean>>(() => {
+    const src = (existing ?? {}) as Record<string, unknown>
+    const init = {} as Record<ExtraBoolKey, boolean>
+    for (const k of EXTRA_BOOL_KEYS) init[k] = !!src[k]
+    return init
+  })
+  const [intradialyticSymptoms, setIntradialyticSymptoms] = useState<string[]>(existing?.intradialyticSymptoms ?? [])
+  const setX = (k: ExtraTextKey, v: string) => setExtra((prev) => ({ ...prev, [k]: v }))
+  const setF = (k: ExtraBoolKey, v: boolean) => setFlags((prev) => ({ ...prev, [k]: v }))
+  const xNum = (k: ExtraTextKey) => toNum(extra[k])
+  const numField = (k: ExtraTextKey, label: string) => (
+    <label>
+      {label}
+      <input type="number" step="any" value={extra[k]} onChange={(e) => setX(k, e.target.value)} />
+    </label>
+  )
+  const boolField = (k: ExtraBoolKey, label: string) => (
+    <label className="checkbox-label">
+      <input type="checkbox" checked={flags[k]} onChange={(e) => setF(k, e.target.checked)} />
+      {label}
+    </label>
+  )
+
   const computed = useMemo(
     () =>
       deriveLusSessionFields({
@@ -224,6 +353,72 @@ export function LusStudySessionForm({
     [showPostHd, studyGroup, computed.postLusTotal, computed.postIvcMaxBsa, intradialyticHypotension, intradialyticMuscleCramp, investigatorVolumeAssessment]
   )
 
+  const derivedExtra = useMemo(() => {
+    const sex = normalizeSex(patientSex)
+    const ageY = (patientDob ? ageInYears(patientDob, sessionDate) : null) ?? patientAge ?? null
+    const ageM = (patientDob ? ageInMonths(patientDob, sessionDate) : null) ?? (patientAge != null ? patientAge * 12 : null)
+    const h = toNum(heightCm)
+    const heightPct = h != null && ageM != null && sex ? heightForAgePercentile(h, ageM, sex) : null
+    const target = toNum(targetWeightKg)
+    const preCi = ivcCollapsibilityPct(toNum(preIvcMaxMm), toNum(preIvcMinMm))
+    const postCi = ivcCollapsibilityPct(toNum(postIvcMaxMm), toNum(postIvcMinMm))
+    const ureaPre = xNum('labUreaPre')
+    const ureaPost = xNum('labUreaPost')
+    const decision = (lusGuidedDecision || null) as LusGuidedDecision | null
+    return {
+      heightPct,
+      preWeightDeviationPct: weightDeviationPct(toNum(preHdWeightKg), target),
+      postWeightDeviationPct: showPostHd ? weightDeviationPct(toNum(postHdWeightKg), target) : null,
+      interdialyticWeightGainPct:
+        computed.interdialyticWeightGainKg != null && target ? (computed.interdialyticWeightGainKg / target) * 100 : null,
+      preCi,
+      postCi,
+      preBp: bpIndex(toNum(preHdSbp), toNum(preHdDbp), ageY, sex, heightPct),
+      postBp: showPostHd ? bpIndex(toNum(postHdSbp), toNum(postHdDbp), ageY, sex, heightPct) : bpIndex(null, null, null, null, null),
+      preAgreement: lusIvcAgreement(computed.preLusTotal, (extra.preIvcImpression || null) as IvcImpression | null),
+      postAgreement: showPostHd ? lusIvcAgreement(computed.postLusTotal, (extra.postIvcImpression || null) as IvcImpression | null) : null,
+      urr: urrPct(ureaPre, ureaPost),
+      ktv: spKtVDaugirdas(
+        ureaPre,
+        ureaPost,
+        toNum(dialysisDurationHours),
+        computed.weightLossKg,
+        showPostHd ? toNum(postHdWeightKg) : null
+      ),
+      newTarget: showPostHd ? newTargetWeight(target, decision, toNum(dryWeightAdjustmentKg)) : null,
+      bpGate: showPostHd ? bpGatePassed(toNum(postHdSbp), toNum(postHdDbp), intradialyticHypotension) : null,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    patientSex,
+    patientDob,
+    patientAge,
+    sessionDate,
+    heightCm,
+    targetWeightKg,
+    preHdWeightKg,
+    postHdWeightKg,
+    showPostHd,
+    computed,
+    preIvcMaxMm,
+    preIvcMinMm,
+    postIvcMaxMm,
+    postIvcMinMm,
+    preHdSbp,
+    preHdDbp,
+    postHdSbp,
+    postHdDbp,
+    extra,
+    lusGuidedDecision,
+    dryWeightAdjustmentKg,
+    dialysisDurationHours,
+    intradialyticHypotension,
+  ])
+
+  function toggleSymptom(sym: string) {
+    setIntradialyticSymptoms((prev) => (prev.includes(sym) ? prev.filter((x) => x !== sym) : [...prev, sym]))
+  }
+
   useEffect(() => {
     if (suggestion && !lusGuidedDecision) {
       setLusGuidedDecision(suggestion.decision === 'review' ? '' : suggestion.decision)
@@ -253,7 +448,7 @@ export function LusStudySessionForm({
       preLusTotal: computed.preLusTotal,
       preIvcMaxMm: toNum(preIvcMaxMm),
       preIvcMinMm: toNum(preIvcMinMm),
-      preIvcRespVariationPct: toNum(preIvcRespVariationPct),
+      preIvcRespVariationPct: toNum(preIvcRespVariationPct) ?? (derivedExtra.preCi != null ? Math.round(derivedExtra.preCi) : null),
       preIvcMaxBsa: computed.preIvcMaxBsa,
       preHdSbp: toNum(preHdSbp),
       preHdDbp: toNum(preHdDbp),
@@ -278,7 +473,9 @@ export function LusStudySessionForm({
       lusChangePct: showPostHd ? computed.lusChangePct : null,
       postIvcMaxMm: showPostHd ? toNum(postIvcMaxMm) : null,
       postIvcMinMm: showPostHd ? toNum(postIvcMinMm) : null,
-      postIvcRespVariationPct: showPostHd ? toNum(postIvcRespVariationPct) : null,
+      postIvcRespVariationPct: showPostHd
+        ? toNum(postIvcRespVariationPct) ?? (derivedExtra.postCi != null ? Math.round(derivedExtra.postCi) : null)
+        : null,
       postIvcMaxBsa: showPostHd ? computed.postIvcMaxBsa : null,
       ivcMaxChangeMm: showPostHd ? computed.ivcMaxChangeMm : null,
       ivcMinChangeMm: showPostHd ? computed.ivcMinChangeMm : null,
@@ -297,12 +494,73 @@ export function LusStudySessionForm({
       safetyCheck: showPostHd ? safetyCheck || null : null,
       physicianConfirmation: showPostHd ? physicianConfirmation || null : null,
       notes: notes || null,
+
+      // thesis protocol extras
+      ...(() => {
+        const o: Record<string, unknown> = {}
+        for (const k of EXTRA_TEXT_KEYS) o[k] = EXTRA_TEXT_STRING_KEYS.includes(k) ? extra[k] || null : toNum(extra[k])
+        for (const k of EXTRA_BOOL_KEYS) o[k] = flags[k]
+        return o as Partial<LusStudySessionDraft>
+      })(),
+      intradialyticSymptoms,
+      preWeightDeviationPct: derivedExtra.preWeightDeviationPct,
+      postWeightDeviationPct: derivedExtra.postWeightDeviationPct,
+      interdialyticWeightGainPct: derivedExtra.interdialyticWeightGainPct,
+      preSbpIndex: derivedExtra.preBp.sbpIndex,
+      preDbpIndex: derivedExtra.preBp.dbpIndex,
+      preBpCategory: derivedExtra.preBp.category,
+      postSbpIndex: derivedExtra.postBp.sbpIndex,
+      postDbpIndex: derivedExtra.postBp.dbpIndex,
+      postBpCategory: derivedExtra.postBp.category,
+      preLusIvcAgreement: derivedExtra.preAgreement,
+      postLusIvcAgreement: derivedExtra.postAgreement,
+      urrPct: derivedExtra.urr,
+      spKtV: derivedExtra.ktv,
+      newTargetWeightKg: derivedExtra.newTarget,
+      bpGatePassed: derivedExtra.bpGate,
     }
     onSaved(draft)
   }
 
   return (
     <form className="soap-form" onSubmit={handleSubmit}>
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h3 className="dash-card-title">Protocol time point &amp; LUS operator</h3>
+        </div>
+        <div className="field-grid">
+          <label>
+            Study time point
+            <select value={extra.studyDay} onChange={(e) => setX('studyDay', e.target.value)}>
+              <option value="">—</option>
+              {STUDY_DAYS.map((d) => (
+                <option key={d} value={d}>
+                  Day {d}
+                </option>
+              ))}
+              <option value="0">Unscheduled / extra</option>
+            </select>
+          </label>
+          <label>
+            LUS/IVC operator
+            <input value={extra.lusOperator} onChange={(e) => setX('lusOperator', e.target.value)} placeholder="Name / initials" />
+          </label>
+          <label>
+            Image quality
+            <select value={extra.lusImageQuality} onChange={(e) => setX('lusImageQuality', e.target.value as LusImageQuality)}>
+              <option value="">—</option>
+              <option value="adequate">Adequate</option>
+              <option value="limited">Limited</option>
+              <option value="inadequate">Inadequate (exclusion criterion)</option>
+            </select>
+          </label>
+        </div>
+        <div className="field-grid">
+          {boolField('midWeekSession', 'Mid-week session')}
+          {boolField('operatorBlinded', 'Operator blinded to group allocation')}
+        </div>
+      </div>
+
       <div className="dash-card">
         <div className="dash-card-header">
           <h3 className="dash-card-title">Session &amp; Pre-HD assessment</h3>
@@ -329,7 +587,14 @@ export function LusStudySessionForm({
         <p className="patient-meta">
           BSA (Mosteller): {computed.bsaM2 != null ? `${computed.bsaM2.toFixed(2)} m²` : '—'} · Pre-HD weight above target:{' '}
           {computed.preHdWeightAboveTargetKg != null ? `${computed.preHdWeightAboveTargetKg.toFixed(2)} kg` : '—'}
+          {derivedExtra.preWeightDeviationPct != null ? ` (${derivedExtra.preWeightDeviationPct.toFixed(1)}% of target)` : ''}
+          {derivedExtra.heightPct != null ? ` · Height percentile: ${derivedExtra.heightPct.toFixed(0)}` : ''}
         </p>
+        <div className="field-grid">
+          {numField('preHdHeartRate', 'Heart rate (/min)')}
+          {numField('preHdRespRate', 'Respiratory rate (/min)')}
+          {numField('preHdSpo2', 'SpO₂ (%)')}
+        </div>
         <div className="field-grid">
           <label className="checkbox-label">
             <input type="checkbox" checked={preHdEdema} onChange={(e) => setPreHdEdema(e.target.checked)} />
@@ -343,6 +608,7 @@ export function LusStudySessionForm({
             <input type="checkbox" checked={preHdCrackles} onChange={(e) => setPreHdCrackles(e.target.checked)} />
             Crackles on auscultation
           </label>
+          {boolField('preHdHepatomegaly', 'Hepatomegaly')}
         </div>
       </div>
 
@@ -380,9 +646,31 @@ export function LusStudySessionForm({
             <input type="number" step="any" value={residualUrineOutputMl} onChange={(e) => setResidualUrineOutputMl(e.target.value)} />
           </label>
         </div>
+        <label>
+          IVC impression
+          <select value={extra.preIvcImpression} onChange={(e) => setX('preIvcImpression', e.target.value as IvcImpression)}>
+            <option value="">—</option>
+            <option value="plethoric">Plethoric / non-collapsing</option>
+            <option value="normal">Normal</option>
+            <option value="collapsed">Collapsed / flat</option>
+          </select>
+        </label>
         <p className="patient-meta">
-          IVC max / BSA: {computed.preIvcMaxBsa != null ? `${computed.preIvcMaxBsa.toFixed(1)} mm/m²` : '—'}
+          IVC max / BSA: {computed.preIvcMaxBsa != null ? `${computed.preIvcMaxBsa.toFixed(1)} mm/m²` : '—'} · Collapsibility (calc):{' '}
+          {derivedExtra.preCi != null ? `${derivedExtra.preCi.toFixed(0)}%` : '—'} · LUS–IVC:{' '}
+          {derivedExtra.preAgreement ? LUS_IVC_AGREEMENT_LABELS[derivedExtra.preAgreement] : '—'}
         </p>
+        <p className="patient-meta">Pre-HD BP (AAP 2017): {fmtIdx(derivedExtra.preBp)}</p>
+        <div className="field-grid">
+          {numField('antihypertensiveCount', 'No. of antihypertensive drugs')}
+          {boolField('antihypertensiveChanged', 'Antihypertensives changed since last time point')}
+        </div>
+        {flags.antihypertensiveChanged && (
+          <label>
+            Antihypertensive change (drug / dose)
+            <input value={extra.antihypertensiveChangeNote} onChange={(e) => setX('antihypertensiveChangeNote', e.target.value)} />
+          </label>
+        )}
       </div>
 
       <div className="dash-card">
@@ -398,6 +686,10 @@ export function LusStudySessionForm({
             UF volume (mL)
             <input type="number" step="any" value={ufVolumeMl} onChange={(e) => setUfVolumeMl(e.target.value)} />
           </label>
+          {numField('plannedUfMl', 'Planned UF goal (mL)')}
+          {numField('bloodFlowMlMin', 'Blood flow Qb (mL/min)')}
+          {numField('dialysateSodium', 'Dialysate Na (mmol/L)')}
+          {numField('dialysateTempC', 'Dialysate temp (°C)')}
           <label>
             Previous post-HD weight (kg)
             <input
@@ -412,7 +704,13 @@ export function LusStudySessionForm({
           UF rate: {computed.ufRateMlKgH != null ? `${computed.ufRateMlKgH.toFixed(1)} mL/kg/h` : '—'}
           {computed.ufRateMlKgH != null && computed.ufRateMlKgH > 13 ? ' — above 13 mL/kg/h planning cap' : ''} · Interdialytic
           weight gain: {computed.interdialyticWeightGainKg != null ? `${computed.interdialyticWeightGainKg.toFixed(2)} kg` : '—'}
+          {derivedExtra.interdialyticWeightGainPct != null ? ` (${derivedExtra.interdialyticWeightGainPct.toFixed(1)}% of target)` : ''}
         </p>
+        <div className="field-grid">
+          {numField('intradialyticNadirSbp', 'Nadir SBP during HD (q30 min)')}
+          {numField('intradialyticNadirDbp', 'Nadir DBP during HD')}
+          {numField('salineVolumeMl', 'Saline given (mL)')}
+        </div>
         <div className="field-grid">
           <label className="checkbox-label">
             <input type="checkbox" checked={intradialyticHypotension} onChange={(e) => setIntradialyticHypotension(e.target.checked)} />
@@ -435,6 +733,55 @@ export function LusStudySessionForm({
             Early termination of dialysis
           </label>
         </div>
+        <label>Intradialytic symptoms</label>
+        <div className="field-grid">
+          {INTRADIALYTIC_SYMPTOMS.map((sym) => (
+            <label key={sym} className="checkbox-label">
+              <input type="checkbox" checked={intradialyticSymptoms.includes(sym)} onChange={() => toggleSymptom(sym)} />
+              {sym}
+            </label>
+          ))}
+        </div>
+        <p className="patient-meta">
+          IDH (KDOQI): fall in SBP ≥20 mmHg or MAP ≥10 mmHg with symptoms or need for intervention.
+        </p>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h3 className="dash-card-title">Labs (optional, at each time point)</h3>
+        </div>
+        <div className="field-grid">
+          {numField('labUreaPre', 'Urea pre-HD (mg/dL)')}
+          {numField('labUreaPost', 'Urea post-HD (mg/dL)')}
+          {numField('labHb', 'Hemoglobin (g/dL)')}
+          {numField('labAlbumin', 'Albumin (g/dL)')}
+          {numField('labSodium', 'Na (mmol/L)')}
+          {numField('labPotassium', 'K (mmol/L)')}
+          {numField('labNtProbnp', 'NT-proBNP (pg/mL)')}
+        </div>
+        <p className="patient-meta">
+          URR: {derivedExtra.urr != null ? `${derivedExtra.urr.toFixed(0)}%` : '—'} · spKt/V (Daugirdas II):{' '}
+          {derivedExtra.ktv != null ? derivedExtra.ktv.toFixed(2) : '— (needs post-HD weight)'}
+        </p>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-header">
+          <h3 className="dash-card-title">Between sessions &amp; adverse events</h3>
+        </div>
+        <div className="field-grid">
+          {numField('interdialyticHomeSbp', 'Interdialytic / home SBP (mean)')}
+          {numField('interdialyticHomeDbp', 'Interdialytic / home DBP (mean)')}
+        </div>
+        <div className="field-grid">
+          {boolField('hospitalization', 'Hospitalization since last time point')}
+          {boolField('extraDialysisSession', 'Extra / emergency dialysis for fluid overload')}
+        </div>
+        <label>
+          Adverse event details
+          <input value={extra.adverseEventNote} onChange={(e) => setX('adverseEventNote', e.target.value)} />
+        </label>
       </div>
 
       {!showPostHd ? (
@@ -457,7 +804,13 @@ export function LusStudySessionForm({
             <p className="patient-meta">
               Weight loss: {computed.weightLossKg != null ? `${computed.weightLossKg.toFixed(2)} kg (${computed.weightLossPct?.toFixed(1)}%)` : '—'} ·
               Post-HD weight vs dry weight: {computed.postHdWeightVsDryKg != null ? `${computed.postHdWeightVsDryKg.toFixed(2)} kg` : '—'}
+              {derivedExtra.postWeightDeviationPct != null ? ` (${derivedExtra.postWeightDeviationPct.toFixed(1)}%)` : ''}
             </p>
+            <div className="field-grid">
+              {numField('postLusMinutesAfterHd', 'LUS done … min after HD end')}
+              {numField('postHdHeartRate', 'Heart rate (/min)')}
+              {numField('postHdSpo2', 'SpO₂ (%)')}
+            </div>
           </div>
 
           {zoneGrid(`Post-HD lung ultrasound (total: ${computed.postLusTotal ?? '—'} / 36)`, postLus, (key, value) =>
@@ -495,8 +848,22 @@ export function LusStudySessionForm({
             </div>
             <p className="patient-meta">
               IVC max / BSA: {computed.postIvcMaxBsa != null ? `${computed.postIvcMaxBsa.toFixed(1)} mm/m²` : '—'} · Δ IVC max:{' '}
-              {computed.ivcMaxChangeMm != null ? `${computed.ivcMaxChangeMm.toFixed(1)} mm` : '—'}
+              {computed.ivcMaxChangeMm != null ? `${computed.ivcMaxChangeMm.toFixed(1)} mm` : '—'} · Collapsibility (calc):{' '}
+              {derivedExtra.postCi != null ? `${derivedExtra.postCi.toFixed(0)}%` : '—'}
             </p>
+            <label>
+              IVC impression
+              <select value={extra.postIvcImpression} onChange={(e) => setX('postIvcImpression', e.target.value as IvcImpression)}>
+                <option value="">—</option>
+                <option value="plethoric">Plethoric / non-collapsing</option>
+                <option value="normal">Normal</option>
+                <option value="collapsed">Collapsed / flat</option>
+              </select>
+            </label>
+            <p className="patient-meta">
+              LUS–IVC: {derivedExtra.postAgreement ? LUS_IVC_AGREEMENT_LABELS[derivedExtra.postAgreement] : '—'}
+            </p>
+            <p className="patient-meta">Post-HD BP (AAP 2017): {fmtIdx(derivedExtra.postBp)}</p>
           </div>
 
           <div className="dash-card">
@@ -542,6 +909,12 @@ export function LusStudySessionForm({
                   <strong>Suggested decision: {suggestion.decision.replace('_', ' ')}</strong>
                   <span className="patient-meta">{suggestion.reasons.join(' · ')}</span>
                   <span className="patient-meta">This is a suggestion only — confirm or override below.</span>
+                  {extra.studyDay !== '' && extra.studyDay !== '1' && extra.studyDay !== '15' && (
+                    <span className="patient-meta">
+                      Protocol: LUS-guided reductions (500 g) are made only at day 1 and day 15 — at this time point dry weight
+                      follows standard care.
+                    </span>
+                  )}
                 </div>
               )}
               <label className="checkbox-label">
@@ -592,6 +965,50 @@ export function LusStudySessionForm({
                   <option value="required_review">Required review</option>
                 </select>
               </label>
+              <p className="patient-meta">
+                Protocol BP gate (end-session BP &gt; 110/60 and no IDH):{' '}
+                {derivedExtra.bpGate == null ? '—' : derivedExtra.bpGate ? 'passed' : 'NOT passed — no reduction per protocol'} · New
+                target weight: {derivedExtra.newTarget != null ? `${derivedExtra.newTarget.toFixed(2)} kg` : '—'}
+              </p>
+              <div className="field-grid">
+                <label>
+                  Adjustment step
+                  <select value={extra.adjustmentStep} onChange={(e) => setX('adjustmentStep', e.target.value)}>
+                    <option value="">—</option>
+                    <option value="1">Step 1 (day 1)</option>
+                    <option value="2">Step 2 (day 15)</option>
+                    <option value="3">Additional (outside protocol)</option>
+                  </select>
+                </label>
+                {boolField('adjustmentImplemented', 'Applied from the next session')}
+              </div>
+            </div>
+          )}
+
+          {studyGroup === 'group1_standard' && (
+            <div className="dash-card">
+              <div className="dash-card-header">
+                <h3 className="dash-card-title">Dry weight change by treating physician (standard care)</h3>
+              </div>
+              <div className="field-grid">
+                <label>
+                  Dry weight decision
+                  <select value={lusGuidedDecision} onChange={(e) => setLusGuidedDecision(e.target.value as LusGuidedDecision)}>
+                    <option value="">—</option>
+                    <option value="decrease">Decreased</option>
+                    <option value="increase">Increased</option>
+                    <option value="no_change">No change</option>
+                  </select>
+                </label>
+                <label>
+                  Change (kg)
+                  <input type="number" step="any" value={dryWeightAdjustmentKg} onChange={(e) => setDryWeightAdjustmentKg(e.target.value)} />
+                </label>
+              </div>
+              <p className="patient-meta">
+                New target weight: {derivedExtra.newTarget != null ? `${derivedExtra.newTarget.toFixed(2)} kg` : '—'} · LUS/IVC findings
+                are recorded but not shown to the treating team.
+              </p>
             </div>
           )}
         </>

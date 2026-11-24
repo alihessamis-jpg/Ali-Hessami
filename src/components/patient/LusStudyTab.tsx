@@ -5,9 +5,11 @@ import {
   enrollPatientInLusStudy,
   getLusStudyEnrollment,
   listLusStudySessionsForPatient,
+  updateLusStudyEnrollment,
   updateLusStudySession,
 } from '../../lib/api/lusStudy'
 import { LusStudySessionForm } from './LusStudySessionForm'
+import { LusEnrollmentDetailsForm } from './LusEnrollmentDetailsForm'
 import { toShamsi } from '../../lib/shamsi'
 import { describeError } from '../../lib/describeError'
 import type { LusStudySessionWithPatient } from '../../lib/api/lusStudy'
@@ -36,6 +38,7 @@ export function LusStudyTab({ patientId, patient }: Props) {
   const [enrollNotes, setEnrollNotes] = useState('')
   const [enrolling, setEnrolling] = useState(false)
   const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
+  const [showEnrollmentDetails, setShowEnrollmentDetails] = useState(false)
   const formCardRef = useRef<HTMLDivElement>(null)
 
   function handleEditSession(sessionId: string) {
@@ -149,7 +152,32 @@ export function LusStudyTab({ patientId, patient }: Props) {
               <span className="calc-label">Sessions logged</span>
               <span className="calc-value">{sessions.length}</span>
             </div>
+            <div>
+              <span className="calc-label">Status</span>
+              <span className="calc-value">{enrollment!.studyStatus ?? 'active'}</span>
+            </div>
           </div>
+
+          <div className="form-actions" style={{ marginBottom: 8 }}>
+            <button type="button" className="button-secondary" onClick={() => setShowEnrollmentDetails((v) => !v)}>
+              {showEnrollmentDetails ? 'Hide enrollment details' : 'Enrollment details (eligibility, baseline, withdrawal)'}
+            </button>
+          </div>
+          {showEnrollmentDetails && (
+            <LusEnrollmentDetailsForm
+              enrollment={enrollment!}
+              onCancel={() => setShowEnrollmentDetails(false)}
+              onSaved={async (draft) => {
+                try {
+                  const updated = await updateLusStudyEnrollment(enrollment!.id, draft)
+                  setEnrollment(updated)
+                  setShowEnrollmentDetails(false)
+                } catch (err) {
+                  setError(describeError(err, 'Failed to save enrollment details'))
+                }
+              }}
+            />
+          )}
 
           {formMode === 'closed' ? (
             <div className="form-actions" style={{ marginBottom: 16 }} ref={formCardRef}>
@@ -163,6 +191,8 @@ export function LusStudyTab({ patientId, patient }: Props) {
               patientId={patientId}
               studyGroup={enrollment!.studyGroup}
               patientAge={patient.age}
+              patientSex={patient.sex}
+              patientDob={patient.dob}
               underlyingDisease={patient.underlyingDisease}
               dialysisStartDate={patient.dialysisStartDate}
               defaultHeightCm={patient.height}
