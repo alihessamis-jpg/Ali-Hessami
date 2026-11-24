@@ -7,8 +7,11 @@ import {
   enrollPatientInLusStudy,
   listAllLusStudySessions,
   listLusStudyEnrollments,
+  updateLusStudyEnrollment,
   updateLusStudySession,
 } from '../lib/api/lusStudy'
+import { LusEnrollmentDetailsForm, WITHDRAWAL_LABELS } from '../components/patient/LusEnrollmentDetailsForm'
+import { LUS_IVC_AGREEMENT_LABELS } from '../lib/lusStudy'
 import { createPatient, listPatients } from '../lib/api/patients'
 import { buildGroupPostLusTrend } from '../lib/lusStudy'
 import { downloadCsv } from '../lib/csvExport'
@@ -34,7 +37,14 @@ function fmt(n: number | null, digits = 1): string {
   return n == null ? '—' : n.toFixed(digits)
 }
 
-function exportSessionsCsv(sessions: LusStudySessionWithPatient[], groupByPatientId: Map<string, LusStudyGroup>) {
+const yn = (v: boolean | null | undefined) => (v == null ? '' : v ? 'Yes' : 'No')
+const r = (v: number | null | undefined, d = 2) => (v == null ? '' : Number(v.toFixed(d)))
+
+function exportSessionsCsv(
+  sessions: LusStudySessionWithPatient[],
+  groupByPatientId: Map<string, LusStudyGroup>,
+  enrollmentByPatientId: Map<string, LusStudyEnrollment>
+) {
   const headers = [
     'Patient',
     'Group',
@@ -90,6 +100,75 @@ function exportSessionsCsv(sessions: LusStudySessionWithPatient[], groupByPatien
     'Safety check',
     'Physician confirmation',
     'Notes',
+    // thesis protocol extras
+    'Study day',
+    'Mid-week session',
+    'LUS operator',
+    'Operator blinded',
+    'Image quality',
+    'Post LUS min after HD',
+    'Pre HR',
+    'Pre RR',
+    'Pre SpO2',
+    'Pre hepatomegaly',
+    'Post HR',
+    'Post SpO2',
+    'Pre weight deviation from target (%)',
+    'Post weight deviation from target (%)',
+    'IDWG (% of target)',
+    'Pre IVC impression',
+    'Post IVC impression',
+    'Pre LUS-IVC agreement',
+    'Post LUS-IVC agreement',
+    'Pre SBP index',
+    'Pre DBP index',
+    'Pre BP category',
+    'Post SBP index',
+    'Post DBP index',
+    'Post BP category',
+    'Intradialytic nadir SBP',
+    'Intradialytic nadir DBP',
+    'Interdialytic/home SBP',
+    'Interdialytic/home DBP',
+    'Antihypertensive count',
+    'Antihypertensives changed',
+    'Antihypertensive change',
+    'Planned UF (mL)',
+    'Qb (mL/min)',
+    'Dialysate Na',
+    'Dialysate temp (C)',
+    'Intradialytic symptoms',
+    'Saline volume (mL)',
+    'Hospitalization',
+    'Extra dialysis for fluid overload',
+    'Adverse event',
+    'Urea pre',
+    'Urea post',
+    'URR (%)',
+    'spKt/V',
+    'Hb',
+    'Albumin',
+    'Na',
+    'K',
+    'NT-proBNP',
+    'New target weight (kg)',
+    'Adjustment step',
+    'BP gate passed',
+    'Adjustment implemented',
+    // enrollment / baseline
+    'Randomization code',
+    'Consent date',
+    'Child assent',
+    'Eligible (all inclusion, no exclusion)',
+    'Modality',
+    'Vascular access',
+    'Sessions/week',
+    'Comorbidities',
+    'Baseline antihypertensive count',
+    'Baseline antihypertensives',
+    'Study status',
+    'Withdrawal date',
+    'Withdrawal reason',
   ]
   const rows = sessions.map((s) => [
     s.patientName ?? '',
@@ -146,6 +225,78 @@ function exportSessionsCsv(sessions: LusStudySessionWithPatient[], groupByPatien
     s.safetyCheck ?? '',
     s.physicianConfirmation ?? '',
     s.notes ?? '',
+    ...(() => {
+      const e = enrollmentByPatientId.get(s.patientId)
+      return [
+        s.studyDay ?? '',
+        yn(s.midWeekSession),
+        s.lusOperator ?? '',
+        yn(s.operatorBlinded),
+        s.lusImageQuality ?? '',
+        s.postLusMinutesAfterHd ?? '',
+        s.preHdHeartRate ?? '',
+        s.preHdRespRate ?? '',
+        s.preHdSpo2 ?? '',
+        yn(s.preHdHepatomegaly),
+        s.postHdHeartRate ?? '',
+        s.postHdSpo2 ?? '',
+        r(s.preWeightDeviationPct),
+        r(s.postWeightDeviationPct),
+        r(s.interdialyticWeightGainPct),
+        s.preIvcImpression ?? '',
+        s.postIvcImpression ?? '',
+        s.preLusIvcAgreement ? LUS_IVC_AGREEMENT_LABELS[s.preLusIvcAgreement] : '',
+        s.postLusIvcAgreement ? LUS_IVC_AGREEMENT_LABELS[s.postLusIvcAgreement] : '',
+        r(s.preSbpIndex, 3),
+        r(s.preDbpIndex, 3),
+        s.preBpCategory ?? '',
+        r(s.postSbpIndex, 3),
+        r(s.postDbpIndex, 3),
+        s.postBpCategory ?? '',
+        s.intradialyticNadirSbp ?? '',
+        s.intradialyticNadirDbp ?? '',
+        s.interdialyticHomeSbp ?? '',
+        s.interdialyticHomeDbp ?? '',
+        s.antihypertensiveCount ?? '',
+        yn(s.antihypertensiveChanged),
+        s.antihypertensiveChangeNote ?? '',
+        s.plannedUfMl ?? '',
+        s.bloodFlowMlMin ?? '',
+        s.dialysateSodium ?? '',
+        s.dialysateTempC ?? '',
+        s.intradialyticSymptoms.join('; '),
+        s.salineVolumeMl ?? '',
+        yn(s.hospitalization),
+        yn(s.extraDialysisSession),
+        s.adverseEventNote ?? '',
+        s.labUreaPre ?? '',
+        s.labUreaPost ?? '',
+        r(s.urrPct, 1),
+        r(s.spKtV),
+        s.labHb ?? '',
+        s.labAlbumin ?? '',
+        s.labSodium ?? '',
+        s.labPotassium ?? '',
+        s.labNtProbnp ?? '',
+        r(s.newTargetWeightKg),
+        s.adjustmentStep ?? '',
+        yn(s.bpGatePassed),
+        yn(s.adjustmentImplemented),
+        e?.randomizationCode ?? '',
+        e?.consentDate ?? '',
+        yn(e?.childAssent),
+        e ? yn((e.inclusionCriteria?.length ?? 0) >= 5 && (e.exclusionCriteriaPresent?.length ?? 0) === 0) : '',
+        e?.dialysisModality ?? '',
+        e?.vascularAccess ?? '',
+        e?.sessionsPerWeek ?? '',
+        (e?.comorbidities ?? []).join('; '),
+        e?.baselineAntihypertensiveCount ?? '',
+        e?.baselineAntihypertensives ?? '',
+        e?.studyStatus ?? '',
+        e?.withdrawalDate ?? '',
+        e?.withdrawalReason ? WITHDRAWAL_LABELS[e.withdrawalReason] : '',
+      ]
+    })(),
   ])
   downloadCsv(`lus-study-sessions-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
 }
@@ -169,6 +320,7 @@ export function ThesisFormPage() {
   const [creatingPatient, setCreatingPatient] = useState(false)
   const [logPatientId, setLogPatientId] = useState('')
   const [formMode, setFormMode] = useState<'closed' | 'new' | string>('closed')
+  const [showEnrollmentDetails, setShowEnrollmentDetails] = useState(false)
   const logSessionCardRef = useRef<HTMLDivElement>(null)
 
   function handleEditSession(session: LusStudySessionWithPatient) {
@@ -190,6 +342,7 @@ export function ThesisFormPage() {
   }, [])
 
   const groupByPatientId = useMemo(() => new Map(enrollments.map((e) => [e.patientId, e.studyGroup])), [enrollments])
+  const enrollmentByPatientId = useMemo(() => new Map(enrollments.map((e) => [e.patientId, e])), [enrollments])
   const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients])
   const enrolledPatientIds = useMemo(() => new Set(enrollments.map((e) => e.patientId)), [enrollments])
   const unenrolledPatients = useMemo(
@@ -469,6 +622,24 @@ export function ThesisFormPage() {
                   <td>{fmt(mean(g2.map((s) => s.weightLossPct as number).filter((v) => v != null)))}</td>
                 </tr>
                 <tr>
+                  <td>Mean post-HD weight deviation from target (%)</td>
+                  <td>{fmt(mean(g1.map((s) => s.postWeightDeviationPct as number).filter((v) => v != null)))}</td>
+                  <td>{fmt(mean(g2.map((s) => s.postWeightDeviationPct as number).filter((v) => v != null)))}</td>
+                </tr>
+                <tr>
+                  <td>Mean pre-HD SBP index (SBP / AAP stage-1 cut)</td>
+                  <td>{fmt(mean(g1.map((s) => s.preSbpIndex as number).filter((v) => v != null)), 2)}</td>
+                  <td>{fmt(mean(g2.map((s) => s.preSbpIndex as number).filter((v) => v != null)), 2)}</td>
+                </tr>
+                <tr>
+                  <td>LUS–IVC discordance (post-HD)</td>
+                  {[g1, g2].map((g, i) => {
+                    const rated = g.filter((s) => s.postLusIvcAgreement != null)
+                    const disc = rated.filter((s) => !String(s.postLusIvcAgreement).startsWith('concordant')).length
+                    return <td key={i}>{rated.length ? `${disc}/${rated.length}` : '—'}</td>
+                  })}
+                </tr>
+                <tr>
                   <td>Intradialytic hypotension rate</td>
                   <td>{g1.length ? `${((g1.filter((s) => s.intradialyticHypotension).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
                   <td>{g2.length ? `${((g2.filter((s) => s.intradialyticHypotension).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
@@ -477,6 +648,12 @@ export function ThesisFormPage() {
                   <td>Muscle cramp rate</td>
                   <td>{g1.length ? `${((g1.filter((s) => s.intradialyticMuscleCramp).length / g1.length) * 100).toFixed(0)}%` : '—'}</td>
                   <td>{g2.length ? `${((g2.filter((s) => s.intradialyticMuscleCramp).length / g2.length) * 100).toFixed(0)}%` : '—'}</td>
+                </tr>
+                <tr>
+                  <td>Patients withdrawn</td>
+                  {(['group1_standard', 'group2_lus_guided'] as LusStudyGroup[]).map((g) => (
+                    <td key={g}>{enrollments.filter((e) => e.studyGroup === g && e.studyStatus === 'withdrawn').length}</td>
+                  ))}
                 </tr>
                 <tr>
                   <td>Dry weight decreased / increased (Group 2 process)</td>
@@ -610,6 +787,29 @@ export function ThesisFormPage() {
                     ))}
                   </select>
                 </div>
+                {logPatient && logEnrollment && (
+                  <>
+                    <button type="button" className="link-button" style={{ alignSelf: 'flex-start' }} onClick={() => setShowEnrollmentDetails((v) => !v)}>
+                      {showEnrollmentDetails ? 'Hide enrollment details' : 'Enrollment details — eligibility, baseline, withdrawal'}
+                    </button>
+                    {showEnrollmentDetails && (
+                      <LusEnrollmentDetailsForm
+                        key={logEnrollment.id}
+                        enrollment={logEnrollment}
+                        onCancel={() => setShowEnrollmentDetails(false)}
+                        onSaved={async (draft) => {
+                          try {
+                            const updated = await updateLusStudyEnrollment(logEnrollment.id, draft)
+                            setEnrollments((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+                            setShowEnrollmentDetails(false)
+                          } catch (err) {
+                            setError(describeError(err, 'Failed to save enrollment details'))
+                          }
+                        }}
+                      />
+                    )}
+                  </>
+                )}
                 {logPatient &&
                   logEnrollment &&
                   (formMode === 'closed' ? (
@@ -628,6 +828,8 @@ export function ThesisFormPage() {
                       patientId={logPatient.id}
                       studyGroup={logEnrollment.studyGroup}
                       patientAge={logPatient.age}
+                      patientSex={logPatient.sex}
+                      patientDob={logPatient.dob}
                       underlyingDisease={logPatient.underlyingDisease}
                       dialysisStartDate={logPatient.dialysisStartDate}
                       defaultHeightCm={logPatient.height}
@@ -672,7 +874,7 @@ export function ThesisFormPage() {
       <section className="np-card np-fade" style={{ animationDelay: '.34s' }}>
         <div className="np-head">
           <h2>All sessions</h2>
-          <button type="button" className="link-button" onClick={() => exportSessionsCsv(sessions, groupByPatientId)}>
+          <button type="button" className="link-button" onClick={() => exportSessionsCsv(sessions, groupByPatientId, enrollmentByPatientId)}>
             Export CSV (all fields)
           </button>
         </div>

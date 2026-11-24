@@ -708,8 +708,42 @@ export interface LusStudyEnrollment {
   studyGroup: LusStudyGroup
   enrollmentDate: string
   notes?: string | null
+  consentDate?: string | null
+  childAssent?: boolean | null
+  randomizationCode?: string | null
+  inclusionCriteria?: string[]
+  exclusionCriteriaPresent?: string[]
+  dialysisModality?: DialysisModality | null
+  vascularAccess?: VascularAccess | null
+  sessionsPerWeek?: number | null
+  comorbidities?: string[]
+  baselineAntihypertensives?: string | null
+  baselineAntihypertensiveCount?: number | null
+  studyStatus?: LusStudyStatus
+  withdrawalDate?: string | null
+  withdrawalReason?: LusWithdrawalReason | null
 }
 export type LusStudyEnrollmentDraft = Omit<LusStudyEnrollment, 'id'>
+
+export type DialysisModality = 'hd' | 'hdf'
+export type VascularAccess = 'avf' | 'avg' | 'tunneled_cvc' | 'non_tunneled_cvc'
+export type LusStudyStatus = 'active' | 'completed' | 'withdrawn'
+export type LusWithdrawalReason =
+  | 'transplant'
+  | 'transfer'
+  | 'death'
+  | 'switch_to_pd'
+  | 'non_cooperation'
+  | 'consent_withdrawn'
+  | 'other'
+export type LusImageQuality = 'adequate' | 'limited' | 'inadequate'
+export type IvcImpression = 'plethoric' | 'normal' | 'collapsed'
+export type LusIvcAgreement =
+  | 'concordant_overload'
+  | 'concordant_no_overload'
+  | 'discordant_lus_only'
+  | 'discordant_ivc_only'
+  | 'lus_congestion_ivc_collapsed'
 
 export type InvestigatorVolumeAssessment = 'euvolemia' | 'persistent_overload' | 'possible_hypovolemia' | 'indeterminate'
 export type LusGuidedDecision = 'decrease' | 'increase' | 'no_change'
@@ -800,6 +834,78 @@ export interface LusStudySession {
   adjustmentReason: string[]
   safetyCheck?: SafetyCheck | null
   physicianConfirmation?: PhysicianConfirmation | null
+
+  // Protocol time point & measurement conditions
+  studyDay?: number | null
+  midWeekSession?: boolean | null
+  lusOperator?: string | null
+  operatorBlinded?: boolean | null
+  lusImageQuality?: LusImageQuality | null
+  postLusMinutesAfterHd?: number | null
+
+  // Vitals / exam
+  preHdHeartRate?: number | null
+  preHdRespRate?: number | null
+  preHdSpo2?: number | null
+  preHdHepatomegaly?: boolean | null
+  postHdHeartRate?: number | null
+  postHdSpo2?: number | null
+
+  // LUS-IVC agreement
+  preIvcImpression?: IvcImpression | null
+  postIvcImpression?: IvcImpression | null
+  preLusIvcAgreement?: LusIvcAgreement | null
+  postLusIvcAgreement?: LusIvcAgreement | null
+
+  // Weight deviation from target (primary outcome)
+  preWeightDeviationPct?: number | null
+  postWeightDeviationPct?: number | null
+  interdialyticWeightGainPct?: number | null
+
+  // Blood pressure (AAP 2017 classification)
+  preSbpIndex?: number | null
+  preDbpIndex?: number | null
+  preBpCategory?: string | null
+  postSbpIndex?: number | null
+  postDbpIndex?: number | null
+  postBpCategory?: string | null
+  intradialyticNadirSbp?: number | null
+  intradialyticNadirDbp?: number | null
+  interdialyticHomeSbp?: number | null
+  interdialyticHomeDbp?: number | null
+  antihypertensiveCount?: number | null
+  antihypertensiveChanged?: boolean | null
+  antihypertensiveChangeNote?: string | null
+
+  // Dialysis prescription
+  plannedUfMl?: number | null
+  bloodFlowMlMin?: number | null
+  dialysateSodium?: number | null
+  dialysateTempC?: number | null
+
+  // Safety
+  intradialyticSymptoms: string[]
+  salineVolumeMl?: number | null
+  hospitalization?: boolean | null
+  extraDialysisSession?: boolean | null
+  adverseEventNote?: string | null
+
+  // Labs
+  labUreaPre?: number | null
+  labUreaPost?: number | null
+  urrPct?: number | null
+  spKtV?: number | null
+  labHb?: number | null
+  labAlbumin?: number | null
+  labSodium?: number | null
+  labPotassium?: number | null
+  labNtProbnp?: number | null
+
+  // Intervention fidelity
+  newTargetWeightKg?: number | null
+  adjustmentStep?: number | null
+  bpGatePassed?: boolean | null
+  adjustmentImplemented?: boolean | null
 
   notes?: string | null
   createdAt: string

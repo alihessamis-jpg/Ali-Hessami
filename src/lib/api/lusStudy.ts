@@ -1,22 +1,63 @@
 import { supabase } from '../supabaseClient'
 import type { LusStudyEnrollment, LusStudyEnrollmentDraft, LusStudySession, LusStudySessionDraft, LusZoneScores } from '../../types/domain'
 
-interface EnrollmentRow {
+// Extra (non-core) columns, mapped generically camelCase <-> snake_case so
+// adding a study variable only means adding it here, in the type, and in
+// the form -- not in four hand-written mapping blocks.
+const ENROLLMENT_EXTRA_FIELDS = [
+  ['consentDate', 'consent_date'],
+  ['childAssent', 'child_assent'],
+  ['randomizationCode', 'randomization_code'],
+  ['dialysisModality', 'dialysis_modality'],
+  ['vascularAccess', 'vascular_access'],
+  ['sessionsPerWeek', 'sessions_per_week'],
+  ['baselineAntihypertensives', 'baseline_antihypertensives'],
+  ['baselineAntihypertensiveCount', 'baseline_antihypertensive_count'],
+  ['withdrawalDate', 'withdrawal_date'],
+  ['withdrawalReason', 'withdrawal_reason'],
+] as const
+
+const ENROLLMENT_ARRAY_FIELDS = [
+  ['inclusionCriteria', 'inclusion_criteria'],
+  ['exclusionCriteriaPresent', 'exclusion_criteria_present'],
+  ['comorbidities', 'comorbidities'],
+] as const
+
+type EnrollmentRow = Record<string, unknown> & {
   id: string
   patient_id: string
   study_group: string
   enrollment_date: string
   notes: string | null
+  study_status?: string | null
 }
 
 function enrollmentToDomain(row: EnrollmentRow): LusStudyEnrollment {
-  return {
+  const out: Record<string, unknown> = {
     id: row.id,
     patientId: row.patient_id,
     studyGroup: row.study_group as LusStudyEnrollment['studyGroup'],
     enrollmentDate: row.enrollment_date,
     notes: row.notes,
+    studyStatus: (row.study_status ?? 'active') as LusStudyEnrollment['studyStatus'],
   }
+  for (const [camel, snake] of ENROLLMENT_EXTRA_FIELDS) out[camel] = row[snake] ?? null
+  for (const [camel, snake] of ENROLLMENT_ARRAY_FIELDS) out[camel] = (row[snake] as string[] | null) ?? []
+  return out as unknown as LusStudyEnrollment
+}
+
+function enrollmentDraftToColumns(draft: LusStudyEnrollmentDraft) {
+  const d = draft as unknown as Record<string, unknown>
+  const cols: Record<string, unknown> = {
+    patient_id: draft.patientId,
+    study_group: draft.studyGroup,
+    enrollment_date: draft.enrollmentDate,
+    notes: draft.notes || null,
+    study_status: draft.studyStatus ?? 'active',
+  }
+  for (const [camel, snake] of ENROLLMENT_EXTRA_FIELDS) cols[snake] = d[camel] === '' ? null : (d[camel] ?? null)
+  for (const [camel, snake] of ENROLLMENT_ARRAY_FIELDS) cols[snake] = d[camel] ?? []
+  return cols
 }
 
 export async function listLusStudyEnrollments(): Promise<LusStudyEnrollment[]> {
@@ -34,19 +75,83 @@ export async function getLusStudyEnrollment(patientId: string): Promise<LusStudy
 export async function enrollPatientInLusStudy(draft: LusStudyEnrollmentDraft): Promise<LusStudyEnrollment> {
   const { data, error } = await supabase
     .from('lus_study_enrollments')
-    .insert({
-      patient_id: draft.patientId,
-      study_group: draft.studyGroup,
-      enrollment_date: draft.enrollmentDate,
-      notes: draft.notes || null,
-    })
+    .insert(enrollmentDraftToColumns(draft))
     .select()
     .single()
   if (error) throw error
   return enrollmentToDomain(data as EnrollmentRow)
 }
 
+export async function updateLusStudyEnrollment(id: string, draft: LusStudyEnrollmentDraft): Promise<LusStudyEnrollment> {
+  const { data, error } = await supabase
+    .from('lus_study_enrollments')
+    .update(enrollmentDraftToColumns(draft))
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return enrollmentToDomain(data as EnrollmentRow)
+}
+
+const SESSION_EXTRA_FIELDS = [
+  ['studyDay', 'study_day'],
+  ['midWeekSession', 'mid_week_session'],
+  ['lusOperator', 'lus_operator'],
+  ['operatorBlinded', 'operator_blinded'],
+  ['lusImageQuality', 'lus_image_quality'],
+  ['postLusMinutesAfterHd', 'post_lus_minutes_after_hd'],
+  ['preHdHeartRate', 'pre_hd_heart_rate'],
+  ['preHdRespRate', 'pre_hd_resp_rate'],
+  ['preHdSpo2', 'pre_hd_spo2'],
+  ['preHdHepatomegaly', 'pre_hd_hepatomegaly'],
+  ['postHdHeartRate', 'post_hd_heart_rate'],
+  ['postHdSpo2', 'post_hd_spo2'],
+  ['preIvcImpression', 'pre_ivc_impression'],
+  ['postIvcImpression', 'post_ivc_impression'],
+  ['preLusIvcAgreement', 'pre_lus_ivc_agreement'],
+  ['postLusIvcAgreement', 'post_lus_ivc_agreement'],
+  ['preWeightDeviationPct', 'pre_weight_deviation_pct'],
+  ['postWeightDeviationPct', 'post_weight_deviation_pct'],
+  ['interdialyticWeightGainPct', 'interdialytic_weight_gain_pct'],
+  ['preSbpIndex', 'pre_sbp_index'],
+  ['preDbpIndex', 'pre_dbp_index'],
+  ['preBpCategory', 'pre_bp_category'],
+  ['postSbpIndex', 'post_sbp_index'],
+  ['postDbpIndex', 'post_dbp_index'],
+  ['postBpCategory', 'post_bp_category'],
+  ['intradialyticNadirSbp', 'intradialytic_nadir_sbp'],
+  ['intradialyticNadirDbp', 'intradialytic_nadir_dbp'],
+  ['interdialyticHomeSbp', 'interdialytic_home_sbp'],
+  ['interdialyticHomeDbp', 'interdialytic_home_dbp'],
+  ['antihypertensiveCount', 'antihypertensive_count'],
+  ['antihypertensiveChanged', 'antihypertensive_changed'],
+  ['antihypertensiveChangeNote', 'antihypertensive_change_note'],
+  ['plannedUfMl', 'planned_uf_ml'],
+  ['bloodFlowMlMin', 'blood_flow_ml_min'],
+  ['dialysateSodium', 'dialysate_sodium'],
+  ['dialysateTempC', 'dialysate_temp_c'],
+  ['salineVolumeMl', 'saline_volume_ml'],
+  ['hospitalization', 'hospitalization'],
+  ['extraDialysisSession', 'extra_dialysis_session'],
+  ['adverseEventNote', 'adverse_event_note'],
+  ['labUreaPre', 'lab_urea_pre'],
+  ['labUreaPost', 'lab_urea_post'],
+  ['urrPct', 'urr_pct'],
+  ['spKtV', 'sp_kt_v'],
+  ['labHb', 'lab_hb'],
+  ['labAlbumin', 'lab_albumin'],
+  ['labSodium', 'lab_sodium'],
+  ['labPotassium', 'lab_potassium'],
+  ['labNtProbnp', 'lab_nt_probnp'],
+  ['newTargetWeightKg', 'new_target_weight_kg'],
+  ['adjustmentStep', 'adjustment_step'],
+  ['bpGatePassed', 'bp_gate_passed'],
+  ['adjustmentImplemented', 'adjustment_implemented'],
+] as const
+
 interface SessionRow {
+  [key: string]: unknown
+  intradialytic_symptoms?: string[] | null
   id: string
   patient_id: string
   session_date: string
@@ -154,7 +259,11 @@ export interface LusStudySessionWithPatient extends LusStudySession {
 }
 
 function sessionToDomain(row: SessionRow): LusStudySessionWithPatient {
+  const extra: Record<string, unknown> = {}
+  for (const [camel, snake] of SESSION_EXTRA_FIELDS) extra[camel] = row[snake] ?? null
   return {
+    ...(extra as Partial<LusStudySession>),
+    intradialyticSymptoms: row.intradialytic_symptoms ?? [],
     id: row.id,
     patientId: row.patient_id,
     sessionDate: row.session_date,
@@ -237,7 +346,12 @@ function zonesToColumns(zones: LusZoneScores, prefix: 'pre' | 'post') {
 }
 
 function draftToColumns(draft: LusStudySessionDraft) {
+  const d = draft as unknown as Record<string, unknown>
+  const extra: Record<string, unknown> = {}
+  for (const [camel, snake] of SESSION_EXTRA_FIELDS) extra[snake] = d[camel] ?? null
   return {
+    ...extra,
+    intradialytic_symptoms: draft.intradialyticSymptoms ?? [],
     patient_id: draft.patientId,
     session_date: draft.sessionDate,
     height_cm: draft.heightCm ?? null,
