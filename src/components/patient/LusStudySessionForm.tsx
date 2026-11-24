@@ -909,6 +909,12 @@ export function LusStudySessionForm({
                   <strong>Suggested decision: {suggestion.decision.replace('_', ' ')}</strong>
                   <span className="patient-meta">{suggestion.reasons.join(' · ')}</span>
                   <span className="patient-meta">This is a suggestion only — confirm or override below.</span>
+                  {extra.studyDay !== '' && extra.studyDay !== '1' && extra.studyDay !== '15' && (
+                    <span className="patient-meta">
+                      Protocol: LUS-guided reductions (500 g) are made only at day 1 and day 15 — at this time point dry weight
+                      follows standard care.
+                    </span>
+                  )}
                 </div>
               )}
               <label className="checkbox-label">

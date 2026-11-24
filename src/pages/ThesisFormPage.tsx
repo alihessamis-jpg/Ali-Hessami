@@ -10,7 +10,8 @@ import {
   updateLusStudyEnrollment,
   updateLusStudySession,
 } from '../lib/api/lusStudy'
-import { LusEnrollmentDetailsForm, WITHDRAWAL_LABELS } from '../components/patient/LusEnrollmentDetailsForm'
+import { LusEnrollmentDetailsForm } from '../components/patient/LusEnrollmentDetailsForm'
+import { WITHDRAWAL_LABELS } from '../lib/lusStudyEnrollment'
 import { LUS_IVC_AGREEMENT_LABELS } from '../lib/lusStudy'
 import { createPatient, listPatients } from '../lib/api/patients'
 import { buildGroupPostLusTrend } from '../lib/lusStudy'
