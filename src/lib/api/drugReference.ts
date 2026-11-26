@@ -97,14 +97,18 @@ function toRow(draft: Partial<DrugRefEntry>) {
 }
 
 export async function listDrugReference(): Promise<DrugRefEntry[]> {
-  let res = await supabase.from('drug_reference').select(LIST_COLUMNS).order('medication')
+  const res = await supabase.from('drug_reference').select(LIST_COLUMNS).order('medication')
+  let rows: unknown = res.data
+  let error = res.error
   // Before the Harriet Lane migration has been run the new columns don't
   // exist yet -- fall back to the original column set so the page still works.
-  if (res.error && /column/i.test(res.error.message)) {
-    res = await supabase.from('drug_reference').select(LEGACY_COLUMNS).order('medication')
+  if (error && /column/i.test(error.message)) {
+    const legacy = await supabase.from('drug_reference').select(LEGACY_COLUMNS).order('medication')
+    rows = legacy.data
+    error = legacy.error
   }
-  if (res.error) throw res.error
-  return (res.data as unknown as DrugRefRow[]).map(toDomain)
+  if (error) throw error
+  return ((rows ?? []) as DrugRefRow[]).map(toDomain)
 }
 
 /** The full row, including the monograph text. */
