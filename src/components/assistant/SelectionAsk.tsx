@@ -33,19 +33,43 @@ export function SelectionAsk({ containerRef, chapterId }: { containerRef: RefObj
   }, [containerRef])
 
   if (!text) return null
+  // Latin-script selections (English textbook/guideline text) also get a
+  // one-tap Persian translation that keeps medical terms in English.
+  const latin = /[A-Za-z]/.test(text) && !/[\u0600-\u06FF]/.test(text)
   return (
-    <button
-      type="button"
-      className="as-ask-sel"
-      // keep the selection alive on mousedown/touch
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => {
-        open({ mode: 'study', chapterId, prompt: `«${text}»\n\nاین قسمت را توضیح بده.` })
-        window.getSelection()?.removeAllRanges()
-        setText('')
-      }}
-    >
-      ✨ بپرس
-    </button>
+    <div className="as-ask-sel-row">
+      <button
+        type="button"
+        className="as-ask-sel"
+        // keep the selection alive on mousedown/touch
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          open({ mode: 'study', chapterId, prompt: `«${text}»\n\nاین قسمت را توضیح بده.` })
+          window.getSelection()?.removeAllRanges()
+          setText('')
+        }}
+      >
+        ✨ بپرس
+      </button>
+      {latin && (
+        <button
+          type="button"
+          className="as-ask-sel"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            open({
+              mode: 'study',
+              chapterId,
+              prompt: `«${text}»\n\nاین متن را دقیق و روان به فارسی ترجمه کن. اصطلاحات پزشکی، نام داروها، اعداد و واحدها را به انگلیسی نگه دار. فقط ترجمه، بدون توضیح اضافه.`,
+              autoSend: true,
+            })
+            window.getSelection()?.removeAllRanges()
+            setText('')
+          }}
+        >
+          🔤 ترجمه
+        </button>
+      )}
+    </div>
   )
 }

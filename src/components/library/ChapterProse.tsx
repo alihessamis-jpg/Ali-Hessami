@@ -316,6 +316,7 @@ const CALLOUT_LABEL: Record<CalloutVariant, string> = {
   outside: 'خارج از متن کتاب',
   discrepancy: 'اختلاف / خطای متن کتاب',
   explain: 'توضیح ساده',
+  fa: 'ترجمهٔ فارسی',
 }
 const CALLOUT_ICON: Record<CalloutVariant, string> = {
   pearl: '💡',
@@ -323,6 +324,7 @@ const CALLOUT_ICON: Record<CalloutVariant, string> = {
   outside: '📘',
   discrepancy: '⚠',
   explain: '📝',
+  fa: '🔤',
 }
 
 // Parses a `##`/`###` heading's text into its displayable parts. Two

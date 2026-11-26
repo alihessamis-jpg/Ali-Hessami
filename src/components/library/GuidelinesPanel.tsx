@@ -10,7 +10,7 @@ import {
   type GuidelineWithChapters,
 } from '../../lib/api/guidelines'
 import { useAssistant } from '../assistant/AssistantProvider'
-import { BookIcon, UploadIcon } from '../icons'
+import { UploadIcon } from '../icons'
 import type { GuidelineHighlight } from '../../types/domain'
 
 const TONE: Record<string, { color: string; background: string }> = {
@@ -47,6 +47,7 @@ export function GuidelinesPanel({ search }: { search: string }) {
   const [progress, setProgress] = useState<GuidelineImportProgress | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [pdfBusy, setPdfBusy] = useState<string | null>(null)
+  const [questions, setQuestions] = useState<Record<string, string>>({})
   const pkgInput = useRef<HTMLInputElement>(null)
   const pdfInput = useRef<HTMLInputElement>(null)
   const pdfTarget = useRef<string | null>(null)
@@ -165,6 +166,12 @@ export function GuidelinesPanel({ search }: { search: string }) {
         visible.map(({ book, chapters }) => {
           const analysis = chapters.find((c) => c.partRoman === 'A') ?? chapters[0]
           const originals = chapters.filter((c) => c !== analysis)
+          const recommendations = originals.find((c) => (c.subtitle ?? '').includes('دوزبانه')) ?? originals[0]
+          const question = questions[book.id] ?? ''
+          function ask(prompt: string) {
+            if (!analysis) return
+            openAssistant({ mode: 'study', chapterId: analysis.id, prompt: `«${book.title}»: ${prompt}`, autoSend: true })
+          }
           const draft = isDraft(book.docStatus)
           const highlights: GuidelineHighlight[] = book.highlights ?? []
           return (
@@ -205,42 +212,71 @@ export function GuidelinesPanel({ search }: { search: string }) {
                 </ul>
               )}
 
-              <div className="gl-actions">
+              <div className="gl-tiles">
                 {analysis && (
-                  <Link className="np-btn sm" to={`/academy/reader/${analysis.id}`}>
-                    <BookIcon width={16} height={16} />
-                    تحلیل و نکات کلیدی
+                  <Link className="gl-tile" to={`/academy/reader/${analysis.id}`}>
+                    <span className="gl-tile-ic" aria-hidden="true">📘</span>
+                    <b>تحلیل و نکات کلیدی</b>
+                    <span>جدول توصیه‌ها، PEARL، تله‌ها، الگوریتم‌ها و بانک تست</span>
+                  </Link>
+                )}
+                {recommendations && (
+                  <Link className="gl-tile" to={`/academy/reader/${recommendations.id}`}>
+                    <span className="gl-tile-ic" aria-hidden="true">🟦</span>
+                    <b>همهٔ توصیه‌ها — دوزبانه</b>
+                    <span>متن اصلی هر توصیه با ترجمهٔ فارسی کنارش</span>
                   </Link>
                 )}
                 {book.pdfPath ? (
-                  <button type="button" className="np-btn ghost sm" onClick={() => void openPdf(book.pdfPath as string)}>
-                    Open PDF
+                  <button type="button" className="gl-tile" onClick={() => void openPdf(book.pdfPath as string)}>
+                    <span className="gl-tile-ic" aria-hidden="true">📄</span>
+                    <b>PDF اصلی</b>
+                    <span>باز کردن فایل کامل گایدلاین</span>
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="np-btn ghost sm"
+                    className="gl-tile"
                     disabled={pdfBusy === book.id}
                     onClick={() => {
                       pdfTarget.current = book.id
                       pdfInput.current?.click()
                     }}
                   >
-                    <UploadIcon width={16} height={16} />
-                    {pdfBusy === book.id ? 'Uploading…' : 'Attach PDF'}
+                    <span className="gl-tile-ic" aria-hidden="true">📎</span>
+                    <b>{pdfBusy === book.id ? 'در حال آپلود…' : 'افزودن PDF'}</b>
+                    <span>فایل اصلی را کنار متن نگه دارید</span>
                   </button>
                 )}
               </div>
 
               {analysis && (
+                <form
+                  className="gl-ask"
+                  dir="rtl"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!question.trim()) return
+                    ask(question.trim())
+                    setQuestions((prev) => ({ ...prev, [book.id]: '' }))
+                  }}
+                >
+                  <input
+                    value={question}
+                    onChange={(e) => setQuestions((prev) => ({ ...prev, [book.id]: e.target.value }))}
+                    placeholder="سؤالت دربارهٔ این گایدلاین را بپرس…"
+                    aria-label="Ask the assistant about this guideline"
+                  />
+                  <button type="submit" className="np-btn" disabled={!question.trim()}>
+                    ✨ بپرس
+                  </button>
+                </form>
+              )}
+
+              {analysis && (
                 <div className="pc-ai-chips reader gl-ai" dir="rtl">
                   {ASK_PROMPTS.map((a) => (
-                    <button
-                      key={a.label}
-                      type="button"
-                      className="pc-ai-chip"
-                      onClick={() => openAssistant({ mode: 'study', chapterId: analysis.id, prompt: `«${book.title}»: ${a.prompt}`, autoSend: true })}
-                    >
+                    <button key={a.label} type="button" className="pc-ai-chip" onClick={() => ask(a.prompt)}>
                       ✨ {a.label}
                     </button>
                   ))}
@@ -248,9 +284,9 @@ export function GuidelinesPanel({ search }: { search: string }) {
               )}
 
               {originals.length > 0 && (
-                <details className="gl-chs">
+                <details className="gl-chs" open>
                   <summary>
-                    Original text · {originals.length} chapters
+                    متن کامل اصلی (انگلیسی) · {originals.length} فصل
                     {book.totalPages ? ` · ${book.totalPages} pp` : ''}
                   </summary>
                   <div className="chs">
@@ -272,6 +308,9 @@ export function GuidelinesPanel({ search }: { search: string }) {
                       </Link>
                     ))}
                   </div>
+                  <p className="gl-tip" dir="rtl">
+                    💡 داخل متن انگلیسی هر قسمتی را انتخاب کنید و «🔤 ترجمه» را بزنید، یا در بالای فصل «ترجمهٔ فارسی بخش‌به‌بخش» را بزنید.
+                  </p>
                 </details>
               )}
               {book.citation && <span className="np-small gl-cite">{book.citation}</span>}
