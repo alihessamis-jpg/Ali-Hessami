@@ -13,6 +13,7 @@ import {
   type FormularyHit,
 } from '../lib/api/drugReference'
 import { listPatients } from '../lib/api/patients'
+import { importReferenceFile } from '../lib/api/referenceImport'
 import { schwartzBedside, round, type Dialysis } from '../lib/doseCalc'
 import { DrugMonograph, type PatientDoseContext } from '../components/reference/DrugMonograph'
 import {
@@ -92,6 +93,26 @@ export function ReferencePage() {
   const [fullText, setFullText] = useState(false)
   const [hits, setHits] = useState<FormularyHit[]>([])
   const [searching, setSearching] = useState(false)
+  const [importing, setImporting] = useState<string | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleImportFile(fileList: FileList | null) {
+    const file = fileList?.[0]
+    if (!file) return
+    setError(null)
+    setImporting('Reading file…')
+    try {
+      const res = await importReferenceFile(file, (done, total) => setImporting(`Importing drugs… ${done} / ${total}`))
+      setImporting(`Done: ${res.drugs} drugs${res.chapters ? ` and ${res.chapters} library chapters` : ''} imported. Reloading…`)
+      setDrugs(await listDrugReference())
+      setImporting(null)
+    } catch (err) {
+      setImporting(null)
+      setError(err instanceof Error ? err.message : 'Import failed')
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = ''
+    }
+  }
 
   const ctx: PatientDoseContext = {
     weightKg: numOrNull(weight),
@@ -459,6 +480,27 @@ export function ReferencePage() {
           )}
         </button>
       </div>
+
+      {tab === 'drug' && !loading && bookCount === 0 && (
+        <section className="np-card np-fade">
+          <h2>Import the Harriet Lane formulary</h2>
+          <span className="np-small">
+            Choose the file <b>harriet_lane_23e_nephron_import.json</b> on this device. It loads 502 drugs (Chapters 30–31) into your
+            private reference and adds Chapters 30–31 to the Library for the assistant. Safe to repeat.
+          </span>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={(e) => void handleImportFile(e.target.files)}
+          />
+          <button type="button" className="np-btn" disabled={!!importing} onClick={() => importInputRef.current?.click()} style={{ alignSelf: 'flex-start' }}>
+            {importing ? 'Importing…' : 'Choose file and import'}
+          </button>
+          {importing && <span className="np-small">{importing}</span>}
+        </section>
+      )}
 
       {tab === 'drug' && (
         <section className="np-card np-fade ref-ctx" style={{ animationDelay: '.1s' }}>
