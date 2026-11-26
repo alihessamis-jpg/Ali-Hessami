@@ -1,0 +1,15 @@
+name: tmp build check
+on:
+  push:
+    branches: [feat/harriet-lane-reference]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc -b 2>&1 | head -60
+      - run: npm run build
+      - run: npx vitest run src/lib/doseCalc.test.ts
