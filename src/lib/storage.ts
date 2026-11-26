@@ -162,3 +162,23 @@ export async function deleteChapterFigureFile(path: string): Promise<void> {
   const { error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).remove([path])
   if (error) throw error
 }
+
+// Academy → Guidelines: the original guideline PDF, kept beside the
+// imported text in the private chapter-figures bucket (same owner-folder
+// policy), at userId/guidelines/<bookId>.pdf.
+export async function uploadGuidelinePdfFile(userId: string, bookId: string, file: File): Promise<string> {
+  // Unique per upload: the service worker caches stored files by path
+  // (vite.config.ts), so re-using one path would serve a replaced PDF stale.
+  const path = `${userId}/guidelines/${bookId}-${Date.now()}.pdf`
+  const { error } = await supabase.storage
+    .from(CHAPTER_FIGURES_BUCKET)
+    .upload(path, file, { contentType: 'application/pdf' })
+  if (error) throw error
+  return path
+}
+
+export async function getGuidelinePdfSignedUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(CHAPTER_FIGURES_BUCKET).createSignedUrl(path, 60 * 60)
+  if (error) throw error
+  return data.signedUrl
+}

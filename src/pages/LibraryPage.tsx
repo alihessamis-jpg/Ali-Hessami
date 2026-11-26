@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   ensureLibraryBookSeeded,
   listAllLibraryCards,
@@ -19,9 +19,10 @@ import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
 import { BulkCardImportPanel } from '../components/library/BulkCardImportPanel'
 import { NoteBundleImportPanel } from '../components/library/NoteBundleImportPanel'
 import { BookSwitcher, type LibraryBookStats } from '../components/library/BookSwitcher'
+import { GuidelinesPanel } from '../components/library/GuidelinesPanel'
 import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
-type LibraryTab = 'book' | 'topics'
+type LibraryTab = 'book' | 'topics' | 'guidelines'
 
 const LAST_BOOK_KEY = 'np-library-last-book-id'
 
@@ -48,6 +49,7 @@ function effectivePct(chapter: LibraryChapter): number {
 }
 
 export function LibraryPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [books, setBooks] = useState<LibraryBook[]>([])
   const [chaptersByBookId, setChaptersByBookId] = useState<Record<string, LibraryChapter[]>>({})
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null)
@@ -64,7 +66,16 @@ export function LibraryPage() {
   const [goalDraft, setGoalDraft] = useState('10')
   const [todayPages, setTodayPages] = useState(0)
   const [streak, setStreak] = useState(0)
-  const [tab, setTab] = useState<LibraryTab>('book')
+  const [tab, setTabState] = useState<LibraryTab>(() => (searchParams.get('tab') === 'guidelines' ? 'guidelines' : 'book'))
+
+  function setTab(next: LibraryTab) {
+    setTabState(next)
+    // Keep ?tab=guidelines in the URL so Back from a guideline chapter returns here.
+    const params = new URLSearchParams(searchParams)
+    if (next === 'guidelines') params.set('tab', 'guidelines')
+    else params.delete('tab')
+    setSearchParams(params, { replace: true })
+  }
   const [search, setSearch] = useState('')
   const [openParts, setOpenParts] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -100,7 +111,10 @@ export function LibraryPage() {
     // hand) are just listed and their chapters fetched alongside it, so the
     // page can offer a book switcher instead of assuming a single book.
     const bookPromise = Promise.all([ensureLibraryBookSeeded(), listAllLibraryCards(), listReadingLog(), listLibraryBooks()])
-      .then(async ([seeded, cardRows, log, allBooks]) => {
+      .then(async ([seeded, cardRows, log, allLibraryBooks]) => {
+        // Guidelines (kind = 'guideline') have their own tab; keep them out
+        // of the book switcher and its per-book stats.
+        const allBooks = allLibraryBooks.filter((b) => b.kind !== 'guideline')
         void cacheLibrarySnapshot(seeded.book, seeded.chapters)
         const chaptersByBookId: Record<string, LibraryChapter[]> = { [seeded.book.id]: seeded.chapters }
         const otherBooks = allBooks.filter((b) => b.id !== seeded.book.id)
@@ -175,7 +189,7 @@ export function LibraryPage() {
           const readingChapter = selectedChapters.find((c) => c.status === 'reading')
           if (readingChapter) setOpenParts(new Set([readingChapter.partRoman]))
         } else {
-          setTab('topics')
+          setTabState((prev) => (prev === 'guidelines' ? prev : 'topics'))
         }
         if (settings) setDailyGoal(settings.readingDailyGoal)
       })
@@ -371,11 +385,14 @@ export function LibraryPage() {
               <label className="np-sr" htmlFor="lib-q">
                 Search chapters
               </label>
-              <input id="lib-q" placeholder="Search chapters (e.g. RTA, nephrotic, transplant)" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input id="lib-q" placeholder={tab === 'guidelines' ? 'Search guidelines (e.g. AKI, VUR, CRRT)' : 'Search chapters (e.g. RTA, nephrotic, transplant)'} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="seg" style={{ flexShrink: 0 }}>
               <button type="button" className={tab === 'book' ? 'on' : ''} onClick={() => setTab('book')} disabled={bookUnavailable}>
                 Book
+              </button>
+              <button type="button" className={tab === 'guidelines' ? 'on' : ''} onClick={() => setTab('guidelines')}>
+                Guidelines
               </button>
               <button type="button" className={tab === 'topics' ? 'on' : ''} onClick={() => setTab('topics')}>
                 My topics
@@ -395,7 +412,9 @@ export function LibraryPage() {
             </button>
           </div>
 
-          {tab === 'book' && bookUnavailable ? (
+          {tab === 'guidelines' ? (
+            <GuidelinesPanel search={search} />
+          ) : tab === 'book' && bookUnavailable ? (
             <div className="parts np-fade" style={{ animationDelay: '.16s' }}>
               <p className="empty-state">
                 Academy data unavailable — the book library can't load right now. Switch to "My topics" or try again later.

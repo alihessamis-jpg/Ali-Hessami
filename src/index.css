@@ -10368,3 +10368,25 @@ html.force-reduced-motion .pc-ecg-line {
 .ref-hits { gap: 8px; }
 .ref-hit { text-align: left; border: 1px solid #e3eaf5; background: #fff; border-radius: 12px; padding: 10px 12px; cursor: pointer; font-family: inherit; color: #0e1f3d; display: flex; flex-direction: column; gap: 4px; }
 .ref-hit-x { font-size: 12.5px; color: #3b4a60; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Academy → Guidelines tab */
+.gl-list { display: flex; flex-direction: column; gap: 14px; }
+.gl-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gl-progress { gap: 6px; }
+.gl-progress .pbar { max-width: none; }
+.gl-notice { color: #17663A; background: #DDF3E6; padding: 8px 12px; border-radius: 10px; }
+.gl-card { gap: 10px; }
+.gl-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.gl-tags .np-tag { font-size: 12px; padding: 4px 9px; }
+.gl-title { font-size: 17px; line-height: 1.35; margin: 0; }
+.gl-summary { margin: 0; line-height: 1.9; font-size: 14px; color: var(--text); }
+.gl-hl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.gl-hl li { border-radius: 12px; padding: 8px 11px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; line-height: 1.6; }
+.gl-hl li b { font-size: 12px; }
+.gl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.gl-ai { margin: 0; }
+.gl-chs { border-top: 1px solid #edf1f7; padding-top: 8px; }
+.gl-chs > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; padding: 6px 2px; list-style-position: inside; }
+.gl-chs .chs { border-top: none; padding: 2px 0 0; }
+.gl-chs .ch { grid-template-columns: 34px minmax(0, 1fr); }
+.gl-cite { font-size: 11.5px; line-height: 1.5; }

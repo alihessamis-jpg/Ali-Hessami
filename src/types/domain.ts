@@ -348,6 +348,15 @@ export type AcademyCardDraft = Pick<AcademyCard, 'topicId' | 'kind' | 'sectionKe
 
 // --- Academy v2: Library (book) / Reader / Review -------------------------
 
+export type LibraryBookKind = 'book' | 'guideline'
+
+export interface GuidelineHighlight {
+  label: string
+  text: string
+  /** 'pearl' | 'flag' | 'info' -- picks the chip colour. */
+  tone?: string | null
+}
+
 export interface LibraryBook {
   id: string
   title: string
@@ -357,9 +366,23 @@ export interface LibraryBook {
   editors: string[]
   totalPages?: number | null
   createdAt: string
+  /** 'guideline' rows live in Academy → Guidelines, not the book switcher. */
+  kind?: LibraryBookKind
+  slug?: string | null
+  organization?: string | null
+  docStatus?: string | null
+  citation?: string | null
+  scope?: string | null
+  summary?: string | null
+  highlights?: GuidelineHighlight[]
+  /** Original PDF in the chapter-figures bucket (userId/guidelines/...). */
+  pdfPath?: string | null
 }
 
-export type LibraryBookDraft = Omit<LibraryBook, 'id' | 'createdAt'>
+export type LibraryBookDraft = Omit<
+  LibraryBook,
+  'id' | 'createdAt' | 'kind' | 'slug' | 'organization' | 'docStatus' | 'citation' | 'scope' | 'summary' | 'highlights' | 'pdfPath'
+>
 
 export type LibraryChapterStatus = 'unread' | 'reading' | 'read' | 'carded' | 'mastered'
 

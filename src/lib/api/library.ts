@@ -30,9 +30,18 @@ interface BookRow {
   editors: string[] | null
   total_pages: number | null
   created_at: string
+  kind?: LibraryBook['kind'] | null
+  slug?: string | null
+  organization?: string | null
+  doc_status?: string | null
+  citation?: string | null
+  scope?: string | null
+  summary?: string | null
+  highlights?: LibraryBook['highlights'] | null
+  pdf_path?: string | null
 }
 
-interface ChapterRow {
+export interface ChapterRow {
   id: string
   book_id: string
   part_roman: string
@@ -123,7 +132,7 @@ interface HighlightRow {
   created_at: string
 }
 
-function bookToDomain(row: BookRow): LibraryBook {
+export function bookToDomain(row: BookRow): LibraryBook {
   return {
     id: row.id,
     title: row.title,
@@ -133,10 +142,21 @@ function bookToDomain(row: BookRow): LibraryBook {
     editors: row.editors ?? [],
     totalPages: row.total_pages,
     createdAt: row.created_at,
+    kind: row.kind ?? 'book',
+    slug: row.slug ?? null,
+    organization: row.organization ?? null,
+    docStatus: row.doc_status ?? null,
+    citation: row.citation ?? null,
+    scope: row.scope ?? null,
+    summary: row.summary ?? null,
+    highlights: Array.isArray(row.highlights) ? row.highlights : [],
+    pdfPath: row.pdf_path ?? null,
   }
 }
 
-function chapterToDomain(row: ChapterRow): LibraryChapter {
+export type { BookRow }
+
+export function chapterToDomain(row: ChapterRow): LibraryChapter {
   return {
     id: row.id,
     bookId: row.book_id,
