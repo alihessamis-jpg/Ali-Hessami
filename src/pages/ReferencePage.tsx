@@ -5,7 +5,16 @@ import {
   deleteDialysisReference,
   listDialysisReference,
 } from '../lib/api/dialysisReference'
-import { addDrugReference, deleteDrugReference, listDrugReference } from '../lib/api/drugReference'
+import {
+  addDrugReference,
+  deleteDrugReference,
+  listDrugReference,
+  searchFormulary,
+  type FormularyHit,
+} from '../lib/api/drugReference'
+import { listPatients } from '../lib/api/patients'
+import { schwartzBedside, round, type Dialysis } from '../lib/doseCalc'
+import { DrugMonograph, type PatientDoseContext } from '../components/reference/DrugMonograph'
 import {
   addReferenceAttachment,
   deleteReferenceAttachment,
@@ -18,7 +27,7 @@ import {
   uploadReferenceAttachmentFile,
 } from '../lib/storage'
 import { useAuth } from '../context/AuthContext'
-import type { DialysisRefEntry, DrugRefEntry, ReferenceAttachment } from '../types/domain'
+import type { DialysisRefEntry, DrugRefEntry, Patient, ReferenceAttachment } from '../types/domain'
 import { HeroScene } from '../components/hero/HeroScene'
 
 function isImagePath(path: string): boolean {
@@ -26,6 +35,12 @@ function isImagePath(path: string): boolean {
 }
 
 type Tab = 'drug' | 'dialysis'
+type DrugFilter = 'all' | 'book' | 'mine' | 'renal' | 'neonate' | 'meningitis'
+
+function numOrNull(v: string): number | null {
+  const n = Number(v.replace(',', '.'))
+  return v.trim() && Number.isFinite(n) && n > 0 ? n : null
+}
 
 const emptyDrugDraft = {
   medication: '',
@@ -64,6 +79,65 @@ export function ReferencePage() {
   const [showForm, setShowForm] = useState(false)
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // --- patient context for dose calculation / renal row highlighting
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [patientId, setPatientId] = useState('')
+  const [weight, setWeight] = useState('')
+  const [height, setHeight] = useState('')
+  const [egfr, setEgfr] = useState('')
+  const [scr, setScr] = useState('')
+  const [dialysisMode, setDialysisMode] = useState<Dialysis>('none')
+  const [drugFilter, setDrugFilter] = useState<DrugFilter>('all')
+  const [fullText, setFullText] = useState(false)
+  const [hits, setHits] = useState<FormularyHit[]>([])
+  const [searching, setSearching] = useState(false)
+
+  const ctx: PatientDoseContext = {
+    weightKg: numOrNull(weight),
+    heightCm: numOrNull(height),
+    egfr: numOrNull(egfr),
+    dialysis: dialysisMode,
+  }
+
+  useEffect(() => {
+    listPatients()
+      .then(setPatients)
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (!fullText || search.trim().length < 3) {
+      setHits([])
+      return
+    }
+    setSearching(true)
+    const t = window.setTimeout(() => {
+      searchFormulary(search.trim(), 20)
+        .then(setHits)
+        .catch((err) => setError(err instanceof Error ? err.message : 'Search failed'))
+        .finally(() => setSearching(false))
+    }, 350)
+    return () => window.clearTimeout(t)
+  }, [fullText, search])
+
+  function pickPatient(id: string) {
+    setPatientId(id)
+    const p = patients.find((x) => x.id === id)
+    if (!p) return
+    setWeight(p.weight != null ? String(p.weight) : '')
+    setHeight(p.height != null ? String(p.height) : '')
+    if (p.baselineEGFR != null) setEgfr(String(p.baselineEGFR))
+    else if (p.height && p.baselineCr) setEgfr(round(schwartzBedside(p.height, p.baselineCr)))
+    setDialysisMode(p.dialysisModality && /pd|peritoneal/i.test(p.dialysisModality) ? 'pd' : p.dialysisModality && /hd|hemo/i.test(p.dialysisModality) ? 'ihd' : 'none')
+  }
+
+  function applyScr(v: string) {
+    setScr(v)
+    const h = numOrNull(height)
+    const c = numOrNull(v)
+    if (h && c) setEgfr(round(schwartzBedside(h, c)))
+  }
 
   const [attachments, setAttachments] = useState<Record<Tab, ReferenceAttachment[]>>({ drug: [], dialysis: [] })
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
@@ -185,7 +259,26 @@ export function ReferencePage() {
     }
   }
 
-  const filteredDrugs = drugs.filter((d) => d.medication.toLowerCase().includes(search.toLowerCase()))
+  const q = search.toLowerCase()
+  const filteredDrugs = drugs.filter((d) => {
+    const hay = [d.medication, d.tradeNames, d.drugClass, d.seeAlso, d.indication].filter(Boolean).join(' ').toLowerCase()
+    if (q && !hay.includes(q)) return false
+    switch (drugFilter) {
+      case 'book':
+        return !!d.sourceKey
+      case 'mine':
+        return !d.sourceKey
+      case 'renal':
+        return !!d.renalAdjustment?.length
+      case 'neonate':
+        return !!d.neonatalDose
+      case 'meningitis':
+        return !!d.meningitisDose
+      default:
+        return true
+    }
+  })
+  const bookCount = drugs.filter((d) => d.sourceKey).length
   const filteredDialysis = dialysis.filter((d) => d.medication.toLowerCase().includes(search.toLowerCase()))
   const unlinkedTabAttachments = attachments[tab].filter((a) => !a.entryId)
 
@@ -232,12 +325,24 @@ export function ReferencePage() {
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'start' }}>
             <b style={{ fontSize: 14 }}>{d.medication}</b>
             {fields[0][1] && <span className="np-small">{fields[0][1]}</span>}
+            {tab === 'drug' && (d as DrugRefEntry).sourceKey && (
+              <span className="ref-badges">
+                <span className="ref-badge">Harriet Lane 23e · {(d as DrugRefEntry).sourcePages}</span>
+                {(d as DrugRefEntry).renalAdjustment?.length ? <span className="ref-badge renal">Ch.31 renal</span> : null}
+                {(d as DrugRefEntry).neonatalDose ? <span className="ref-badge neo">Neonate</span> : null}
+              </span>
+            )}
           </span>
           <svg className="ref-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
             <path d="m9 6 6 6-6 6" />
           </svg>
         </button>
-        {isOpen && (
+        {isOpen && tab === 'drug' && (d as DrugRefEntry).sourceKey && (
+          <div className="ref-medbody">
+            <DrugMonograph entry={d as DrugRefEntry} ctx={ctx} />
+          </div>
+        )}
+        {isOpen && !(tab === 'drug' && (d as DrugRefEntry).sourceKey) && (
           <div className="ref-medbody">
             {fields
               .filter(([, value]) => value)
@@ -313,7 +418,11 @@ export function ReferencePage() {
         <div className="np-hrow">
           <div className="np-txt">
             <h1>Reference</h1>
-            <p className="np-sub">Your own verified dosing list — nothing pre-seeded, private to you.</p>
+            <p className="np-sub">
+              {bookCount > 0
+                ? `Harriet Lane Handbook 23rd ed. formulary (${bookCount} drugs, cited by page) plus your own verified entries.`
+                : 'Your own verified dosing list — private to you.'}
+            </p>
           </div>
         </div>
       </section>
@@ -350,6 +459,103 @@ export function ReferencePage() {
           )}
         </button>
       </div>
+
+      {tab === 'drug' && (
+        <section className="np-card np-fade ref-ctx" style={{ animationDelay: '.1s' }}>
+          <div className="ref-ctx-row">
+            {patients.length > 0 && (
+              <div className="np-field">
+                <label htmlFor="ref-pt">Patient</label>
+                <select id="ref-pt" value={patientId} onChange={(e) => pickPatient(e.target.value)}>
+                  <option value="">— manual —</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                      {p.weight ? ` · ${p.weight} kg` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="np-field">
+              <label htmlFor="ref-wt">Weight (kg)</label>
+              <input id="ref-wt" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="ref-ht">Height (cm)</label>
+              <input id="ref-ht" inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="ref-scr">SCr (mg/dL)</label>
+              <input id="ref-scr" inputMode="decimal" value={scr} onChange={(e) => applyScr(e.target.value)} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="ref-egfr">eGFR (mL/min/1.73 m²)</label>
+              <input id="ref-egfr" inputMode="decimal" value={egfr} onChange={(e) => setEgfr(e.target.value)} />
+            </div>
+            <div className="np-field">
+              <label htmlFor="ref-dial">Dialysis</label>
+              <select id="ref-dial" value={dialysisMode} onChange={(e) => setDialysisMode(e.target.value as Dialysis)}>
+                <option value="none">None</option>
+                <option value="ihd">Intermittent HD</option>
+                <option value="pd">Peritoneal dialysis</option>
+              </select>
+            </div>
+          </div>
+          <span className="np-small">
+            {ctx.weightKg && ctx.heightCm ? `BSA (Mosteller) ${round(Math.sqrt((ctx.weightKg * ctx.heightCm) / 3600))} m² · ` : ''}
+            eGFR from SCr uses the bedside CKiD equation 0.413 × height / SCr (Harriet Lane Ch. 31, p. 1196). Matching kidney-failure rows
+            are highlighted inside each drug.
+          </span>
+        </section>
+      )}
+
+      {tab === 'drug' && (
+        <div className="np-chips ref-filters np-fade">
+          {(
+            [
+              ['all', 'All'],
+              ['book', 'Harriet Lane'],
+              ['mine', 'My entries'],
+              ['renal', 'Renal adjustment'],
+              ['neonate', 'Neonatal dose'],
+              ['meningitis', 'Meningitis'],
+            ] as [DrugFilter, string][]
+          ).map(([k, label]) => (
+            <button key={k} type="button" className={drugFilter === k ? 'np-chip on' : 'np-chip'} onClick={() => setDrugFilter(k)}>
+              {label}
+            </button>
+          ))}
+          <button type="button" className={fullText ? 'np-chip on' : 'np-chip'} onClick={() => setFullText((v) => !v)}>
+            Search inside monographs
+          </button>
+        </div>
+      )}
+
+      {tab === 'drug' && fullText && search.trim().length >= 3 && (
+        <section className="np-card np-fade ref-hits">
+          <h2>Inside the monographs: “{search.trim()}”</h2>
+          {searching && <span className="np-small">Searching…</span>}
+          {!searching && hits.length === 0 && <span className="np-small">No monograph mentions this.</span>}
+          {hits.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              className="ref-hit"
+              onClick={() => {
+                setDrugFilter('all')
+                setFullText(false)
+                setSearch(h.medication)
+                setExpandedId(h.id)
+              }}
+            >
+              <b>{h.medication}</b> <span className="ref-src">{h.sourcePages}</span>
+              {!h.matchedAll && <span className="np-small"> (some words only)</span>}
+              <span className="ref-hit-x">…{h.excerpt.replace(/\*\*/g, '').replace(/\{p\.(\d+)\}/g, '[p.$1]')}…</span>
+            </button>
+          ))}
+        </section>
+      )}
 
       {error && <p className="form-error">{error}</p>}
 

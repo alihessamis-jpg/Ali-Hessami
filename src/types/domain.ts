@@ -184,6 +184,39 @@ export interface DrugRefEntry {
   adjustedDose?: string | null
   frequency?: string | null
   notes?: string | null
+  // --- imported-reference fields (Harriet Lane 23e); null on hand-added rows
+  sourceKey?: string | null
+  source?: string | null
+  sourceChapter?: string | null
+  sourcePages?: string | null
+  tradeNames?: string | null
+  drugClass?: string | null
+  pregnancyCategory?: string | null
+  breastfeedingCategory?: string | null
+  renalCaution?: boolean | null
+  hepaticCaution?: boolean | null
+  pharmacogenomic?: boolean | null
+  seeAlso?: string | null
+  renalAdjustment?: RenalAdjustment[] | null
+  neonatalDose?: string | null
+  meningitisDose?: string | null
+  /** heavy fields — only present after getDrugReference(id) */
+  howSupplied?: string | null
+  interactions?: string | null
+  renalNotes?: string | null
+  monograph?: string | null
+}
+
+/** One Harriet Lane Chapter 31 table entry (Table 31.1 antimicrobials / 31.2 non-antimicrobials). */
+export interface RenalAdjustment {
+  name: string
+  table: '31.1' | '31.2' | string
+  pages: string
+  note: string
+  adult_only: boolean
+  flags: string[]
+  footnotes: Record<string, string>
+  sections: { label: string; rows: { egfr: string; dose: string; interval: string }[] }[]
 }
 
 export type DrugRefEntryDraft = Omit<DrugRefEntry, 'id'>
