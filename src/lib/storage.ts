@@ -167,10 +167,12 @@ export async function deleteChapterFigureFile(path: string): Promise<void> {
 // imported text in the private chapter-figures bucket (same owner-folder
 // policy), at userId/guidelines/<bookId>.pdf.
 export async function uploadGuidelinePdfFile(userId: string, bookId: string, file: File): Promise<string> {
-  const path = `${userId}/guidelines/${bookId}.pdf`
+  // Unique per upload: the service worker caches stored files by path
+  // (vite.config.ts), so re-using one path would serve a replaced PDF stale.
+  const path = `${userId}/guidelines/${bookId}-${Date.now()}.pdf`
   const { error } = await supabase.storage
     .from(CHAPTER_FIGURES_BUCKET)
-    .upload(path, file, { upsert: true, contentType: 'application/pdf' })
+    .upload(path, file, { contentType: 'application/pdf' })
   if (error) throw error
   return path
 }

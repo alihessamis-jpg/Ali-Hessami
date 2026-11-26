@@ -78,7 +78,7 @@ export async function listGuidelines(): Promise<GuidelineWithChapters[]> {
     .order('chapter_number')
   if (chError) throw chError
   const byBook = new Map<string, LibraryChapter[]>()
-  for (const c of (chapters ?? []) as ChapterRow[]) {
+  for (const c of (chapters ?? []) as unknown as Array<Omit<ChapterRow, 'note' | 'clinical_summary'>>) {
     const list = byBook.get(c.book_id) ?? []
     list.push(chapterToDomain({ ...c, note: null, clinical_summary: null } as ChapterRow))
     byBook.set(c.book_id, list)
