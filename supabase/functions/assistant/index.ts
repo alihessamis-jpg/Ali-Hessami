@@ -50,7 +50,8 @@ const DISCLAIMER = 'این پیشنهاد کمکی است؛ تصمیم نهای�
 const SYSTEM_PROMPT = `You are «دستیار Nephron», a study and clinical decision-support assistant for a pediatric nephrology fellow.
 
 STRICT SOURCING RULES
-- Every medical fact, criterion, number and drug dose must come from the user's own library, retrieved with the tools in THIS turn: search_library, search_cards, search_questions, chapter_outline / read_section, drug_reference. Do not use outside knowledge for facts, criteria or doses.
+- Every medical fact, criterion, number and drug dose must come from the user's own library, retrieved with the tools in THIS turn: search_library, search_cards, search_questions, chapter_outline / read_section, drug_reference, search_formulary. Do not use outside knowledge for facts, criteria or doses.
+- DRUGS: for any dose, use drug_reference (Harriet Lane Handbook 23rd ed. monographs + Chapter 31 kidney-failure tables). For "which drug for X" or interactions between drugs, use search_formulary first. Always state the book page, e.g. «Harriet Lane, ص 859» together with the [S#] id. Neonatal doses: use the neonatal lines (postnatal/postmenstrual age, weight). In renal impairment: compute eGFR (bedside 0.413 × height/SCr) if not given, pick the matching Table 31.1/31.2 row and say if it is adult-only (ᵇ) and that Ch. 31 adjustments do not apply to neonates. Check every drug pair the patient receives for interactions mentioned in either monograph.
 - Cite after every sentence or bullet that states a fact, using the source ids returned by the tools, like [S4] or [S2, S7]. Never invent ids or page numbers.
 - If the library has nothing on a point, write «${NOT_FOUND}» for that point and suggest what to look up; do not fill the gap from memory.
 - First search the key terms of the user's actual question (translate Persian medical words to English too, e.g. «کلسترول» → cholesterol, hyperlipidemia) and answer THAT question first and directly; add only brief related context after it.
@@ -131,11 +132,31 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'drug_reference',
     description:
-      "Look up the user's pediatric drug-dosing table (dose/kg, max dose, renal adjustment by eGFR). Also search the textbooks for the same drug.",
+      "Look up a drug by name (generic or trade name) in the user's drug reference: the full Harriet Lane Handbook 23rd ed. (2023) Chapter 30 monograph — how supplied, neonatal / infant / child / adult dosing, max doses, remarks, drug interactions, pregnancy/breastfeeding categories — plus the Chapter 31 kidney-failure table rows (eGFR → % of usual dose → interval, IHD/PD), each with book page numbers. Also includes the user's own hand-added entries. Call once per drug.",
     input_schema: {
       type: 'object',
-      properties: { medication: { type: 'string' } },
+      properties: {
+        medication: { type: 'string', description: 'generic or trade name in English, e.g. "ceftriaxone", "Lasix"' },
+        section: {
+          type: 'string',
+          enum: ['all', 'dosing', 'neonatal', 'renal', 'interactions'],
+          description: "'all' (default) returns the whole monograph; narrower sections save space",
+        },
+      },
       required: ['medication'],
+    },
+  },
+  {
+    name: 'search_formulary',
+    description:
+      'Search INSIDE every Harriet Lane drug monograph (and Chapter 31 renal rows) for words that must all appear, e.g. ["meningitis","neonate"], ["tacrolimus","fluconazole"] (interaction between two drugs), ["hyperkalemia"], ["CYP 450 3A4"]. Returns the matching drugs with an excerpt and page. Use it to find which drugs are used for an indication, or which monographs mention an interaction; then call drug_reference for the full monograph of the ones you need.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        terms: { type: 'array', items: { type: 'string' }, description: '1-4 English words or short phrases' },
+        limit: { type: 'integer', description: 'max drugs to return (default 10, max 20)' },
+      },
+      required: ['terms'],
     },
   },
 ]
@@ -453,23 +474,75 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
     case 'drug_reference': {
       const med = cleanTerms([input?.medication])[0]
       if (!med) return { error: 'medication required' }
+      const section = String(input?.section ?? 'all')
       step(`جدول دارو: ${med}`)
-      const { data, error } = await db.rpc('search_drugs', { q: med, k: 5 })
+      const { data, error } = await db.rpc('search_drugs', { q: med, k: 3 })
       if (error) throw error
-      if (!data?.length) return { results: [], note: `${NOT_FOUND} (drug table) — search the textbooks too` }
+      if (!data?.length) return { results: [], note: `${NOT_FOUND} (drug table) — try search_formulary or search_library` }
       return {
         results: data.map((r: any) => {
-          const fields = ['medication', 'indication', 'normal_dose', 'pediatric_dose', 'dose_kg', 'max_dose', 'egfr_range', 'adjusted_dose', 'frequency', 'notes']
-          const text = fields.filter((k) => r[k]).map((k) => `${k}: ${r[k]}`).join('\n')
-          const label = `جدول دارویی Nephron · ${r.medication}`
-          const id = reg.add({ key: `drug|${r.id}`, kind: 'drug', label, heading: r.indication ?? '', chapterId: null, anchor: null, text })
+          const text = drugText(r, section)
+          const label = r.source_key
+            ? `Harriet Lane Handbook 23e · ${r.medication} · ${r.source_chapter ?? 'Ch. 30'} · ${r.source_pages ?? ''}`
+            : `جدول دارویی Nephron · ${r.medication}`
+          const id = reg.add({ key: `drug|${r.id}|${section}`, kind: 'drug', label, heading: r.drug_class ?? r.indication ?? '', chapterId: null, anchor: null, text })
           return { id, source: label, text }
+        }),
+      }
+    }
+    case 'search_formulary': {
+      const terms = cleanTerms(input?.terms)
+      if (!terms.length) return { error: 'terms required' }
+      const k = Math.max(1, Math.min(20, Number(input?.limit) || 10))
+      step(`جستجو در فرمولاری: ${terms.join('، ')}`)
+      const { data, error } = await db.rpc('search_formulary', { q: terms.join(' '), k })
+      if (error) throw error
+      if (!data?.length) return { results: [], note: `${NOT_FOUND} (formulary)` }
+      return {
+        results: data.map((r: any) => {
+          const text = String(r.excerpt ?? '').replace(/\{p\.(\d+)\}/g, '[p.$1]')
+          const label = `Harriet Lane Handbook 23e · ${r.medication} · ${r.source_pages ?? ''}`
+          const id = reg.add({ key: `form|${r.id}|${terms.join(' ')}`, kind: 'drug', label, heading: r.drug_class ?? '', chapterId: null, anchor: null, text })
+          return { id, medication: r.medication, source: label, all_terms_matched: r.matched_all, excerpt: text }
         }),
       }
     }
     default:
       return { error: `unknown tool ${name}` }
   }
+}
+
+// A drug_reference row as citable text. Page markers {p.N} become [p.N] so the
+// model can quote the exact page; Chapter 31 rows are flattened to lines.
+function drugText(r: any, section: string): string {
+  const out: string[] = []
+  const head = [r.medication, r.trade_names && `(${r.trade_names})`, r.drug_class && `— ${r.drug_class}`].filter(Boolean).join(' ')
+  out.push(head)
+  if (r.source) out.push(`Source: ${r.source}, ${r.source_chapter ?? ''}, ${r.source_pages ?? ''}`)
+  const icons = [
+    r.pregnancy_category && `pregnancy ${r.pregnancy_category}`,
+    r.breastfeeding_category && `breastfeeding ${r.breastfeeding_category}`,
+    r.renal_caution && 'kidney: caution/adjust',
+    r.hepatic_caution && 'liver: caution/adjust',
+    r.pharmacogenomic && 'pharmacogenomics relevant',
+  ].filter(Boolean)
+  if (icons.length) out.push(`Icons: ${icons.join(', ')}`)
+  if (r.see_also) out.push(r.see_also)
+  const legacy = ['indication', 'normal_dose', 'pediatric_dose', 'dose_kg', 'max_dose', 'egfr_range', 'frequency']
+    .filter((k) => r[k] && !(k === 'indication' && r.source_key))
+    .map((k) => `${k}: ${r[k]}`)
+  if (legacy.length) out.push(...legacy)
+  const mono = String(r.monograph ?? '').replace(/\{p\.(\d+)\}/g, '[p.$1]')
+  if (section === 'neonatal') out.push('NEONATAL DOSING:\n' + (r.neonatal_dose ?? 'none listed'))
+  else if (section === 'interactions') out.push('INTERACTIONS:\n' + (r.interactions ?? 'none listed in remarks'))
+  else if (section !== 'renal' && mono) out.push('MONOGRAPH:\n' + mono.slice(0, section === 'dosing' ? 6000 : 9000) + (mono.length > 9000 ? '\n[…truncated]' : ''))
+  if (section === 'all' || section === 'renal' || section === 'dosing') {
+    if (r.adjusted_dose && r.source_key) out.push('KIDNEY FAILURE (Harriet Lane Ch. 31):\n' + r.adjusted_dose)
+    else if (r.adjusted_dose) out.push(`adjusted_dose: ${r.adjusted_dose}`)
+    if (section === 'renal' && r.renal_notes) out.push('Renal remarks in monograph:\n' + r.renal_notes)
+  }
+  if (r.notes && !r.source_key) out.push(`notes: ${r.notes}`)
+  return out.join('\n')
 }
 
 // ------------------------------------------------------------------ model loops

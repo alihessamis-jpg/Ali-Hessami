@@ -10327,3 +10327,44 @@ html.force-reduced-motion .pc-ecg-line {
   text-align: right;
 }
 .as-ans :is(ul, ol), .gs-q-body ol { direction: rtl; unicode-bidi: isolate; }
+
+/* ---- Reference: Harriet Lane monographs, dose calculator, renal tables ---- */
+.ref-ctx-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.ref-filters { margin: 4px 0 2px; }
+.ref-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.ref-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #eef3fc; color: #1e5bd8; }
+.ref-badge.renal { background: #fff4e5; color: #b54708; }
+.ref-badge.neo { background: #ecfdf3; color: #067647; }
+.ref-mono { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ref-icons { display: flex; gap: 6px; flex-wrap: wrap; }
+.ref-icons span { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 8px; background: #f2f5fa; color: #3b4a60; }
+.ref-icons span.warn { background: #fff4e5; color: #b54708; }
+.ref-tabs .np-chip { height: 34px; font-size: 12px; }
+.ref-src { font-size: 11.5px; color: #6b7a90; font-weight: 600; }
+.ref-note { margin: 0; font-size: 13px; color: #3b4a60; background: #f8fafd; border-radius: 10px; padding: 8px 10px; }
+.ref-flag { font-size: 11.5px; color: #b54708; font-weight: 700; }
+.ref-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ref-lines li { font-size: 13px; color: #24324a; line-height: 1.55; border-left: 3px solid #d5e2f6; padding: 2px 0 2px 10px; }
+.ref-path { display: block; font-size: 11.5px; color: #6b7a90; font-weight: 700; }
+.ref-page { margin-left: 6px; font-size: 11px; color: #1e5bd8; font-weight: 700; white-space: nowrap; }
+.ref-calc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ref-calc-chip { font-size: 12px; background: #ecfdf3; color: #05603a; border-radius: 8px; padding: 3px 8px; }
+.ref-calc-chip.warn { background: #fef3f2; color: #b42318; }
+.ref-calc-src, .ref-calc-max { opacity: 0.8; }
+.ref-renal { display: flex; flex-direction: column; gap: 14px; }
+.ref-renal-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.ref-tablewrap { overflow-x: auto; }
+.ref-renal table, .ref-md table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.ref-renal th, .ref-renal td, .ref-md th, .ref-md td { border: 1px solid #e3eaf5; padding: 5px 8px; text-align: left; vertical-align: top; }
+.ref-renal th, .ref-md th { background: #f2f5fa; }
+.ref-renal tr.hit td { background: #fff4e5; font-weight: 700; color: #7a2e0e; }
+.ref-renal tr.ref-sec td { background: #f8fafd; font-weight: 700; font-size: 12px; }
+.ref-foot { margin: 0; padding-left: 18px; font-size: 12px; color: #3b4a60; }
+.ref-md { font-size: 13px; color: #24324a; line-height: 1.6; min-width: 0; }
+.ref-md pre { overflow-x: auto; background: #f8fafd; border-radius: 10px; padding: 10px; font-size: 11.5px; }
+.ref-md code { font-size: 11px; color: #1e5bd8; }
+.ref-md pre code { color: #24324a; }
+.ref-pre { white-space: pre-wrap; font-size: 13px; margin: 0; }
+.ref-hits { gap: 8px; }
+.ref-hit { text-align: left; border: 1px solid #e3eaf5; background: #fff; border-radius: 12px; padding: 10px 12px; cursor: pointer; font-family: inherit; color: #0e1f3d; display: flex; flex-direction: column; gap: 4px; }
+.ref-hit-x { font-size: 12.5px; color: #3b4a60; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }

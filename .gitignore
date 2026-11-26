@@ -8,3 +8,6 @@ dev-dist
 .env.local
 npm-debug.log*
 .DS_Store
+
+# Harriet Lane seed data contains textbook text — never commit (public repo)
+seeds/
