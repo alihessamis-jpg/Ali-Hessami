@@ -1,8 +1,10 @@
 // Building blocks of the step-by-step pediatric history wizard: section
 // cards with a tinted icon tile, tri-state finding chips, segmented
 // pickers and text areas with dictation + full-screen editing.
-import { useRef, useState, type ReactNode } from 'react'
-import { useDictation } from '../../lib/speech'
+import { useState, type ReactNode } from 'react'
+import { transcribeAudio } from '../../lib/api/assistant'
+import { useVoiceInput } from '../../lib/speech'
+import { toPersianDigits } from '../../lib/shamsi'
 import type { Option, Tri, TriMap } from '../../lib/pedsHistory'
 
 export function HxCard({ icon, title, sub, children }: { icon: ReactNode; title: string; sub?: string; children: ReactNode }) {
@@ -168,24 +170,26 @@ export function HxArea({
   chips?: ReactNode
 }) {
   const [full, setFull] = useState(false)
-  const baseRef = useRef('')
-  const dict = useDictation((finalText, interim) => {
-    const joined = [baseRef.current, finalText, interim].filter(Boolean).join(' ')
-    onChange(joined)
+  const voice = useVoiceInput(transcribeAudio, (text) => {
+    const cur = (value ?? '').replace(/\s+$/, '')
+    onChange(cur ? `${cur} ${text}` : text)
   })
+  const VOICE_ERR: Record<string, string> = {
+    'not-allowed': 'اجازه میکروفون داده نشده (تنظیمات گوشی › Safari یا خود برنامه › Microphone).',
+    unsupported: 'این مرورگر ضبط صدا را پشتیبانی نمی‌کند.',
+    'too-short': 'صدایی ضبط نشد؛ کمی طولانی‌تر صحبت کنید.',
+    failed: voice.errorDetail ?? 'تبدیل صدا به متن انجام نشد؛ دوباره امتحان کنید.',
+  }
 
   function toggleMic() {
-    if (dict.listening) {
-      dict.stop()
-      return
-    }
-    baseRef.current = (value ?? '').trim()
-    dict.start()
+    if (voice.state === 'recording') void voice.stop()
+    else if (voice.state === 'idle') void voice.start()
   }
 
   const area = (
     <div className={full ? 'hx-area full' : 'hx-area'}>
       <textarea
+        data-no-dictation
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -205,16 +209,30 @@ export function HxArea({
             </svg>
           )}
         </button>
-        {dict.supported && (
-          <button type="button" className={dict.listening ? 'rec' : ''} onClick={toggleMic} aria-label={dict.listening ? 'توقف دیکته' : 'دیکته صوتی'}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="9" y="3" width="6" height="12" rx="3" />
-              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-            </svg>
+        {voice.supported && (
+          <button
+            type="button"
+            className={voice.state === 'recording' ? 'rec' : voice.state === 'transcribing' ? 'busy' : ''}
+            onClick={toggleMic}
+            disabled={voice.state === 'transcribing'}
+            aria-label={voice.state === 'recording' ? 'پایان ضبط' : 'دیکته صوتی'}
+          >
+            {voice.state === 'transcribing' ? (
+              <span className="gd-spin" aria-hidden="true" />
+            ) : voice.state === 'recording' ? (
+              <span className="gd-sec">{toPersianDigits(voice.seconds)}</span>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="12" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+              </svg>
+            )}
           </button>
         )}
       </div>
-      {dict.error && dict.error !== 'no-speech' && <p className="hx-hint err">دیکته در دسترس نیست ({dict.error}).</p>}
+      {voice.state === 'recording' && <p className="hx-hint">● در حال ضبط… برای پایان دوباره روی میکروفون بزنید</p>}
+      {voice.state === 'transcribing' && <p className="hx-hint">در حال تبدیل صدا به متن…</p>}
+      {voice.error && <p className="hx-hint err">{VOICE_ERR[voice.error]}</p>}
     </div>
   )
 
