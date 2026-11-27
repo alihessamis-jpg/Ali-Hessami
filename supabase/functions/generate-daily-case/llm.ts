@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Deno edge function; untyped JSON from Supabase / model APIs (deno-lint-ignore marks the same spots) */
 // Provider-neutral JSON / text calls for generate-daily-case.
 // Same provider rule as the assistant function: CASE_PROVIDER (or
 // ASSISTANT_PROVIDER) forces one; otherwise Claude when ANTHROPIC_API_KEY is

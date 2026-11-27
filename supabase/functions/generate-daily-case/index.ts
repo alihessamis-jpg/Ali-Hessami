@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Deno edge function; untyped JSON from Supabase / model APIs (deno-lint-ignore marks the same spots) */
 // generate-daily-case — Daily Case Challenge (Today → «کیس روز»).
 //
 // Builds one board-level pediatric nephrology case per day from the user's
