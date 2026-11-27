@@ -11189,3 +11189,33 @@ html.force-reduced-motion .pc-ecg-line {
   .hx-area-tools button.rec { animation: none; }
   .hx-progress span, .hx-switch span::after { transition: none; }
 }
+
+/* history wizard: surgeries list, ROS accordions */
+.hx-empty { margin: 0; text-align: center; color: var(--hx-mute); padding: 18px 0 4px; font-size: 14.5px; }
+.hx-subcard { border: 1px solid var(--hx-line); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: #fbfcfe; }
+.hx-subcard-head { display: flex; align-items: center; justify-content: space-between; }
+.hx-x { width: 34px; height: 34px; border-radius: 12px; border: 1px solid var(--hx-line); background: #fff; color: var(--hx-no); cursor: pointer; }
+.hx-add {
+  border: 1.5px dashed #cfd7e3; background: transparent; border-radius: 22px; padding: 18px; font-size: 16px; font-weight: 700;
+  color: #4b5668; cursor: pointer;
+}
+.hx-acc-list { display: flex; flex-direction: column; gap: 10px; }
+.hx-acc { border: 1px solid var(--hx-line); border-radius: 24px; background: #fff; overflow: hidden; }
+.hx-acc-head {
+  width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 18px; cursor: pointer;
+  text-align: start; color: var(--hx-ink);
+}
+.hx-acc-head b { font-size: 17px; font-weight: 800; }
+.hx-acc-head small { color: var(--hx-mute); font-size: 13px; direction: ltr; }
+.hx-acc-head .chev { margin-inline-start: auto; color: var(--hx-mute); transition: transform 0.2s var(--ease-out); flex: none; }
+.hx-acc.open .hx-acc-head { border-bottom: 1px solid var(--hx-line); }
+.hx-acc.open .chev { transform: rotate(180deg); }
+.hx-count { font-size: 12px; font-weight: 800; border-radius: 99px; padding: 2px 8px; color: #fff; }
+.hx-count.y { background: var(--hx-yes); }
+.hx-count.n { background: var(--hx-no); }
+.hx-acc-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; animation: as-in 0.2s var(--ease-out) both; }
+.hx-acc-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hx-pill.ghost { background: #fff; color: var(--hx-mute); border: 1px solid var(--hx-line); font-weight: 500; }
+.hx-neg { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--hx-no); vertical-align: -3px; margin-inline-end: 4px; position: relative; }
+.hx-neg::after { content: ''; position: absolute; inset: 7px 4px; background: #fff; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { .hx-acc-body { animation: none; } .hx-acc-head .chev { transition: none; } }
