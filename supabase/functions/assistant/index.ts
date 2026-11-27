@@ -743,6 +743,30 @@ async function geminiModelList(): Promise<string[]> {
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504])
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+// Overload handling for the free Gemini tier: per-model retries, then whole
+// passes over the fallback list after a wait (kept well under the edge
+// function's wall-clock limit).
+const GEMINI_BACKOFF_MS = [1500, 4000, 8000]
+const GEMINI_FULL_PASS_WAIT_MS = [6000, 15000]
+
+/** generateContent over the fallback models, with backoff and up to 2 extra passes when all are overloaded. */
+async function geminiGenerateWithRetry(body: unknown): Promise<{ res: Response | null; model: string }> {
+  let res: Response | null = null
+  let model = ''
+  for (let pass = 0; pass <= GEMINI_FULL_PASS_WAIT_MS.length; pass++) {
+    if (pass > 0) await sleep(GEMINI_FULL_PASS_WAIT_MS[pass - 1])
+    for (const gm of await geminiModels()) {
+      model = gm
+      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
+        body: JSON.stringify(body),
+      })
+      if (res.ok || !RETRYABLE.has(res.status)) return { res, model }
+    }
+  }
+  return { res, model }
+}
 
 async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[], userTurn: string, io: LoopIO): Promise<LoopResult> {
   const contents: GeminiContent[] = [
@@ -752,6 +776,7 @@ async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[
   const usage = { input: 0, output: 0, cacheRead: 0 }
   const models = await geminiModels()
   let mi = 0
+  let passes = 0 // full passes over all fallback models when every one is overloaded
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     let r: Awaited<ReturnType<typeof geminiRound>> | null = null
     for (let attempt = 0; !r; attempt++) {
@@ -759,16 +784,28 @@ async function loopGemini(history: { role: 'user' | 'assistant'; text: string }[
         r = await geminiRound(models[mi], contents, io.send)
       } catch (e) {
         if (!(e instanceof ProviderError) || !RETRYABLE.has(e.status)) throw e
-        // same model once more, then the next one (model switch only before the
-        // first tool round, so thought signatures stay with the model that made them)
-        if (attempt === 0) {
-          await sleep(1500)
+        // Same model again with backoff, then the next one (model switch only
+        // before the first tool round, so thought signatures stay with the
+        // model that made them). Mid-answer rounds can't switch, so they get
+        // more same-model retries.
+        if (attempt < (round === 0 ? 1 : GEMINI_BACKOFF_MS.length)) {
+          await sleep(GEMINI_BACKOFF_MS[attempt])
           continue
         }
         if (round === 0 && mi + 1 < models.length) {
           mi++
           attempt = -1
           io.step(`Gemini شلوغ است؛ تلاش با ${models[mi]}`)
+          continue
+        }
+        // Every model overloaded: wait and go round all of them again.
+        if (round === 0 && passes < GEMINI_FULL_PASS_WAIT_MS.length) {
+          const wait = GEMINI_FULL_PASS_WAIT_MS[passes]
+          passes++
+          io.step(`همهٔ مدل‌های Gemini شلوغ‌اند؛ ${Math.round(wait / 1000)} ثانیه صبر و تلاش دوباره (${passes}/${GEMINI_FULL_PASS_WAIT_MS.length})`)
+          await sleep(wait)
+          mi = 0
+          attempt = -1
           continue
         }
         throw e
@@ -980,7 +1017,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
             e.status === 429
               ? 'سهمیهٔ رایگان Gemini موقتاً پر شد؛ یک دقیقه بعد دوباره بپرس.'
               : e.status >= 500
-                ? 'سرورهای رایگان Gemini الان شلوغ‌اند (همهٔ مدل‌های جایگزین هم امتحان شد). چند دقیقه بعد دوباره بپرس.'
+                ? 'سرورهای رایگان Gemini الان شلوغ‌اند (همهٔ مدل‌ها چند بار با فاصله امتحان شد). چند دقیقه بعد دوباره بپرس؛ برای رفع دائمی، ANTHROPIC_API_KEY را در Supabase Secrets تنظیم کنید.'
               : e.status === 400 || e.status === 403
                 ? `کلید یا درخواست Gemini پذیرفته نشد (${e.status}): ${e.message.slice(0, 300)}`
                 : `خطای Gemini (${e.status}): ${e.message.slice(0, 300)}`
@@ -1058,16 +1095,9 @@ async function handleTranslate(body: TranslateBody, db: SupabaseClient, userId: 
   let text = ''
   let modelUsed = ''
   if (PROVIDER === 'gemini') {
-    let res: Response | null = null
-    for (const gm of await geminiModels()) {
-      modelUsed = gm
-      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 8000 } }),
-      })
-      if (res.ok || !RETRYABLE.has(res.status)) break
-    }
+    const r = await geminiGenerateWithRetry({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 8000 } })
+    const res = r.res
+    modelUsed = r.model
     if (!res || !res.ok) return json({ error: `Gemini (${res?.status}): ${(await res?.text())?.slice(0, 300)}` }, 502)
     const j = await res.json()
     text = (j.candidates?.[0]?.content?.parts ?? []).filter((p: GeminiPart) => !p.thought).map((p: GeminiPart) => p.text ?? '').join('')
@@ -1127,18 +1157,10 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
   }
   let text = ''
   if (PROVIDER === 'gemini') {
-    let res: Response | null = null
-    for (const gm of await geminiModels()) {
-      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 8000 },
-        }),
-      })
-      if (res.ok || !RETRYABLE.has(res.status)) break
-    }
+    const { res } = await geminiGenerateWithRetry({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: schema, maxOutputTokens: 8000 },
+    })
     if (!res || !res.ok) return json({ error: `Gemini (${res?.status}): ${(await res?.text())?.slice(0, 300)}` }, 502)
     const j = await res.json()
     text = (j.candidates?.[0]?.content?.parts ?? []).filter((p: GeminiPart) => !p.thought).map((p: GeminiPart) => p.text ?? '').join('')
