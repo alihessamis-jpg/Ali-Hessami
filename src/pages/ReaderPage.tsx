@@ -49,6 +49,7 @@ import { addBoardQuestionAttempt } from '../lib/api/boardQuestionAttempts'
 import { SelectionAsk } from '../components/assistant/SelectionAsk'
 import { useAssistant } from '../components/assistant/AssistantProvider'
 import { STUDY_CHIPS } from '../components/assistant/AssistantChat'
+import { TranslatedChapter } from '../components/library/TranslatedChapter'
 
 const TEXT_SCALE_KEY = 'np-reader-text-scale'
 const TEXT_SCALE_MIN = 0.9
@@ -212,6 +213,8 @@ export function ReaderPage() {
   const [figurePanelOpen, setFigurePanelOpen] = useState(false)
 
   const articleRef = useRef<HTMLDivElement>(null)
+  // English chapters: original text or the right-to-left Persian view.
+  const [viewFa, setViewFa] = useState<boolean>(() => new URLSearchParams(window.location.search).get('lang') === 'fa')
   // Reader text size (A− / A+), remembered on this device.
   const [textScale, setTextScale] = useState<number>(() => {
     try {
@@ -985,6 +988,16 @@ export function ReaderPage() {
               </span>
             )}
           </div>
+          {chapter.language === 'en' && (
+            <div className="seg rd-lang" role="group" aria-label="Language">
+              <button type="button" className={!viewFa ? 'on' : ''} onClick={() => setViewFa(false)}>
+                English
+              </button>
+              <button type="button" className={viewFa ? 'on' : ''} onClick={() => setViewFa(true)}>
+                فارسی (راست‌چین)
+              </button>
+            </div>
+          )}
           <div className="rd-size" role="group" aria-label="Text size">
             <button type="button" onClick={() => changeTextScale(-0.1)} disabled={textScale <= TEXT_SCALE_MIN} aria-label="Smaller text">
               A−
@@ -1063,7 +1076,7 @@ export function ReaderPage() {
 
         <div className="stack">
           <SelectionAsk containerRef={articleRef} chapterId={chapter.id} />
-          <article className={chapter.language === 'en' ? 'art-card np-fade prose-en' : 'art-card np-fade'} ref={articleRef} style={{ '--prose-scale': textScale } as CSSProperties}>
+          <article className={chapter.language === 'en' && !viewFa ? 'art-card np-fade prose-en' : 'art-card np-fade'} ref={articleRef} style={{ '--prose-scale': textScale } as CSSProperties}>
             {offlineFallback && (
               <p className="np-small" style={{ color: '#93590B', background: '#FDF0D5', padding: '8px 12px', borderRadius: 10 }}>
                 Offline — showing the last downloaded version of this chapter. Import, approving cards, and new figures need a
@@ -1079,7 +1092,11 @@ export function ReaderPage() {
               </p>
             )}
             {message && <p className="patient-meta">{message}</p>}
-            {activeNote ? (
+            {chapter.language === 'en' && viewFa ? (
+              <div className="prose" style={{ maxWidth: 760 }}>
+                <TranslatedChapter chapterId={chapter.id} />
+              </div>
+            ) : activeNote ? (
               <ChapterProse
                 note={activeNote}
                 cards={cards}

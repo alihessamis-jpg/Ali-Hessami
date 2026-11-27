@@ -10438,3 +10438,36 @@ html.force-reduced-motion .pc-ecg-line {
 .gl-row-more, .gl-collapse { font: 700 13.5px 'Vazirmatn', sans-serif; color: var(--accent); }
 .gl-row-more { align-self: flex-end; }
 .gl-collapse { align-self: flex-end; background: none; border: 0; cursor: pointer; padding: 4px 6px; }
+
+/* Reader: English/Persian toggle and the Persian (RTL) passage view */
+.rd-lang { align-self: flex-start; }
+.rd-lang button { font-family: 'Vazirmatn', sans-serif; font-size: 14px; }
+.tr-view { display: flex; flex-direction: column; gap: 14px; }
+.tr-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 3; background: #fff; padding: 8px 0; }
+.tr-bar > span { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+.tr-bar .pbar { max-width: 260px; }
+.tr-note { margin: 0; line-height: 1.8; }
+.tr-pass { border-top: 1px solid #edf1f7; padding-top: 12px; }
+.tr-meta { display: flex; justify-content: space-between; gap: 10px; font-size: 0.8em; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; }
+.tr-meta .pg { font-family: 'Plus Jakarta Sans', sans-serif; direction: ltr; }
+.tr-fa .academy-markdown { font-size: 1em; line-height: 2.05; text-align: right; }
+.tr-fa .academy-markdown table { direction: rtl; }
+.tr-pending { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tr-en { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85em; line-height: 1.7; color: var(--text-muted); text-align: left; align-self: stretch; }
+
+/* Guidelines: source-cited search */
+.gl-search { gap: 12px; }
+.gl-search h2 { font-size: 18px; margin: 0; font-family: 'Vazirmatn', sans-serif; }
+.gl-search-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gl-search-head .np-small { font-size: 14px; }
+.gl-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.gl-hits a { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line, #e3eaf5); background: #fbfcff; color: var(--text); text-decoration: none; }
+.gl-hits a:hover { background: #f1f6ff; }
+.gl-hit-text { font-size: 15px; line-height: 1.85; }
+.gl-hit-text[dir='ltr'] { font-family: 'Plus Jakarta Sans', sans-serif; text-align: left; }
+.gl-hit-text[dir='rtl'] { font-family: 'Vazirmatn', sans-serif; }
+.gl-hit-text mark { background: #ffe9b8; border-radius: 3px; padding: 0 2px; }
+.gl-hit-src { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); font-family: 'Vazirmatn', sans-serif; }
+.gl-hit-src b { color: var(--accent); font-weight: 800; }
+.gl-lang { font: 800 11px 'Plus Jakarta Sans', sans-serif; padding: 2px 7px; border-radius: 6px; background: #e3edfd; color: #1546a8; }
+.gl-lang.fa { background: #fff1db; color: #93590b; font-family: 'Vazirmatn', sans-serif; }

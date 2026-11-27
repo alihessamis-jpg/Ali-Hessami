@@ -7,6 +7,9 @@
 //   events: meta · step · delta · reset · sources · done · error
 // POST (JSON)       { action: 'flashcards', messageId }
 // POST (JSON)       { action: 'transcribe', audio: <base64 WAV>, mimeType } -> { text }  (Gemini)
+// POST (JSON)       { action: 'translate', chapterId, partNumber?, sectionIdx, subIdx } -> { content, cached }
+//                   Persian translation of one library_chunks passage (medical terms kept in
+//                   English), cached in library_chunk_translations.
 //
 // Runs as the signed-in user (anon key + their JWT): every tool goes through
 // the SECURITY INVOKER SQL functions from assistant_phase1_retrieval_migration.sql,
@@ -52,7 +55,7 @@ const SYSTEM_PROMPT = `You are «دستیار Nephron», a study and clinical de
 STRICT SOURCING RULES
 - Every medical fact, criterion, number and drug dose must come from the user's own library, retrieved with the tools in THIS turn: search_library, search_cards, search_questions, chapter_outline / read_section, drug_reference, search_formulary. Do not use outside knowledge for facts, criteria or doses.
 - DRUGS: for any dose, use drug_reference (Harriet Lane Handbook 23rd ed. monographs + Chapter 31 kidney-failure tables). For "which drug for X" or interactions between drugs, use search_formulary first. Always state the book page, e.g. «Harriet Lane, ص 859» together with the [S#] id. Neonatal doses: use the neonatal lines (postnatal/postmenstrual age, weight). In renal impairment: compute eGFR (bedside 0.413 × height/SCr) if not given, pick the matching Table 31.1/31.2 row and say if it is adult-only (ᵇ) and that Ch. 31 adjustments do not apply to neonates. Check every drug pair the patient receives for interactions mentioned in either monograph.
-- CLINICAL GUIDELINES: the library also holds clinical practice guidelines as books (e.g. «KDIGO 2026 Clinical Practice Guideline for AKI and AKD» — a PUBLIC REVIEW DRAFT — and «AAP 2026 Clinical Practice Guideline: UTI in Children 8 Days to 5 Years»). For AKI/AKD, RRT in AKI, nephrotoxins/contrast, pediatric UTI, VUR imaging or prophylaxis, search them too (English terms such as "Recommendation 2.6.1", "Practice Point 5.12", "Key Action Statement", "renal angina index", "VCUG"). Quote the statement number and grade, e.g. «KDIGO 2026 Rec 3.12.4.1 (1A)» or «AAP 2026 KAS 3B (strong)», and say when a KDIGO point comes from the draft. Each guideline's «تحلیل و نکات کلیدی» chapter is Nephron's own Persian analysis: use it for orientation, but cite the original-text chapters for what the guideline actually says.
+- CLINICAL GUIDELINES: the library also holds clinical practice guidelines as books: KDIGO guidelines (AKI 2026 PUBLIC REVIEW DRAFT and AKI 2012, CKD 2024, anemia 2026, BP 2021, CKD-MBD 2017, lipids 2013, diabetes 2022, HCV 2022, glomerular diseases 2021, nephrotic syndrome in children 2025, IgAN/IgAV 2025, lupus nephritis 2024, ANCA vasculitis 2024, ADPKD 2025, transplant candidate 2020, transplant recipient 2009, living donor 2017, heart failure in CKD scope of work) and «AAP 2026 Clinical Practice Guideline: UTI in Children 8 Days to 5 Years». When a question touches one of these topics, search the guidelines too and prefer the newest one (e.g. NS children 2025 over chapter 4 of glomerular 2021; LN 2024 and ANCA 2024 over the outdated 2021 chapters); search them (English terms such as "Recommendation 2.6.1", "Practice Point 5.12", "Key Action Statement", "renal angina index", "VCUG"). Quote the statement number and grade, e.g. «KDIGO 2026 Rec 3.12.4.1 (1A)» or «AAP 2026 KAS 3B (strong)», and say when a KDIGO point comes from the draft. Each guideline's «تحلیل و نکات کلیدی» chapter is Nephron's own Persian analysis: use it for orientation, but cite the original-text chapters for what the guideline actually says.
 - Cite after every sentence or bullet that states a fact, using the source ids returned by the tools, like [S4] or [S2, S7]. Never invent ids or page numbers.
 - If the library has nothing on a point, write «${NOT_FOUND}» for that point and suggest what to look up; do not fill the gap from memory.
 - First search the key terms of the user's actual question (translate Persian medical words to English too, e.g. «کلسترول» → cholesterol, hyperlipidemia) and answer THAT question first and directly; add only brief related context after it.
@@ -188,6 +191,14 @@ interface ChatBody {
 interface FlashcardBody {
   action: 'flashcards'
   messageId: string
+}
+
+interface TranslateBody {
+  action: 'translate'
+  chapterId: string
+  partNumber?: number | null
+  sectionIdx: number
+  subIdx: number
 }
 
 interface TranscribeBody {
@@ -1005,6 +1016,91 @@ function addNoExtra(schema: any): any {
   return schema
 }
 
+const TRANSLATE_PROMPT = `Translate the following passage from a clinical practice guideline into fluent, precise Persian for a pediatric nephrology fellow.
+Rules:
+- Keep in English, exactly as written: medical terms and disease names, drug and gene names, abbreviations, lab tests, numbers, units, doses, statement labels (e.g. "Recommendation 2.6.1", "Practice Point 5.12.3.1", "Key Action Statement 3B"), evidence grades such as (1B) or (2C), and trial or score names.
+- Keep the Markdown structure (headings, **bold**, lists, tables, > blockquotes) and keep every {p.N} page marker where it is.
+- Translate everything else; do not summarize, omit, add or comment.
+- Output only the translation.
+
+PASSAGE:
+`
+
+async function sha1(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function handleTranslate(body: TranslateBody, db: SupabaseClient, userId: string): Promise<Response> {
+  if (!isUuid(body.chapterId) || !Number.isInteger(body.sectionIdx) || !Number.isInteger(body.subIdx)) {
+    return json({ error: 'chapterId, sectionIdx and subIdx required' }, 400)
+  }
+  const part = Number.isInteger(body.partNumber) ? (body.partNumber as number) : 0
+  let q = db.from('library_chunks').select('content').eq('chapter_id', body.chapterId).eq('section_idx', body.sectionIdx).eq('sub_idx', body.subIdx)
+  q = part ? q.eq('part_number', part) : q.is('part_number', null)
+  const { data: chunk, error } = await q.maybeSingle()
+  if (error) return json({ error: error.message }, 500)
+  if (!chunk) return json({ error: 'passage not found' }, 404)
+  const source = String(chunk.content)
+  const hash = await sha1(source)
+
+  const { data: existing } = await db
+    .from('library_chunk_translations')
+    .select('content, source_hash')
+    .eq('chapter_id', body.chapterId)
+    .eq('part_number', part)
+    .eq('section_idx', body.sectionIdx)
+    .eq('sub_idx', body.subIdx)
+    .maybeSingle()
+  if (existing && existing.source_hash === hash) return json({ content: existing.content, cached: true })
+
+  const prompt = TRANSLATE_PROMPT + source
+  let text = ''
+  let modelUsed = ''
+  if (PROVIDER === 'gemini') {
+    let res: Response | null = null
+    for (const gm of await geminiModels()) {
+      modelUsed = gm
+      res = await fetch(`${GEMINI_BASE}/models/${gm}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY! },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 8000 } }),
+      })
+      if (res.ok || !RETRYABLE.has(res.status)) break
+    }
+    if (!res || !res.ok) return json({ error: `Gemini (${res?.status}): ${(await res?.text())?.slice(0, 300)}` }, 502)
+    const j = await res.json()
+    text = (j.candidates?.[0]?.content?.parts ?? []).filter((p: GeminiPart) => !p.thought).map((p: GeminiPart) => p.text ?? '').join('')
+  } else {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+    modelUsed = DEFAULT_MODEL
+    const resp = await client.messages.create({
+      model: DEFAULT_MODEL,
+      max_tokens: 8000,
+      output_config: { effort: 'low' },
+      messages: [{ role: 'user', content: prompt }],
+    })
+    text = resp.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('')
+  }
+  text = text.trim()
+  if (!text) return json({ error: 'empty translation' }, 502)
+  const { error: saveError } = await db.from('library_chunk_translations').upsert(
+    {
+      owner_id: userId,
+      chapter_id: body.chapterId,
+      part_number: part,
+      section_idx: body.sectionIdx,
+      sub_idx: body.subIdx,
+      source_hash: hash,
+      content: text,
+      model: modelUsed,
+    },
+    { onConflict: 'chapter_id,part_number,section_idx,sub_idx' }
+  )
+  if (saveError) return json({ error: saveError.message }, 500)
+  return json({ content: text, cached: false })
+}
+
 async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId: string): Promise<Response> {
   if (!isUuid(body.messageId)) return json({ error: 'messageId required' }, 400)
   const { data: m, error } = await db.from('ai_messages').select('content, sources, role').eq('id', body.messageId).maybeSingle()
@@ -1176,7 +1272,7 @@ Deno.serve(async (req) => {
   } = await db.auth.getUser()
   if (!user) return json({ error: 'Not authenticated' }, 401)
 
-  let body: ChatBody | FlashcardBody | TranscribeBody
+  let body: ChatBody | FlashcardBody | TranscribeBody | TranslateBody
   try {
     body = await req.json()
   } catch {
@@ -1184,5 +1280,6 @@ Deno.serve(async (req) => {
   }
   if (body.action === 'transcribe') return handleTranscribe(body)
   if (body.action === 'flashcards') return handleFlashcards(body, db, user.id)
+  if (body.action === 'translate') return handleTranslate(body, db, user.id)
   return handleChat(body as ChatBody, db, user.id)
 })
