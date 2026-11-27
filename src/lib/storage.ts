@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient'
 
-const IMAGING_BUCKET = 'imaging'
+export const IMAGING_BUCKET = 'imaging'
 const CHAPTER_FIGURES_BUCKET = 'chapter-figures'
 
 // Supabase's free tier caps total project storage at 1 GiB; used as the

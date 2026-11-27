@@ -9,6 +9,8 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TodayPage } from './pages/TodayPage'
 import { VersesPage } from './pages/VersesPage'
+import { DailyCasePage } from './pages/DailyCasePage'
+import { DailyCaseArchivePage } from './pages/DailyCaseArchivePage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
 import { QuickAkiEntryPage } from './pages/QuickAkiEntryPage'
@@ -53,6 +55,8 @@ export function App() {
           <Route path="/" element={protect(<DashboardPage />)} />
           <Route path="/today" element={protect(<TodayPage />)} />
           <Route path="/verses" element={protect(<VersesPage />)} />
+          <Route path="/daily-case" element={protect(<DailyCaseArchivePage />)} />
+          <Route path="/daily-case/:id" element={protect(<DailyCasePage />)} />
           <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/quick-aki" element={protect(<QuickAkiEntryPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />
