@@ -11292,3 +11292,53 @@ div.hx-acc-head { cursor: default; }
 .hx-quote p { margin: 6px 0 0; white-space: pre-wrap; line-height: 1.9; max-height: 180px; overflow: auto; }
 .hx-more summary { cursor: pointer; color: var(--hx-mute); font-size: 14px; margin-bottom: 10px; }
 .hx-banner:disabled { opacity: 0.5; cursor: default; }
+/* «دارویاب» drug profile (HistoMed-style) */
+.dp { font-family: 'Vazirmatn', 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; gap: 14px; color: #0f1b2d; }
+.dp-head { background: #fff; border: 1px solid #e3e8f0; border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.dp-title { display: flex; align-items: center; gap: 14px; }
+.dp-title h2 { margin: 0; font-size: 26px; font-weight: 800; font-family: inherit; }
+.dp-title .en { display: block; color: #6b7890; font-size: 15px; direction: ltr; text-align: start; }
+.dp-title .cls { display: block; color: #3b4659; font-size: 14px; margin-top: 4px; }
+.dp-ic { flex: none; width: 44px; height: 44px; border-radius: 14px; background: #e6f1ee; display: grid; place-items: center; font-size: 20px; }
+.dp-ic.lg { width: 64px; height: 64px; border-radius: 20px; font-size: 28px; }
+.dp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dp-chip { font-size: 13px; font-weight: 700; border-radius: 999px; padding: 6px 12px; background: #eef1f6; color: #3b4659; border: 1px solid transparent; }
+.dp-chip.amber { background: #fff8e6; color: #9a5b06; border-color: #f4dfa6; }
+.dp-chip.red { background: #fdeaea; color: #b3261e; border-color: #f4c3c3; }
+.dp-chip.green { background: #e5f5ee; color: #16865e; }
+.dp-src { margin: 0; padding-top: 10px; border-top: 1px solid #e3e8f0; font-size: 13px; color: #6b7890; direction: ltr; text-align: end; }
+.dp-summary { margin: 0; background: #fff; border: 1px solid #e3e8f0; border-radius: 22px; padding: 16px 18px; line-height: 2; font-size: 15px; }
+.dp-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; background: #fff; border: 1px solid #e3e8f0; border-radius: 22px; padding: 6px; position: sticky; top: 0; z-index: 5; }
+.dp-tabs::-webkit-scrollbar { display: none; }
+.dp-tabs button { flex: none; border: 0; background: transparent; border-radius: 16px; padding: 10px 16px; font-size: 14.5px; font-weight: 700; color: #6b7890; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.dp-tabs button.on { background: #111827; color: #fff; }
+.dp-card { background: #fff; border: 1px solid #e3e8f0; border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.dp-card.red { border-color: #f4c3c3; }
+.dp-card header { display: flex; align-items: center; gap: 12px; }
+.dp-card h3 { margin: 0; font-size: 18px; font-weight: 800; font-family: inherit; }
+.dp-card h4 { margin: 6px 0 2px; font-size: 14px; color: #6b7890; font-family: inherit; }
+.dp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.dp-list li { position: relative; padding: 12px 22px 12px 0; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px dashed #e3e8f0; }
+.dp-list li:last-child { border-bottom: 0; }
+.dp-list li::before { content: ''; position: absolute; right: 2px; top: 19px; width: 10px; height: 10px; border-radius: 50%; background: #9aa5b5; }
+.dp-list li.red::before { background: #e0453a; }
+.dp-list li.amber::before { background: #f0a020; }
+.dp-list li.green::before { background: #16865e; }
+.dp-list b { font-size: 15.5px; line-height: 1.8; }
+.dp-who { font-size: 12.5px; background: #eef1f6; border-radius: 999px; padding: 3px 10px; align-self: flex-start; color: #3b4659; }
+.dp-note { font-size: 14px; color: #9a5b06; line-height: 1.9; }
+.dp-agents { font-size: 13.5px; color: #3b4659; line-height: 1.7; text-align: start; }
+.dp-sev { font-size: 12px; font-weight: 800; margin-inline-start: 6px; }
+.dp-sev.red { color: #d23b3b; }
+.dp-sev.amber { color: #c47a06; }
+.dp-page { font-size: 11.5px; color: #8a96a8; direction: ltr; align-self: flex-start; }
+.dp-dl { display: grid; grid-template-columns: auto 1fr; gap: 0; margin: 0; }
+.dp-dl dt, .dp-dl dd { margin: 0; padding: 12px 0; border-bottom: 1px solid #eef1f6; }
+.dp-dl dt { color: #6b7890; font-size: 14px; padding-inline-end: 16px; }
+.dp-dl dd { font-weight: 800; text-align: end; }
+.dp-en { margin: 0; line-height: 1.9; }
+.dp-empty { margin: 0; color: #8a96a8; font-size: 14px; }
+.dp-foot { margin: 4px 0 0; font-size: 12.5px; color: #8a96a8; line-height: 1.8; }
+.dp-disclaimer { margin: 0; background: #e6f1ee; border-radius: 18px; padding: 14px 16px; font-size: 13.5px; color: #3b4659; line-height: 1.9; }
+.dp-dose { background: #fff; border: 1px solid #e3e8f0; border-radius: 22px; padding: 12px; }
+.ref-badge.dp-badge { background: #e5f5ee; color: #16865e; }

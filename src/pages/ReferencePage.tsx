@@ -16,6 +16,8 @@ import { listPatients } from '../lib/api/patients'
 import { importReferenceFile } from '../lib/api/referenceImport'
 import { schwartzBedside, round, type Dialysis } from '../lib/doseCalc'
 import { DrugMonograph, type PatientDoseContext } from '../components/reference/DrugMonograph'
+import { DrugProfileView } from '../components/reference/DrugProfileView'
+import { profileFor } from '../lib/drugProfiles'
 import {
   addReferenceAttachment,
   deleteReferenceAttachment,
@@ -351,6 +353,7 @@ export function ReferencePage() {
                 <span className="ref-badge">Harriet Lane 23e · {(d as DrugRefEntry).sourcePages}</span>
                 {(d as DrugRefEntry).renalAdjustment?.length ? <span className="ref-badge renal">Ch.31 renal</span> : null}
                 {(d as DrugRefEntry).neonatalDose ? <span className="ref-badge neo">Neonate</span> : null}
+                {profileFor((d as DrugRefEntry).sourceKey) ? <span className="ref-badge dp-badge">دارویاب</span> : null}
               </span>
             )}
           </span>
@@ -360,7 +363,11 @@ export function ReferencePage() {
         </button>
         {isOpen && tab === 'drug' && (d as DrugRefEntry).sourceKey && (
           <div className="ref-medbody">
-            <DrugMonograph entry={d as DrugRefEntry} ctx={ctx} />
+            {profileFor((d as DrugRefEntry).sourceKey) ? (
+              <DrugProfileView profile={profileFor((d as DrugRefEntry).sourceKey)!} entry={d as DrugRefEntry} ctx={ctx} />
+            ) : (
+              <DrugMonograph entry={d as DrugRefEntry} ctx={ctx} />
+            )}
           </div>
         )}
         {isOpen && !(tab === 'drug' && (d as DrugRefEntry).sourceKey) && (
