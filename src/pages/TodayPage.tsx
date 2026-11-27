@@ -19,6 +19,7 @@ import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
 import { toPersianDigits, toShamsi } from '../lib/shamsi'
 import { blockDir, isolateLatinRuns } from '../lib/bidiText'
+import { plainCardText } from '../lib/cardText'
 import { useAuth } from '../context/AuthContext'
 import { AcademyIcon, BookIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
@@ -71,8 +72,8 @@ function DueReviewCard({
     const el = (showBack ? backRef : frontRef).current
     setOverflowing(!!el && !expanded && el.scrollHeight > el.clientHeight + 1)
   }, [question, answer, showBack, expanded])
-  const qText = question ?? ''
-  const aText = answer || '—'
+  const qText = plainCardText(question ?? '')
+  const aText = plainCardText(answer || '—')
   return (
     <div className="np-card np-fade" style={{ animationDelay }}>
       <div className="np-head">

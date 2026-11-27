@@ -60,8 +60,10 @@ export interface BidiToken {
 // these notes it is a right-to-left "leads to" written between two terms
 // ("Pelvic fracture ← membranous urethra"), and inside an LTR isolate it
 // would point back at the wrong term. ("→" stays inside: there it reads
-// correctly left-to-right.)
-const NON_PERSIAN_SPAN_RE = /[^\u0600-\u065F\u066D-\u06EF\u06FA-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\n·•←⟵⇐]+/g
+// correctly left-to-right.) Persian guillemets « » also end a span: inside
+// an LTR isolate the opening « was drawn on the wrong side of the term
+// ("C3 — «starry sky»" came out as "««starry sky»").
+const NON_PERSIAN_SPAN_RE = /[^\u0600-\u065F\u066D-\u06EF\u06FA-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF\n·•←⟵⇐«»]+/g
 const CONTENT_RE = /[A-Za-z0-9۰-۹٠-٩α-ωΑ-Ωµ]/
 const GLUED_PREFIX_RE = /[<>≤≥±~≈−-]/
 const GLUED_SUFFIX_RE = /[+%٪°′″*]/
