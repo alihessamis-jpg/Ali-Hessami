@@ -2886,47 +2886,64 @@ legend {
 }
 
 .td-flipwrap {
-  perspective: 1000px;
+  min-width: 0;
 }
 
-/* Both faces share one grid cell, so the card is as tall as its longer face
-   (long questions grow the card instead of spilling over the buttons). */
+/*
+ * Review card (Today: flashcards, verses, topic cards, saved questions).
+ * No 3D flip: iOS Safari drops backface-visibility when a 3D card sits under
+ * an animated/opacity ancestor (the card's fade-in), so the answer showed
+ * through the question. Both faces share ONE grid cell — the card is as tall
+ * as the longer face, nothing is absolutely positioned or given a fixed
+ * height, so no text can spill over the buttons. The hidden face is
+ * visibility:hidden (not seen, not clickable, not read aloud) and the switch
+ * is a short fade.
+ */
 .td-flip {
-  position: relative;
   display: grid;
   width: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.td-flip.on {
-  transform: rotateY(180deg);
+  min-width: 0;
 }
 
 .td-face {
   grid-area: 1 / 1;
-  position: relative;
-  min-height: 168px;
   min-width: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  min-height: 168px;
   border-radius: 18px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   font-family: 'Vazirmatn', sans-serif;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.td-flip .td-back,
+.td-flip.on .td-front {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.td-flip.on .td-back {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-face {
+    transition: none;
+  }
 }
 
 .td-front {
   background: #f5f8fe;
   border: 1px solid #dce7f7;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .td-back {
   background: #0a2352;
   color: #fff;
-  transform: rotateY(180deg);
   justify-content: center;
   gap: 10px;
 }

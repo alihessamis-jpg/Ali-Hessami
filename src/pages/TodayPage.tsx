@@ -87,14 +87,13 @@ function DueReviewCard({
       {meta && <p className="td-meta">{meta}</p>}
       <div className="td-flipwrap">
         <div className={showBack ? 'td-flip on' : 'td-flip'}>
-          <div className="td-face td-front" dir="rtl">
+          <div className="td-face td-front" dir="rtl" aria-hidden={showBack}>
             <span className="np-small">سؤال</span>
             <p ref={frontRef} className={expanded ? 'td-q' : 'td-q clamped'} dir={blockDir(qText)}>
               {isolateLatinRuns(qText)}
             </p>
-            <span className="np-small">&nbsp;</span>
           </div>
-          <div className="td-face td-back" dir="rtl">
+          <div className="td-face td-back" dir="rtl" aria-hidden={!showBack}>
             <span className="np-small">پاسخ</span>
             <p ref={backRef} className={expanded ? 'td-q' : 'td-q clamped'} dir={blockDir(aText)}>
               {isolateLatinRuns(aText)}
