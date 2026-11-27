@@ -299,9 +299,116 @@ function leaks(text: string, tokens: string[]): string[] {
   return tokens.filter((t) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(t)}(?![\\p{L}\\p{N}])`, 'u').test(text))
 }
 
+// ---- row shapes returned by the SECURITY INVOKER SQL functions
+type Scalar = string | number | null | undefined
+
+/** patient_context(): de-identified case JSON (all keys optional, nulls stripped). */
+interface PatientContext {
+  age_years?: number
+  sex?: string
+  weight_kg?: number
+  height_cm?: number
+  diagnosis?: string
+  underlying_disease?: string
+  baseline_cr?: number
+  baseline_egfr?: number
+  dialysis_status?: string
+  dialysis_modality?: string
+  transplant_status?: string
+  days_since_admission?: number
+  history?: Record<string, Scalar>
+  vitals?: Record<string, Scalar>
+  exam?: Record<string, Scalar>
+  labs?: { days_ago?: number; test: string; value?: Scalar; unit?: string; comment?: string }[]
+  medications?: {
+    name: string
+    dose?: Scalar
+    dose_per_kg?: Scalar
+    route?: string
+    freq?: string
+    indication?: string
+    renal_adj?: string
+    active?: boolean
+  }[]
+  growth?: { days_ago?: number; height_cm?: number; weight_kg?: number; bp?: string }[]
+  progress_notes?: { S?: string; O?: string; A?: string; P?: string }[]
+}
+
+/** search_library() / get_section() rows. */
+interface LibraryRow {
+  chunk_id: string
+  book_title: string | null
+  chapter_id: string
+  chapter_number: number | null
+  chapter_title: string
+  part_number: number | null
+  section_idx: number
+  heading: string
+  anchor: string | null
+  page_from: number | null
+  page_to: number | null
+  content: string
+}
+interface CardRow {
+  card_id: string
+  chapter_id: string | null
+  chapter_title: string | null
+  front: string
+  back: string | null
+  section_number: string | null
+}
+interface QuestionRow {
+  question_id: string
+  chapter_id: string | null
+  chapter_title: string | null
+  topic: string | null
+  question: string
+  options: unknown
+  correct_index: number | null
+  explanation: string | null
+}
+interface OutlineRow {
+  part_number: number | null
+  section_idx: number
+  heading: string
+  chars: number
+}
+/** drug_reference row (Harriet Lane columns + the clinician's own legacy columns). */
+interface DrugRow {
+  id: string
+  medication: string
+  trade_names?: string | null
+  drug_class?: string | null
+  indication?: string | null
+  source?: string | null
+  source_key?: string | null
+  source_chapter?: string | null
+  source_pages?: string | null
+  pregnancy_category?: string | null
+  breastfeeding_category?: string | null
+  renal_caution?: boolean | null
+  hepatic_caution?: boolean | null
+  pharmacogenomic?: boolean | null
+  see_also?: string | null
+  monograph?: string | null
+  neonatal_dose?: string | null
+  interactions?: string | null
+  renal_notes?: string | null
+  adjusted_dose?: string | null
+  notes?: string | null
+  [column: string]: unknown
+}
+interface FormularyRow {
+  id: string
+  medication: string
+  source_pages: string | null
+  drug_class: string | null
+  excerpt: string | null
+  matched_all: boolean
+}
+
 // patient_context JSON -> readable case summary (same layout as the prototype)
-// deno-lint-ignore no-explicit-any
-function caseFromContext(c: any): string {
+function caseFromContext(c: PatientContext | null): string {
   if (!c) return ''
   const L: string[] = []
   const add = (k: string, v: unknown) => {
@@ -332,10 +439,10 @@ function caseFromContext(c: any): string {
   add('علائم حیاتی', [v.bp && `BP ${v.bp}`, v.hr && `HR ${v.hr}`, v.rr && `RR ${v.rr}`, v.temp && `T ${v.temp}`, v.spo2 && `SpO2 ${v.spo2}`].filter(Boolean).join('، '))
   add('معاینه', Object.entries(c.exam ?? {}).map(([k, x]) => `${k}: ${x}`).join(' | '))
   if (Array.isArray(c.growth) && c.growth.length)
-    add('رشد/BP اخیر', c.growth.slice(0, 3).map((g: any) => `${g.days_ago} روز پیش: ${g.weight_kg ?? '-'}kg، ${g.height_cm ?? '-'}cm، BP ${g.bp ?? '-'}`).join(' ؛ '))
-  const meds = (c.medications ?? []).filter((m: any) => m.active !== false)
+    add('رشد/BP اخیر', c.growth.slice(0, 3).map((g) => `${g.days_ago} روز پیش: ${g.weight_kg ?? '-'}kg، ${g.height_cm ?? '-'}cm، BP ${g.bp ?? '-'}`).join(' ؛ '))
+  const meds = (c.medications ?? []).filter((m) => m.active !== false)
   if (meds.length)
-    L.push('داروهای فعال:\n' + meds.map((m: any) => `- ${m.name} ${m.dose ?? ''}${m.dose_per_kg ? ` (${m.dose_per_kg}/kg)` : ''} ${m.route ?? ''} ${m.freq ?? ''}${m.indication ? ' — ' + m.indication : ''}${m.renal_adj ? ` [renal adj: ${m.renal_adj}]` : ''}`).join('\n'))
+    L.push('داروهای فعال:\n' + meds.map((m) => `- ${m.name} ${m.dose ?? ''}${m.dose_per_kg ? ` (${m.dose_per_kg}/kg)` : ''} ${m.route ?? ''} ${m.freq ?? ''}${m.indication ? ' — ' + m.indication : ''}${m.renal_adj ? ` [renal adj: ${m.renal_adj}]` : ''}`).join('\n'))
   if (Array.isArray(c.labs) && c.labs.length) {
     const by = new Map<number, string[]>()
     for (const l of c.labs) {
@@ -361,8 +468,9 @@ interface ToolCtx {
   step: (t: string) => void
 }
 
-// deno-lint-ignore no-explicit-any
-async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown> {
+// Tool arguments come straight from the model, so every field is checked before use.
+async function runTool(name: string, rawInput: unknown, ctx: ToolCtx): Promise<unknown> {
+  const input: Record<string, unknown> = rawInput && typeof rawInput === 'object' ? (rawInput as Record<string, unknown>) : {}
   const { db, reg, step } = ctx
   switch (name) {
     case 'search_library': {
@@ -374,7 +482,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       if (!data?.length) return { results: [], note: NOT_FOUND }
       return {
-        results: data.map((r: any) => {
+        results: data.map((r: LibraryRow) => {
           const heading = stripHeading(r.heading)
           const text = String(r.content).slice(0, 2500)
           const id = reg.add({
@@ -406,7 +514,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       if (!data?.length) return { results: [], note: NOT_FOUND }
       return {
-        results: data.map((r: any) => {
+        results: data.map((r: CardRow) => {
           const text = `Q: ${r.front}\nA: ${r.back ?? ''}`.slice(0, 900)
           const label = `کارت · ${r.chapter_title ?? ''}`
           const id = reg.add({
@@ -430,7 +538,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       if (!data?.length) return { results: [], note: NOT_FOUND }
       return {
-        results: data.map((r: any) => {
+        results: data.map((r: QuestionRow) => {
           const opts = Array.isArray(r.options) ? r.options : []
           const text = `${r.question}\n${opts.map((o: string, i: number) => `${i === r.correct_index ? '✓' : '·'} ${o}`).join('\n')}\n${r.explanation ?? ''}`.slice(0, 1200)
           const label = `بانک سؤال · ${r.chapter_title ?? r.topic ?? ''}`
@@ -455,7 +563,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       return {
         chapter_id: chapterId,
-        sections: (data ?? []).map((r: any) => ({ part_number: r.part_number, index: r.section_idx, heading: stripHeading(r.heading), chars: r.chars })),
+        sections: (data ?? []).map((r: OutlineRow) => ({ part_number: r.part_number, index: r.section_idx, heading: stripHeading(r.heading), chars: r.chars })),
       }
     }
     case 'read_section': {
@@ -492,7 +600,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       if (!data?.length) return { results: [], note: `${NOT_FOUND} (drug table) — try search_formulary or search_library` }
       return {
-        results: data.map((r: any) => {
+        results: data.map((r: DrugRow) => {
           const text = drugText(r, section)
           const label = r.source_key
             ? `Harriet Lane Handbook 23e · ${r.medication} · ${r.source_chapter ?? 'Ch. 30'} · ${r.source_pages ?? ''}`
@@ -511,7 +619,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
       if (error) throw error
       if (!data?.length) return { results: [], note: `${NOT_FOUND} (formulary)` }
       return {
-        results: data.map((r: any) => {
+        results: data.map((r: FormularyRow) => {
           const text = String(r.excerpt ?? '').replace(/\{p\.(\d+)\}/g, '[p.$1]')
           const label = `Harriet Lane Handbook 23e · ${r.medication} · ${r.source_pages ?? ''}`
           const id = reg.add({ key: `form|${r.id}|${terms.join(' ')}`, kind: 'drug', label, heading: r.drug_class ?? '', chapterId: null, anchor: null, text })
@@ -526,7 +634,7 @@ async function runTool(name: string, input: any, ctx: ToolCtx): Promise<unknown>
 
 // A drug_reference row as citable text. Page markers {p.N} become [p.N] so the
 // model can quote the exact page; Chapter 31 rows are flattened to lines.
-function drugText(r: any, section: string): string {
+function drugText(r: DrugRow, section: string): string {
   const out: string[] = []
   const head = [r.medication, r.trade_names && `(${r.trade_names})`, r.drug_class && `— ${r.drug_class}`].filter(Boolean).join(' ')
   out.push(head)
@@ -629,8 +737,31 @@ async function loopAnthropic(messages: Anthropic.Beta.BetaMessageParam[], io: Lo
   return { text: '', stop: 'truncated', usage }
 }
 
-// deno-lint-ignore no-explicit-any
-type GeminiPart = Record<string, any>
+/** One Gemini content part; kept verbatim (thought signatures must go back unchanged). */
+interface GeminiPart {
+  text?: string
+  thought?: boolean
+  thoughtSignature?: string
+  functionCall?: { id?: string; name: string; args?: unknown }
+  functionResponse?: unknown
+  inlineData?: { mimeType: string; data: string }
+  [key: string]: unknown
+}
+interface GeminiModelInfo {
+  name: string
+  supportedGenerationMethods?: string[]
+}
+/** An ai_messages row as read back for the conversation history. */
+interface StoredMessage {
+  role: 'user' | 'assistant'
+  content: string
+  meta?: { sent?: string } | null
+}
+/** generateContent / streamGenerateContent response (the fields read here). */
+interface GeminiResponse {
+  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[]
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number }
+}
 interface GeminiContent {
   role: 'user' | 'model'
   parts: GeminiPart[]
@@ -651,7 +782,7 @@ async function geminiRound(model: string, contents: GeminiContent[], send: LoopI
   if (!res.ok || !res.body) throw new ProviderError(res.status, await res.text().catch(() => ''))
 
   const parts: GeminiPart[] = []
-  const calls: { id?: string; name: string; args: unknown }[] = []
+  const calls: { id?: string; name: string; args?: unknown }[] = []
   let text = ''
   let finish = ''
   let promptTokens = 0
@@ -663,8 +794,7 @@ async function geminiRound(model: string, contents: GeminiContent[], send: LoopI
     if (!line.startsWith('data:')) return
     const raw = line.slice(5).trim()
     if (!raw) return
-    // deno-lint-ignore no-explicit-any
-    let j: any
+    let j: GeminiResponse
     try {
       j = JSON.parse(raw)
     } catch {
@@ -723,10 +853,8 @@ async function geminiModelList(): Promise<string[]> {
         const j = await res.json()
         const ver = (n: string) => Number(n.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0)
         const names: string[] = (j.models ?? [])
-          // deno-lint-ignore no-explicit-any
-          .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
-          // deno-lint-ignore no-explicit-any
-          .map((m: any) => String(m.name).replace(/^models\//, ''))
+          .filter((m: GeminiModelInfo) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+          .map((m: GeminiModelInfo) => String(m.name).replace(/^models\//, ''))
           .filter((n: string) => /^gemini-[\d.]+-flash/.test(n) && !/(image|tts|audio|live|thinking-exp|embedding)/.test(n))
           .filter((n: string) => n !== GEMINI_MODEL)
           .sort((a: string, b: string) => Number(a.includes('lite')) - Number(b.includes('lite')) || ver(b) - ver(a))
@@ -909,8 +1037,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
   if (conv.chapter_id) {
     const { data: ch } = await db.from('library_chapters').select('chapter_number, title, library_books(title)').eq('id', conv.chapter_id).maybeSingle()
     if (ch) {
-      // deno-lint-ignore no-explicit-any
-      const book = (ch as any).library_books?.title ?? ''
+      const book = (ch as { library_books?: { title?: string | null } | null }).library_books?.title ?? ''
       chapterLine = `ATTACHED CHAPTER: ${book} · Ch ${ch.chapter_number} — ${ch.title}. Use chapter_outline / read_section for it (no chapter_id needed), plus search_library for wider context.`
     }
   }
@@ -935,7 +1062,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
 
   const history: Anthropic.Beta.BetaMessageParam[] = (prior ?? [])
     .slice(-HISTORY_MESSAGES)
-    .map((m: any) => ({ role: m.role, content: m.role === 'user' ? (m.meta?.sent ?? m.content) : m.content }))
+    .map((m: StoredMessage) => ({ role: m.role, content: m.role === 'user' ? (m.meta?.sent ?? m.content) : m.content }))
   // a stored history must start with a user turn
   while (history.length && history[0].role !== 'user') history.shift()
 
@@ -1040,14 +1167,12 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
 
 // ------------------------------------------------------------------ flashcards
 // Claude structured outputs need additionalProperties:false on every object.
-// deno-lint-ignore no-explicit-any
-function addNoExtra(schema: any): any {
+function addNoExtra(schema: unknown): unknown {
   if (Array.isArray(schema)) return schema.map(addNoExtra)
   if (schema && typeof schema === 'object') {
-    // deno-lint-ignore no-explicit-any
-    const out: any = {}
+    const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(schema)) out[k] = addNoExtra(v)
-    if (schema.type === 'object') out.additionalProperties = false
+    if ((schema as { type?: unknown }).type === 'object') out.additionalProperties = false
     return out
   }
   return schema
@@ -1171,7 +1296,7 @@ async function handleFlashcards(body: FlashcardBody, db: SupabaseClient, userId:
       max_tokens: 8000,
       output_config: {
         effort: 'low',
-        format: { type: 'json_schema', schema: addNoExtra(schema) },
+        format: { type: 'json_schema', schema: addNoExtra(schema) as Record<string, unknown> },
       },
       messages: [{ role: 'user', content: prompt }],
     })
