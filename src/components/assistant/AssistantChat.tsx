@@ -423,6 +423,7 @@ export function AssistantChat({
           </button>
         )}
         <textarea
+          data-no-dictation
           ref={inputRef}
           rows={1}
           dir="auto"

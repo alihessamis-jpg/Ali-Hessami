@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { OfflineIndicator } from './OfflineIndicator'
 import { StorageUsageIndicator } from './StorageUsageIndicator'
 import { MobileTabBar } from './MobileTabBar'
+import { GlobalDictation } from './GlobalDictation'
 import { Sidebar } from './Sidebar'
 import { NAV_LINKS } from '../lib/navLinks'
 import { GlobalSearchButton, GlobalSearchProvider } from './search/GlobalSearch'
@@ -66,6 +67,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
+      <GlobalDictation />
       {location.pathname !== '/academy/review' && !location.pathname.endsWith('/history') && <MobileTabBar currentPath={location.pathname} />}
     </div>
     </AssistantProvider>

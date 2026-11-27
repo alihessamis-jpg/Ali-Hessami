@@ -11369,3 +11369,27 @@ div.hx-acc-head { cursor: default; }
 @media (max-width: 768px) and (prefers-reduced-motion: reduce) {
   .mobile-tab-bar, .mobile-tab-bar-item { transition: none; }
 }
+
+/* App-wide dictation mic (GlobalDictation) and the history fields' mic states */
+.gd { position: fixed; z-index: 80; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.gd > * { pointer-events: auto; }
+.gd-mic {
+  width: 40px; height: 40px; border-radius: 14px; border: 1px solid #d7e0ec; background: #fff; color: #1d64e0;
+  display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 18px rgba(15, 27, 45, 0.16);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; padding: 0;
+}
+.gd-mic.recording { background: #d23b3b; border-color: #d23b3b; color: #fff; animation: pulse-glow 1.4s ease-in-out infinite; }
+.gd-mic.transcribing { color: #6b7890; }
+.gd-sec { font-size: 13px; font-weight: 800; font-family: 'Vazirmatn', sans-serif; }
+.gd-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: gd-rot 0.8s linear infinite; }
+@keyframes gd-rot { to { transform: rotate(360deg); } }
+.gd-note {
+  max-width: min(320px, 80vw); background: #2a1418; color: #fff; font-size: 12.5px; line-height: 1.8; border-radius: 12px;
+  padding: 8px 12px; font-family: 'Vazirmatn', sans-serif; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+.hx-area-tools button.busy { color: #6b7890; }
+.hx-area-tools button.rec .gd-sec { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .gd-mic.recording { animation: none; }
+  .gd-spin { animation-duration: 2s; }
+}
