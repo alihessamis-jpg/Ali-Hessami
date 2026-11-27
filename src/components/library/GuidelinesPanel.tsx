@@ -11,6 +11,7 @@ import {
 } from '../../lib/api/guidelines'
 import { useAssistant } from '../assistant/AssistantProvider'
 import { UploadIcon } from '../icons'
+import { GuidelineSearch } from './GuidelineSearch'
 import type { GuidelineHighlight } from '../../types/domain'
 
 const TONE: Record<string, { color: string; background: string }> = {
@@ -138,6 +139,8 @@ export function GuidelinesPanel({ search }: { search: string }) {
         <input ref={pkgInput} type="file" accept=".json,application/json" hidden onChange={(e) => void handlePackage(e)} />
         <input ref={pdfInput} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => void handlePdf(e)} />
       </div>
+
+      {items.length > 0 && <GuidelineSearch />}
 
       {progress && (
         <div className="np-card gl-progress" role="status">

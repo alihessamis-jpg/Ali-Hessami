@@ -15,6 +15,7 @@ import { supabase } from '../supabaseClient'
 import { getAuthUser } from './authUser'
 import { bookToDomain, chapterToDomain, type BookRow, type ChapterRow } from './library'
 import { getGuidelinePdfSignedUrl, uploadGuidelinePdfFile } from '../storage'
+import { FN_URL, authHeaders } from './assistant'
 import type { GuidelineHighlight, LibraryBook, LibraryChapter } from '../../types/domain'
 
 export interface GuidelinePackageChapter {
@@ -230,4 +231,107 @@ export async function attachGuidelinePdf(bookId: string, file: File): Promise<st
 
 export async function guidelinePdfUrl(path: string): Promise<string> {
   return getGuidelinePdfSignedUrl(path)
+}
+
+// --- Source-cited search across all guidelines (English text + Persian translations)
+
+export interface GuidelineSearchHit {
+  chunkId: string
+  lang: 'en' | 'fa'
+  bookId: string
+  bookTitle: string
+  organization: string | null
+  chapterId: string
+  chapterTitle: string
+  heading: string
+  anchor: string | null
+  pageFrom: number | null
+  pageTo: number | null
+  /** pgroonga snippet: HTML with <span class="keyword"> around matches. */
+  snippet: string
+}
+
+export async function searchGuidelines(q: string, k = 25): Promise<GuidelineSearchHit[]> {
+  const { data, error } = await supabase.rpc('search_guidelines', { q, k })
+  if (error) throw error
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    chunkId: String(r.chunk_id),
+    lang: r.lang === 'fa' ? 'fa' : 'en',
+    bookId: String(r.book_id),
+    bookTitle: String(r.book_title ?? ''),
+    organization: (r.organization as string | null) ?? null,
+    chapterId: String(r.chapter_id),
+    chapterTitle: String(r.chapter_title ?? ''),
+    heading: String(r.heading ?? ''),
+    anchor: (r.anchor as string | null) ?? null,
+    pageFrom: (r.page_from as number | null) ?? null,
+    pageTo: (r.page_to as number | null) ?? null,
+    snippet: String(r.snippet ?? ''),
+  }))
+}
+
+// --- Persian translation of a chapter, passage by passage (library_chunks)
+
+export interface ChapterPassage {
+  partNumber: number
+  sectionIdx: number
+  subIdx: number
+  heading: string
+  anchor: string | null
+  pageFrom: number | null
+  pageTo: number | null
+  content: string
+  translation: string | null
+}
+
+export async function listChapterPassages(chapterId: string): Promise<ChapterPassage[]> {
+  const [{ data: chunks, error }, { data: tr, error: trError }] = await Promise.all([
+    supabase
+      .from('library_chunks')
+      .select('part_number, section_idx, sub_idx, heading, anchor, page_from, page_to, content')
+      .eq('chapter_id', chapterId)
+      .is('part_number', null)
+      .order('section_idx')
+      .order('sub_idx'),
+    supabase.from('library_chunk_translations').select('part_number, section_idx, sub_idx, content').eq('chapter_id', chapterId),
+  ])
+  if (error) throw error
+  if (trError) throw trError
+  const byKey = new Map(
+    ((tr ?? []) as Array<{ part_number: number; section_idx: number; sub_idx: number; content: string }>).map((t) => [
+      `${t.part_number}:${t.section_idx}:${t.sub_idx}`,
+      t.content,
+    ])
+  )
+  return ((chunks ?? []) as unknown as Array<{
+    part_number: number | null
+    section_idx: number
+    sub_idx: number
+    heading: string
+    anchor: string | null
+    page_from: number | null
+    page_to: number | null
+    content: string
+  }>).map((c) => ({
+    partNumber: c.part_number ?? 0,
+    sectionIdx: c.section_idx,
+    subIdx: c.sub_idx,
+    heading: c.heading,
+    anchor: c.anchor,
+    pageFrom: c.page_from,
+    pageTo: c.page_to,
+    content: c.content,
+    translation: byKey.get(`${c.part_number ?? 0}:${c.section_idx}:${c.sub_idx}`) ?? null,
+  }))
+}
+
+export async function translatePassage(chapterId: string, p: Pick<ChapterPassage, 'partNumber' | 'sectionIdx' | 'subIdx'>): Promise<string> {
+  const res = await fetch(FN_URL, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ action: 'translate', chapterId, partNumber: p.partNumber || null, sectionIdx: p.sectionIdx, subIdx: p.subIdx }),
+  })
+  const j = (await res.json().catch(() => ({}))) as { content?: string; error?: string }
+  if (!res.ok || !j.content) throw new Error(j.error ?? `خطا (${res.status})`)
+  return j.content
 }

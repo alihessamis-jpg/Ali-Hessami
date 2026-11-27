@@ -58,9 +58,9 @@ export interface AskParams {
   debug?: boolean
 }
 
-const FN_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/assistant`
+export const FN_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/assistant`
 
-async function authHeaders(): Promise<Record<string, string>> {
+export async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('وارد حساب نشده‌اید')
