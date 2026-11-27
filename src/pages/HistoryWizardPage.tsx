@@ -61,6 +61,11 @@ const CARE: Array<{ id: Exclude<PatientCareStatus, 'expired'>; label: string }> 
   { id: 'discharged', label: 'ترخیص' },
 ]
 
+const YES_NO: Array<{ id: 'yes' | 'no'; label: string }> = [
+  { id: 'yes', label: 'بله' },
+  { id: 'no', label: 'خیر' },
+]
+
 function today() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -138,10 +143,11 @@ export function HistoryWizardPage() {
     setHx(nextHx)
     try {
       let saved: Patient
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _id, pedsHistory: _ph, ...fields } = form
+      const fields: Partial<Patient> = { ...form }
+      delete fields.id
+      delete fields.pedsHistory
       if (isNew && !original) {
-        saved = await createPatient({ ...fields, name: form.name.trim() || 'بیمار بدون نام', careStatus: form.careStatus })
+        saved = await createPatient({ ...(fields as Omit<Patient, 'id'>), name: form.name.trim() || 'بیمار بدون نام', careStatus: form.careStatus })
       } else {
         saved = await updatePatient(original?.id ?? form.id, { ...fields, name: form.name.trim() || original?.name || 'بیمار بدون نام' })
       }
@@ -489,7 +495,7 @@ export function HistoryWizardPage() {
                 </div>
               )
             })}
-            <HxSegmented label="پسرفت تکاملی (از دست دادن مهارت قبلی)" options={[{ id: 'yes', label: 'بله' }, { id: 'no', label: 'خیر' }]} value={hx.regression} onChange={(v) => setH('regression', v)} />
+            <HxSegmented label="پسرفت تکاملی (از دست دادن مهارت قبلی)" options={YES_NO} value={hx.regression} onChange={(v) => setH('regression', v)} />
             <HxInput label="عملکرد تحصیلی" value={hx.school} onChange={(v) => setH('school', v)} placeholder="پایه، معدل، مشکلات یادگیری یا تمرکز" />
             <HxArea label="توضیحات تکامل" value={hx.devNotes} onChange={(v) => setH('devNotes', v)} placeholder="نگرانی والدین، ارزیابی‌های قبلی (ASQ، گفتاردرمانی…)" />
             <p className="hx-hint">ⓘ سن کنار هر مورد، سن معمول کسب مهارت است (CDC / AAP). برچسب «تأخیر» فقط وقتی ظاهر می‌شود که «ندارد» زده شده و کودک از سن هشدار گذشته باشد.</p>
@@ -517,7 +523,7 @@ export function HistoryWizardPage() {
                 </div>
               </div>
               <TriChips options={VACCINES} value={hx.vaccines} onToggle={tri('vaccines')} faded={(o) => !due(VACCINES.find((v) => v.id === o.id)?.month ?? 0)} />
-              <HxSegmented label="کارت واکسن رؤیت شد" options={[{ id: 'yes', label: 'بله' }, { id: 'no', label: 'خیر' }]} value={hx.vaccineCardSeen} onChange={(v) => setH('vaccineCardSeen', v)} />
+              <HxSegmented label="کارت واکسن رؤیت شد" options={YES_NO} value={hx.vaccineCardSeen} onChange={(v) => setH('vaccineCardSeen', v)} />
               <HxArea label="واکسن‌های خارج از برنامه و عوارض" value={hx.vaccineNotes} onChange={(v) => setH('vaccineNotes', v)} placeholder="آنفولانزا، روتاویروس، پنوموکوک، واکنش پس از واکسن… (در نفروتیک / پیوند: وضعیت واکسن‌های زنده)" />
             </HxCard>
             <HxCard icon={HxIcon.tube} title="غربالگری نوزادی" sub="Newborn Screening">
@@ -635,7 +641,7 @@ export function HistoryWizardPage() {
               onClick={() => {
                 setForm((f) => {
                   const n = { ...f }
-                  for (const x of EXAM_FIELDS) if (!String(n[x.key] ?? '').trim()) (n as Record<string, unknown>)[x.key] = x.normal
+                  for (const x of EXAM_FIELDS) if (!String(n[x.key] ?? '').trim()) (n as unknown as Record<string, unknown>)[x.key] = x.normal
                   return n
                 })
                 setDirty(true)
