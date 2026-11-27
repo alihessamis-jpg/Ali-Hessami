@@ -148,3 +148,10 @@ export async function saveAcademyProgress(userId: string, topicId: string, state
   })
   if (error) throw error
 }
+
+/** Per-topic question stats (view topic_question_stats, security_invoker). */
+export async function listTopicQuestionStats(): Promise<{ category: string | null; attempts: number; correct_attempts: number }[]> {
+  const { data, error } = await supabase.from('topic_question_stats').select('category, attempts, correct_attempts')
+  if (error) throw error
+  return (data ?? []) as { category: string | null; attempts: number; correct_attempts: number }[]
+}

@@ -2887,13 +2887,14 @@ legend {
 
 .td-flipwrap {
   perspective: 1000px;
-  min-height: 168px;
 }
 
+/* Both faces share one grid cell, so the card is as tall as its longer face
+   (long questions grow the card instead of spilling over the buttons). */
 .td-flip {
   position: relative;
+  display: grid;
   width: 100%;
-  min-height: 168px;
   transform-style: preserve-3d;
   transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -2903,8 +2904,10 @@ legend {
 }
 
 .td-face {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
+  position: relative;
+  min-height: 168px;
+  min-width: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   border-radius: 18px;
@@ -2937,7 +2940,36 @@ legend {
   font-size: 17px;
   line-height: 1.7;
   font-weight: 500;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-align: start;
 }
+
+.td-q.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.td-more {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  min-height: 36px;
+  font: 700 14px 'Vazirmatn', sans-serif;
+  color: #1e5bd8;
+  cursor: pointer;
+}
+
+.td-topic-counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.td-count { padding: 6px 12px; border-radius: 12px; font-size: 14px; }
+.td-count b { font-size: 16px; }
+.td-count.review { background: #fdf0dc; color: #93590b; }
+.td-count.new { background: #e3edfd; color: #1e5bd8; }
+.th-recall-focus { padding: 10px; border-radius: 14px; background: #fffbea; border: 1px solid #f3e2a6; }
 
 .td-back .td-q {
   font-size: 18px;
