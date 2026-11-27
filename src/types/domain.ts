@@ -61,6 +61,9 @@ export interface Patient {
   exNeuro?: string | null
   exEdema?: string | null
   exHydration?: string | null
+
+  /** Structured pediatric history from the step-by-step wizard (patients.peds_history jsonb). */
+  pedsHistory?: import('../lib/pedsHistory').PedsHistory | null
 }
 
 export type PatientDraft = Omit<Patient, 'id' | 'careStatus'> & { careStatus?: PatientCareStatus }

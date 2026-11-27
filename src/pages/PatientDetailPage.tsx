@@ -115,7 +115,10 @@ export function PatientDetailPage() {
   const [labEntries, setLabEntries] = useState<LabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams.get('tab') as Tab | null
+    return t && TABS.some((x) => x.id === t) ? t : 'overview'
+  })
   const [lusEnrolled, setLusEnrolled] = useState(false)
   const [wantsLusStudy, setWantsLusStudy] = useState(false)
   const [idShown, setIdShown] = useState(false)

@@ -66,7 +66,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
-      {location.pathname !== '/academy/review' && <MobileTabBar currentPath={location.pathname} />}
+      {location.pathname !== '/academy/review' && !location.pathname.endsWith('/history') && <MobileTabBar currentPath={location.pathname} />}
     </div>
     </AssistantProvider>
     </GlobalSearchProvider>

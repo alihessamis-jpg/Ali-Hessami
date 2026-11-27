@@ -1,4 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { resolvePedsHistory } from '../../lib/api/patients'
+import { STEPS, buildHistorySummary } from '../../lib/pedsHistory'
 import { updatePatient } from '../../lib/api/patients'
 import { upsertGrowthMeasurement } from '../../lib/api/growth'
 import { bmiCalc, bsaMosteller, schwartzEGFR } from '../../lib/formulas'
@@ -147,7 +150,42 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
   const bsa = form.height && form.weight ? bsaMosteller(form.height, form.weight).toFixed(2) : null
   const bmi = form.height && form.weight ? bmiCalc(form.height, form.weight).toFixed(1) : null
 
+  const hx = resolvePedsHistory(patient)
+  const doneSteps = new Set(hx.completedSteps ?? [])
+  const nextStep = STEPS.findIndex((s) => !doneSteps.has(s.id)) + 1 || 1
+  const summary = buildHistorySummary(patient, hx)
+
   return (
+    <>
+    <section className="hx-launch" dir="rtl">
+      <div className="hx-launch-head">
+        <div>
+          <b>شرح حال اطفال</b>
+          <span>
+            {doneSteps.size} از {STEPS.length} مرحله تکمیل شده
+          </span>
+        </div>
+        <Link to={`/patients/${patient.id}/history?step=${nextStep}`} className="hx-launch-btn">
+          {doneSteps.size === 0 ? 'شروع شرح حال' : doneSteps.size === STEPS.length ? 'ویرایش شرح حال' : 'ادامه شرح حال'}
+        </Link>
+      </div>
+      <div className="hx-launch-steps">
+        {STEPS.map((s, i) => (
+          <Link key={s.id} to={`/patients/${patient.id}/history?step=${i + 1}`} className={doneSteps.has(s.id) ? 'done' : ''} title={s.label}>
+            {doneSteps.has(s.id) ? '✓ ' : ''}
+            {s.label}
+          </Link>
+        ))}
+      </div>
+      {doneSteps.size > 0 && (
+        <details className="hx-launch-sum">
+          <summary>نمایش خلاصه</summary>
+          <pre dir="auto">{summary}</pre>
+        </details>
+      )}
+    </section>
+    <details className="hx-raw">
+      <summary>Quick edit — all fields on one page</summary>
     <form className="assessment-form" onSubmit={(e) => void handleSave(e)}>
       <div className="calc-strip">
         <div>
@@ -220,5 +258,7 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
         {savedAt && <span className="saved-hint">Saved</span>}
       </div>
     </form>
+    </details>
+    </>
   )
 }
