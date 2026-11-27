@@ -11270,3 +11270,25 @@ div.hx-acc-head { cursor: default; }
 .hx-banner b { font-size: 16px; }
 .hx-banner small { font-size: 13px; color: var(--hx-mute); line-height: 1.7; }
 .hx-banner .chev { font-size: 28px; color: var(--hx-yes); }
+
+/* history wizard: paraclinic labs/files, diagnosis step */
+.hx-labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.hx-lab { background: var(--hx-field); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif; }
+.hx-lab b { font-size: 13px; color: var(--hx-mute); font-weight: 600; }
+.hx-lab span { font-size: 18px; font-weight: 800; }
+.hx-lab small { font-size: 12px; color: var(--hx-mute); font-weight: 500; }
+.hx-lab em { font-style: normal; font-size: 11.5px; color: var(--hx-mute); }
+.hx-drop {
+  border: 1.5px dashed #cfd7e3; border-radius: 22px; padding: 26px 16px; display: flex; flex-direction: column; align-items: center;
+  gap: 8px; text-align: center; cursor: pointer; color: var(--hx-ink);
+}
+.hx-drop svg { color: var(--hx-yes); }
+.hx-drop small { color: var(--hx-mute); }
+.hx-files { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.hx-files li { background: var(--hx-field); border-radius: 12px; padding: 8px 12px; display: flex; justify-content: space-between; gap: 8px; }
+.hx-files li span { color: var(--hx-mute); font-size: 12px; }
+.hx-quote { background: var(--hx-field); border-radius: 18px; padding: 12px 16px; }
+.hx-quote small { color: var(--hx-mute); font-size: 12.5px; }
+.hx-quote p { margin: 6px 0 0; white-space: pre-wrap; line-height: 1.9; max-height: 180px; overflow: auto; }
+.hx-more summary { cursor: pointer; color: var(--hx-mute); font-size: 14px; margin-bottom: 10px; }
+.hx-banner:disabled { opacity: 0.5; cursor: default; }

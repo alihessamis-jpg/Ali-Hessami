@@ -41,6 +41,8 @@ import {
 } from '../lib/pedsHistory'
 import { EXAM_GENERAL, visibleExamSystems, vitalRanges, type ExamSystem } from '../lib/pedsExam'
 import { assessBloodPressure, headCircumferenceForAgePercentile, heightForAgePercentile, normalizeSex, weightForAgePercentile } from '../lib/growth'
+import { askAssistant } from '../lib/api/assistant'
+import { FilesPanel, LabsPanel } from '../components/history/ParaclinicPanels'
 import { HxArea, HxCard, HxIcon, HxInput, HxLabel, HxSegmented, TriChips, TriLegend } from '../components/history/HistoryFields'
 import type { Patient, PatientCareStatus, PatientScalarKey } from '../types/domain'
 
@@ -81,6 +83,8 @@ export function HistoryWizardPage() {
   const [copied, setCopied] = useState(false)
   const [openRos, setOpenRos] = useState<string | null>('gen')
   const [openExam, setOpenExam] = useState<string | null>(null)
+  const [aiBusy, setAiBusy] = useState<'ddx' | 'hpi' | null>(null)
+  const [aiErr, setAiErr] = useState<string | null>(null)
   const [teachOpen, setTeachOpen] = useState<string | null>(null)
 
   const step = Math.min(Math.max(Number(params.get('step') ?? 1) || 1, 1), STEPS.length)
@@ -127,11 +131,12 @@ export function HistoryWizardPage() {
     setParams(next, { replace: true })
   }
 
-  async function persist(markDone?: string): Promise<string | null> {
+  async function persist(markDone?: string, extra?: Partial<PedsHistory>): Promise<string | null> {
     setSaving(true)
     setStatus(null)
     const nextHx: PedsHistory = {
       ...hx,
+      ...extra,
       completedSteps: markDone ? Array.from(new Set([...(hx.completedSteps ?? []), markDone])) : hx.completedSteps,
     }
     setHx(nextHx)
@@ -174,7 +179,8 @@ export function HistoryWizardPage() {
   }
 
   async function next() {
-    const ok = await persist(STEPS[step - 1].id)
+    if (step === STEPS.length && (hx.status ?? 'draft') === 'draft') setHx((h) => ({ ...h, status: 'complete' }))
+    const ok = await persist(STEPS[step - 1].id, step === STEPS.length && (hx.status ?? 'draft') === 'draft' ? { status: 'complete' } : undefined)
     if (!ok) return
     if (step < STEPS.length) goto(step + 1)
     else navigate(`/patients/${ok}`)
@@ -223,6 +229,42 @@ export function HistoryWizardPage() {
     const tone = a.category === 'normal' ? 'ok' : a.category === 'indeterminate' ? undefined : 'bad'
     return { label: a.label, note: a.note, tone } as { label: string; note?: string; tone?: 'ok' | 'bad' }
   })()
+
+  async function aiFill(kind: 'ddx' | 'hpi') {
+    if (!original) return
+    setAiBusy(kind)
+    setAiErr(null)
+    const prompt =
+      kind === 'ddx'
+        ? 'بر اساس شرح حال زیر، تشخیص‌های افتراقی را به ترتیب اولویت فهرست کن؛ برای هر مورد یک خط دلیل (یافته‌های موافق/مخالف) و در پایان مهم‌ترین workup بعدی. فقط فهرست، بدون مقدمه. اصطلاحات پزشکی انگلیسی بمانند.'
+        : 'شرح بیماری فعلی (HPI) زیر را به یک متن حرفه‌ای، منظم و زمانی (کرونولوژیک) بازنویسی کن، بدون اضافه کردن هیچ اطلاعات جدید. فقط متن نهایی HPI، بدون مقدمه. اصطلاحات پزشکی انگلیسی بمانند.\n\nHPI:\n' + (form.hpi ?? '')
+    let text = ''
+    const key = kind === 'ddx' ? 'ddx' : 'hpiFinal'
+    try {
+      await askAssistant(
+        { mode: 'patient', patientId: original.id, message: prompt, caseText: summary },
+        {
+          onDelta: (t) => {
+            text += t
+            setHx((h) => ({ ...h, [key]: text }))
+          },
+          onReset: () => {
+            text = ''
+          },
+          onFinal: (t) => {
+            text = t
+            setHx((h) => ({ ...h, [key]: t }))
+          },
+          onError: (m) => setAiErr(m),
+        }
+      )
+      setDirty(true)
+    } catch (e) {
+      setAiErr(e instanceof Error ? e.message : 'خطا')
+    } finally {
+      setAiBusy(null)
+    }
+  }
 
   function examText(sys: ExamSystem): string {
     return sys.col ? String(form[sys.col] ?? '') : hx.exam?.[sys.id] ?? ''
@@ -874,18 +916,9 @@ export function HistoryWizardPage() {
             <HxCard icon={HxIcon.note} title="فهرست مشکلات" sub="Problem List">
               <HxArea value={hx.problemList} onChange={(v) => setH('problemList', v)} placeholder={'۱. …\n۲. …'} rows={4} />
             </HxCard>
-            <HxCard icon={HxIcon.tube} title="نتایج آزمایش" sub="Laboratory Results">
-              {original && (
-                <button type="button" className="hx-banner" onClick={() => navigate(`/patients/${original.id}?tab=labs`)}>
-                  <span className="hx-tile">{HxIcon.tube}</span>
-                  <span>
-                    <b>ثبت آزمایش در پرونده</b>
-                    <small>نتایج در تب Labs ثبت شوند تا روند Cr/eGFR و هشدارها خودکار محاسبه شود</small>
-                  </span>
-                  <span className="chev">‹</span>
-                </button>
-              )}
-              <HxArea label="خلاصه آزمایش‌ها" value={hx.labNotes} onChange={(v) => setH('labNotes', v)} placeholder="CBC، BUN/Cr، الکترولیت‌ها، VBG، U/A، UPCR، کشت ادرار، C3/C4…" rows={4} />
+            <LabsPanel patientId={original?.id ?? null} onOpenLabs={() => original && navigate(`/patients/${original.id}?tab=labs`)} />
+            <HxCard icon={HxIcon.note} title="یادداشت آزمایش‌ها" sub="تفسیر یا مواردی که در Labs ثبت نمی‌شوند">
+              <HxArea value={hx.labNotes} onChange={(v) => setH('labNotes', v)} placeholder="U/A، کشت ادرار، VBG، تفسیر کلی…" rows={3} />
             </HxCard>
             <HxCard icon={HxIcon.kidney} title="تصویربرداری" sub="Imaging">
               <HxArea value={hx.imagingNotes} onChange={(v) => setH('imagingNotes', v)} placeholder="سونوگرافی کلیه و مجاری (اندازه، اکوژنیسیته، هیدرونفروز SFU/APD)، VCUG، DMSA، MAG3…" rows={3} />
@@ -893,21 +926,65 @@ export function HistoryWizardPage() {
             <HxCard icon={HxIcon.check} title="سایر بررسی‌ها" sub="Other">
               <HxArea value={hx.otherTests} onChange={(v) => setH('otherTests', v)} placeholder="بیوپسی کلیه، ژنتیک، اکو، فوندوسکوپی، شنوایی‌سنجی…" rows={3} />
             </HxCard>
+            <FilesPanel patientId={original?.id ?? null} />
           </>
         )}
 
         {step === 13 && (
           <>
-            <HxCard icon={HxIcon.check} title="تشخیص و وضعیت" sub="Impression">
+            <HxCard icon={HxIcon.kidney} title="تشخیص‌های افتراقی" sub="Differential Diagnosis">
+              <button type="button" className="hx-pill" disabled={!!aiBusy || !original} onClick={() => void aiFill('ddx')}>
+                ✎ {aiBusy === 'ddx' ? 'در حال تولید…' : 'تولید هوشمند'}
+              </button>
+              <HxArea value={hx.ddx} onChange={(v) => setH('ddx', v)} placeholder="تشخیص‌های احتمالی به ترتیب اولویت…" rows={6} />
+            </HxCard>
+
+            <HxCard icon={HxIcon.note} title="بازنگری شرح بیماری فعلی" sub="نسخه نهایی و حرفه‌ای HPI">
+              <button type="button" className="hx-pill" disabled={!!aiBusy || !original || !form.hpi?.trim()} onClick={() => void aiFill('hpi')}>
+                ✎ {aiBusy === 'hpi' ? 'در حال بازنویسی…' : 'بازنویسی هوشمند'}
+              </button>
+              <div className="hx-quote">
+                <small>متن فعلی شرح بیماری</small>
+                <p dir="auto">{form.hpi?.trim() || 'هنوز وارد نشده است'}</p>
+              </div>
+              <HxArea label="نسخه نهایی" value={hx.hpiFinal} onChange={(v) => setH('hpiFinal', v)} placeholder="نسخه بازنویسی‌شده شرح بیماری فعلی…" rows={6} />
+              {hx.hpiFinal?.trim() && hx.hpiFinal !== form.hpi && (
+                <button type="button" className="hx-pill solid" onClick={() => set('hpi', hx.hpiFinal ?? '')}>
+                  جایگزین کردن شرح بیماری با نسخه نهایی
+                </button>
+              )}
+              {!original && <p className="hx-hint">ابزارهای هوشمند بعد از اولین ذخیره فعال می‌شوند.</p>}
+              {aiErr && <p className="hx-hint err">{aiErr}</p>}
+            </HxCard>
+
+            <HxCard icon={HxIcon.check} title="جمع‌بندی و طرح درمان" sub="Assessment & Plan">
+              <HxArea label="خلاصه" value={hx.assessment} onChange={(v) => setH('assessment', v)} placeholder="خلاصه وضعیت بیمار…" rows={4} />
               <HxInput label="تشخیص" en="Diagnosis" value={form.diagnosis} onChange={(v) => set('diagnosis', v)} dir="ltr" />
               <HxInput label="بیماری زمینه‌ای" en="Underlying disease" value={form.underlyingDisease} onChange={(v) => set('underlyingDisease', v)} dir="ltr" />
-              <div className="hx-row2">
-                <HxInput label="وضعیت دیالیز" value={form.dialysisStatus} onChange={(v) => set('dialysisStatus', v)} dir="ltr" />
-                <HxInput label="نوع دیالیز" value={form.dialysisModality} onChange={(v) => set('dialysisModality', v)} dir="ltr" />
-              </div>
-              <HxInput label="وضعیت پیوند" value={form.transplantStatus} onChange={(v) => set('transplantStatus', v)} dir="ltr" />
-              <HxArea label="نکات کلیدی" en="Key points" value={form.keyPoints} onChange={(v) => set('keyPoints', v)} />
+              <HxArea label="نکات کلیدی" value={form.keyPoints} onChange={(v) => set('keyPoints', v)} placeholder="نکات مهم این بیمار…" />
+              <HxArea label="طرح درمان" value={hx.plan} onChange={(v) => setH('plan', v)} placeholder="اقدامات تشخیصی و درمانی پیشنهادی…" rows={6} />
+              <details className="hx-more">
+                <summary>دیالیز و پیوند</summary>
+                <div className="hx-row2">
+                  <HxInput label="وضعیت دیالیز" value={form.dialysisStatus} onChange={(v) => set('dialysisStatus', v)} dir="ltr" />
+                  <HxInput label="نوع دیالیز" value={form.dialysisModality} onChange={(v) => set('dialysisModality', v)} dir="ltr" />
+                </div>
+                <HxInput label="وضعیت پیوند" value={form.transplantStatus} onChange={(v) => set('transplantStatus', v)} dir="ltr" />
+              </details>
             </HxCard>
+
+            <HxCard icon={HxIcon.check} title="وضعیت شرح حال">
+              <HxSegmented
+                options={[
+                  { id: 'draft', label: 'ناتمام' },
+                  { id: 'complete', label: 'تکمیل شده' },
+                  { id: 'reviewed', label: 'بررسی شده' },
+                ]}
+                value={hx.status ?? 'draft'}
+                onChange={(v) => setH('status', v ?? 'draft')}
+              />
+            </HxCard>
+
             <HxCard icon={HxIcon.note} title="خلاصه شرح حال" sub="برای کپی در یادداشت یا پرسیدن از دستیار">
               <pre className="hx-summary" dir="auto">
                 {summary}
@@ -943,7 +1020,7 @@ export function HistoryWizardPage() {
           </svg>
         </button>
         <button type="button" className="hx-next" disabled={saving} onClick={() => void next()}>
-          {saving ? 'در حال ذخیره…' : step === STEPS.length ? 'پایان و ذخیره' : 'مرحله بعد'}
+          {saving ? 'در حال ذخیره…' : step === STEPS.length ? '✓ تکمیل شرح حال' : 'مرحله بعد'}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M11 6l-6 6 6 6" />
           </svg>

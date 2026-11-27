@@ -77,6 +77,11 @@ export interface PedsHistory {
   labNotes?: string
   imagingNotes?: string
   otherTests?: string
+  ddx?: string
+  hpiFinal?: string
+  assessment?: string
+  plan?: string
+  status?: 'draft' | 'complete' | 'reviewed'
   hc?: string
 
   completedSteps?: string[]
@@ -632,7 +637,8 @@ export function buildHistorySummary(p: Patient, h: PedsHistory): string {
   for (const [k, v] of Object.entries(h.examPick ?? {})) if (v) exam.push(`${k}: ${v}`)
   out.push(exam.length ? `PE — ${exam.join('؛ ')}` : null)
   out.push(line('Problem list', h.problemList), line('Labs', h.labNotes), line('Imaging', h.imagingNotes), line('Other tests', h.otherTests))
-  out.push(line('Impression', p.diagnosis), line('Underlying', p.underlyingDisease), line('Key points', p.keyPoints))
+  out.push(line('DDx', h.ddx), line('Assessment', h.assessment))
+  out.push(line('Impression', p.diagnosis), line('Underlying', p.underlyingDisease), line('Key points', p.keyPoints), line('Plan', h.plan))
   return out
     .filter((l) => l !== null)
     .join('\n')
