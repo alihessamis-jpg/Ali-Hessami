@@ -66,6 +66,9 @@ export interface Patient {
   pedsHistory?: import('../lib/pedsHistory').PedsHistory | null
 }
 
+/** Patient fields that hold a single scalar value (everything a plain form input edits). */
+export type PatientScalarKey = Exclude<keyof Patient, 'pedsHistory'>
+
 export type PatientDraft = Omit<Patient, 'id' | 'careStatus'> & { careStatus?: PatientCareStatus }
 
 export interface MicroSusceptibility {

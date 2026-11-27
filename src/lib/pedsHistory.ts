@@ -69,6 +69,14 @@ export interface PedsHistory {
   ros?: TriMap
   rosNotes?: string
   rosSysNotes?: Record<string, string>
+  /** exam text per system without its own patients column */
+  exam?: Record<string, string>
+  /** quick picks, keyed `${systemId}.${pickId}` -> option label */
+  examPick?: Record<string, string>
+  problemList?: string
+  labNotes?: string
+  imagingNotes?: string
+  otherTests?: string
   hc?: string
 
   completedSteps?: string[]
@@ -98,9 +106,9 @@ export const STEPS: Array<{ id: string; label: string; en: string }> = [
   { id: 'pmh', label: 'سوابق پزشکی', en: 'Past history' },
   { id: 'family', label: 'خانواده و محیط', en: 'Family & social' },
   { id: 'ros', label: 'مرور سیستم‌ها', en: 'Review of systems' },
-  { id: 'vitals', label: 'علائم حیاتی', en: 'Vitals & measurements' },
-  { id: 'exam', label: 'معاینه', en: 'Physical exam' },
-  { id: 'summary', label: 'جمع‌بندی', en: 'Summary & diagnosis' },
+  { id: 'exam', label: 'معاینه فیزیکی', en: 'Physical exam' },
+  { id: 'para', label: 'پاراکلینیک', en: 'Paraclinical' },
+  { id: 'summary', label: 'تشخیص و درمان', en: 'Diagnosis & plan' },
 ]
 
 export const PRENATAL: Option[] = [
@@ -620,7 +628,10 @@ export function buildHistorySummary(p: Patient, h: PedsHistory): string {
   ]
     .filter(([, v]) => v && String(v).trim())
     .map(([k, v]) => `${k}: ${v}`)
+  for (const [k, v] of Object.entries(h.exam ?? {})) if (v && v.trim()) exam.push(`${k}: ${v}`)
+  for (const [k, v] of Object.entries(h.examPick ?? {})) if (v) exam.push(`${k}: ${v}`)
   out.push(exam.length ? `PE — ${exam.join('؛ ')}` : null)
+  out.push(line('Problem list', h.problemList), line('Labs', h.labNotes), line('Imaging', h.imagingNotes), line('Other tests', h.otherTests))
   out.push(line('Impression', p.diagnosis), line('Underlying', p.underlyingDisease), line('Key points', p.keyPoints))
   return out
     .filter((l) => l !== null)

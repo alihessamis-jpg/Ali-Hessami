@@ -11219,3 +11219,54 @@ html.force-reduced-motion .pc-ecg-line {
 .hx-neg { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--hx-no); vertical-align: -3px; margin-inline-end: 4px; position: relative; }
 .hx-neg::after { content: ''; position: absolute; inset: 7px 4px; background: #fff; border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) { .hx-acc-body { animation: none; } .hx-acc-head .chev { transition: none; } }
+
+/* history wizard: physical exam & paraclinic */
+.hx-vgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hx-vbox {
+  display: flex; flex-direction: column; gap: 6px; background: var(--hx-field); border: 1px solid var(--hx-line);
+  border-radius: 20px; padding: 12px 14px; min-width: 0;
+}
+.hx-vbox > span:first-child { font-size: 14px; color: #3b4659; }
+.hx-vbox .row { display: flex; align-items: baseline; gap: 6px; }
+.hx-vbox input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 22px; font-weight: 800;
+  color: var(--hx-ink); padding: 0; font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.hx-vbox input::placeholder { color: #9aa5b5; font-weight: 600; }
+.hx-vbox small { color: var(--hx-mute); font-size: 13px; }
+.hx-vbox em { font-style: normal; font-size: 12px; color: var(--hx-mute); }
+.hx-vbox.ok { border-color: #b6e2cf; }
+.hx-vbox.ok em { color: var(--hx-yes); }
+.hx-vbox.bad { border-color: #f4c3c3; background: var(--hx-no-soft); }
+.hx-vbox.bad em { color: var(--hx-no); font-weight: 700; }
+.hx-vbox.calc { background: var(--hx-accent-soft); border-color: transparent; justify-content: center; }
+.hx-vbox.calc b { font-size: 22px; color: var(--hx-accent); font-family: 'Plus Jakarta Sans', sans-serif; }
+.hx-vbox:focus-within { border-color: var(--hx-accent); background: #fff; }
+.hx-flag.ok { background: var(--hx-yes-soft); color: var(--hx-yes); }
+
+.hx-acc-head .hx-acc-title {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 0;
+  cursor: pointer; text-align: start; color: var(--hx-ink); font-family: inherit; flex-wrap: wrap;
+}
+div.hx-acc-head { cursor: default; }
+.hx-norm {
+  flex: none; border: 1px solid var(--hx-line); background: #fff; border-radius: 999px; padding: 8px 16px; font-size: 14px;
+  color: #3b4659; cursor: pointer; font-family: inherit;
+}
+.hx-norm.on { background: var(--hx-yes-soft); border-color: #b6e2cf; color: var(--hx-yes); font-weight: 700; }
+.hx-chev { flex: none; border: 0; background: transparent; padding: 4px; cursor: pointer; color: var(--hx-mute); display: grid; }
+.hx-chev .chev { margin: 0 !important; }
+.hx-pill.on { background: var(--hx-yes-soft); color: var(--hx-yes); border: 1px solid #b6e2cf; }
+.hx-teach {
+  margin: 0; padding: 12px 16px 12px 12px; padding-inline-start: 28px; background: #f3f6fb; border-radius: 16px;
+  font-size: 14px; line-height: 1.9; color: #2c3647;
+}
+.hx-banner {
+  display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: #e8f1ef; border-radius: 22px; padding: 14px;
+  cursor: pointer; text-align: start; font-family: inherit; color: var(--hx-ink);
+}
+.hx-banner .hx-tile { background: #fff; }
+.hx-banner > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.hx-banner b { font-size: 16px; }
+.hx-banner small { font-size: 13px; color: var(--hx-mute); line-height: 1.7; }
+.hx-banner .chev { font-size: 28px; color: var(--hx-yes); }

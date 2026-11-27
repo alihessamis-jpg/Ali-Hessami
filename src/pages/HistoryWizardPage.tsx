@@ -39,24 +39,12 @@ import {
   type ScreeningResult,
   type TriMap,
 } from '../lib/pedsHistory'
+import { EXAM_GENERAL, visibleExamSystems, vitalRanges, type ExamSystem } from '../lib/pedsExam'
+import { assessBloodPressure, headCircumferenceForAgePercentile, heightForAgePercentile, normalizeSex, weightForAgePercentile } from '../lib/growth'
 import { HxArea, HxCard, HxIcon, HxInput, HxLabel, HxSegmented, TriChips, TriLegend } from '../components/history/HistoryFields'
-import type { Patient, PatientCareStatus } from '../types/domain'
+import type { Patient, PatientCareStatus, PatientScalarKey } from '../types/domain'
 
-const NUMERIC = new Set<keyof Patient>(['height', 'weight', 'baselineCr', 'vsTemp', 'vsHR', 'vsRR', 'vsSpo2'])
-
-const EXAM_FIELDS: Array<{ key: keyof Patient; label: string; normal: string }> = [
-  { key: 'exGeneral', label: 'General appearance', normal: 'Alert, not ill-appearing, well hydrated' },
-  { key: 'exHeent', label: 'HEENT', normal: 'No periorbital edema, no pallor, no icterus' },
-  { key: 'exCVS', label: 'Cardiovascular', normal: 'S1S2 normal, no murmur, CRT < 2s' },
-  { key: 'exResp', label: 'Respiratory', normal: 'Clear bilaterally, no distress' },
-  { key: 'exAbd', label: 'Abdomen', normal: 'Soft, non-tender, no organomegaly, no ascites, no palpable kidney' },
-  { key: 'exGU', label: 'Genitourinary', normal: 'Normal external genitalia, no CVA tenderness' },
-  { key: 'exExtrem', label: 'Extremities', normal: 'No deformity, pulses intact' },
-  { key: 'exSkin', label: 'Skin', normal: 'No rash, no purpura' },
-  { key: 'exNeuro', label: 'Neuro', normal: 'Age-appropriate, no focal deficit' },
-  { key: 'exEdema', label: 'Edema', normal: 'No edema' },
-  { key: 'exHydration', label: 'Hydration', normal: 'Well hydrated' },
-]
+const NUMERIC = new Set<PatientScalarKey>(['height', 'weight', 'baselineCr', 'vsTemp', 'vsHR', 'vsRR', 'vsSpo2'])
 
 const CARE: Array<{ id: Exclude<PatientCareStatus, 'expired'>; label: string }> = [
   { id: 'inpatient', label: 'بستری' },
@@ -92,6 +80,8 @@ export function HistoryWizardPage() {
   const [showMissing, setShowMissing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [openRos, setOpenRos] = useState<string | null>('gen')
+  const [openExam, setOpenExam] = useState<string | null>(null)
+  const [teachOpen, setTeachOpen] = useState<string | null>(null)
 
   const step = Math.min(Math.max(Number(params.get('step') ?? 1) || 1, 1), STEPS.length)
   const stepsRef = useRef<HTMLDivElement>(null)
@@ -118,7 +108,7 @@ export function HistoryWizardPage() {
 
   const ageM = ageInMonths(form)
 
-  function set<K extends keyof Patient>(key: K, raw: string) {
+  function set<K extends PatientScalarKey>(key: K, raw: string) {
     const value = NUMERIC.has(key) ? (raw === '' ? null : Number(raw)) : raw
     setForm((f) => ({ ...f, [key]: value }))
     setDirty(true)
@@ -210,6 +200,116 @@ export function HistoryWizardPage() {
   const missingPrompts = HPI_PROMPTS.filter((p) => !hpiText.includes(p))
 
   const due = (m: number) => ageM == null || ageM >= m
+
+  const ranges = vitalRanges(ageM)
+  const sexCode = normalizeSex(form.sex)
+  const pct = (() => {
+    const out: { w?: string; h?: string; hc?: string; hPct?: number } = {}
+    if (ageM == null || !sexCode) return out
+    const fmt = (v: number | null) => (v == null || Number.isNaN(v) ? undefined : `صدک ${toPersianDigits(Math.round(v))}`)
+    if (form.weight) out.w = fmt(weightForAgePercentile(form.weight, ageM, sexCode))
+    if (form.height) {
+      const hp = heightForAgePercentile(form.height, ageM, sexCode)
+      out.h = fmt(hp)
+      out.hPct = hp
+    }
+    if (hx.hc && Number(hx.hc)) out.hc = fmt(headCircumferenceForAgePercentile(Number(hx.hc), ageM, sexCode))
+    return out
+  })()
+  const bp = (() => {
+    const m = /^\s*(\d{2,3})\s*\/\s*(\d{2,3})/.exec(form.vsBP ?? '')
+    if (!m || ageM == null || !sexCode) return null
+    const a = assessBloodPressure(Number(m[1]), Number(m[2]), ageM / 12, sexCode, pct.hPct ?? null)
+    const tone = a.category === 'normal' ? 'ok' : a.category === 'indeterminate' ? undefined : 'bad'
+    return { label: a.label, note: a.note, tone } as { label: string; note?: string; tone?: 'ok' | 'bad' }
+  })()
+
+  function examText(sys: ExamSystem): string {
+    return sys.col ? String(form[sys.col] ?? '') : hx.exam?.[sys.id] ?? ''
+  }
+  function setExamText(sys: ExamSystem, v: string) {
+    if (sys.col) set(sys.col, v)
+    else setH('exam', { ...(hx.exam ?? {}), [sys.id]: v })
+  }
+  function applyNormal(sys: ExamSystem) {
+    if (sys.col) {
+      const key = sys.col
+      setForm((f) => ({ ...f, [key]: sys.normal }))
+    } else {
+      setHx((h) => ({ ...h, exam: { ...(h.exam ?? {}), [sys.id]: sys.normal } }))
+    }
+    if (sys.picks?.length) {
+      setHx((h) => {
+        const p = { ...(h.examPick ?? {}) }
+        for (const pk of sys.picks ?? []) p[`${sys.id}.${pk.id}`] = pk.options[pk.normal]
+        return { ...h, examPick: p }
+      })
+    }
+    setDirty(true)
+  }
+
+  function renderExam(sys: ExamSystem, single = false) {
+    const text = examText(sys)
+    const isNormal = text === sys.normal
+    const open = single || openExam === sys.id
+    const filled = text.trim().length > 0
+    const body = (
+      <>
+        {sys.teach && (
+          <button type="button" className="hx-pill ghost" onClick={() => setTeachOpen(teachOpen === sys.id ? null : sys.id)}>
+            🎓 آموزش
+          </button>
+        )}
+        {teachOpen === sys.id && sys.teach && (
+          <ul className="hx-teach">
+            {sys.teach.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        )}
+        {sys.picks?.map((pk) => (
+          <HxSegmented
+            key={pk.id}
+            label={pk.label}
+            options={pk.options.map((o) => ({ id: o, label: o }))}
+            value={hx.examPick?.[`${sys.id}.${pk.id}`]}
+            onChange={(v) => setH('examPick', { ...(hx.examPick ?? {}), [`${sys.id}.${pk.id}`]: v ?? '' })}
+          />
+        ))}
+        <HxArea value={text} onChange={(v) => setExamText(sys, v)} placeholder={sys.placeholder} rows={3} />
+      </>
+    )
+    if (single) {
+      return (
+        <HxCard icon={HxIcon.child} title={sys.title} sub={sys.en}>
+          <button type="button" className={isNormal ? 'hx-pill on' : 'hx-pill solid'} onClick={() => applyNormal(sys)}>
+            ✓ نرمال
+          </button>
+          {body}
+        </HxCard>
+      )
+    }
+    return (
+      <div key={sys.id} className={open ? 'hx-acc open' : 'hx-acc'}>
+        <div className="hx-acc-head">
+          <button type="button" className="hx-acc-title" onClick={() => setOpenExam(open ? null : sys.id)} aria-expanded={open}>
+            <b>{sys.title}</b>
+            <small>{sys.en}</small>
+            {filled && <span className={isNormal ? 'hx-count y' : 'hx-count n'}>{isNormal ? '✓' : '•'}</span>}
+          </button>
+          <button type="button" className={isNormal ? 'hx-norm on' : 'hx-norm'} onClick={() => applyNormal(sys)}>
+            نرمال
+          </button>
+          <button type="button" className="hx-chev" onClick={() => setOpenExam(open ? null : sys.id)} aria-label="باز / بسته">
+            <svg className="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+        {open && <div className="hx-acc-body">{body}</div>}
+      </div>
+    )
+  }
 
   return (
     <div className="hx-page" dir="rtl">
@@ -724,76 +824,76 @@ export function HistoryWizardPage() {
 
         {step === 11 && (
           <>
-            <HxCard icon={HxIcon.heart} title="علائم حیاتی" sub="Vital Signs">
-              <div className="hx-row3">
-                <HxInput label="دما" en="°C" numeric value={form.vsTemp} onChange={(v) => set('vsTemp', v)} dir="ltr" />
-                <HxInput label="ضربان" en="HR" numeric value={form.vsHR} onChange={(v) => set('vsHR', v)} dir="ltr" />
-                <HxInput label="تنفس" en="RR" numeric value={form.vsRR} onChange={(v) => set('vsRR', v)} dir="ltr" />
-              </div>
-              <div className="hx-row2">
-                <HxInput label="فشار خون" en="BP" value={form.vsBP} onChange={(v) => set('vsBP', v)} placeholder="110/70" dir="ltr" />
-                <HxInput label="اشباع اکسیژن" en="SpO2 %" numeric value={form.vsSpo2} onChange={(v) => set('vsSpo2', v)} dir="ltr" />
-              </div>
-            </HxCard>
-            <HxCard icon={HxIcon.ruler} title="آنتروپومتری و عملکرد کلیه" sub="Anthropometry & baseline kidney function">
-              <div className="hx-row3">
-                <HxInput label="وزن" en="kg" numeric value={form.weight} onChange={(v) => set('weight', v)} dir="ltr" />
-                <HxInput label="قد" en="cm" numeric value={form.height} onChange={(v) => set('height', v)} dir="ltr" />
-                <HxInput label="دور سر" en="cm" numeric value={hx.hc} onChange={(v) => setH('hc', v)} dir="ltr" />
-              </div>
-              <HxInput label="کراتینین پایه" en="mg/dL" numeric value={form.baselineCr} onChange={(v) => set('baselineCr', v)} dir="ltr" />
-              <div className="hx-calc" dir="ltr">
-                <div>
-                  <span>Schwartz eGFR</span>
-                  <b>{form.height && form.baselineCr ? schwartzEGFR(form.height, form.baselineCr).toFixed(1) : '—'}</b>
-                </div>
-                <div>
-                  <span>BSA</span>
-                  <b>{form.height && form.weight ? bsaMosteller(form.height, form.weight).toFixed(2) : '—'}</b>
-                </div>
-                <div>
+            {renderExam(EXAM_GENERAL, true)}
+
+            <HxCard icon={HxIcon.heart} title="علائم حیاتی و رشد" sub="محدوده طبیعی بر اساس سن کودک کنار هر کادر نمایش داده می‌شود">
+              <div className="hx-vgrid" dir="rtl">
+                <VitalBox label="نبض" unit="bpm" value={form.vsHR} onChange={(v) => set('vsHR', v)} range={ranges?.hr} needAge={!ranges} />
+                <VitalBox label="فشار خون" unit="mmHg" value={form.vsBP} onChange={(v) => set('vsBP', v)} text placeholder="110/70" note={bp ? bp.label : !ranges ? 'سن را وارد کنید' : undefined} tone={bp?.tone} />
+                <VitalBox label="تعداد تنفس" unit="/min" value={form.vsRR} onChange={(v) => set('vsRR', v)} range={ranges?.rr} needAge={!ranges} />
+                <VitalBox label="دما" unit="°C" value={form.vsTemp} onChange={(v) => set('vsTemp', v)} note={form.vsTemp != null && form.vsTemp >= 38 ? 'تب' : undefined} tone={form.vsTemp != null && form.vsTemp >= 38 ? 'bad' : undefined} />
+                <VitalBox label="اشباع اکسیژن" unit="%" value={form.vsSpo2} onChange={(v) => set('vsSpo2', v)} note={form.vsSpo2 != null && form.vsSpo2 < 92 ? 'پایین' : undefined} tone={form.vsSpo2 != null && form.vsSpo2 < 92 ? 'bad' : undefined} />
+                <VitalBox label="وزن" unit="kg" value={form.weight} onChange={(v) => set('weight', v)} note={pct.w} />
+                <VitalBox label="قد / طول" unit="cm" value={form.height} onChange={(v) => set('height', v)} note={pct.h} />
+                <VitalBox label="دور سر" unit="cm" value={hx.hc} onChange={(v) => setH('hc', v)} note={pct.hc} />
+                <div className="hx-vbox calc">
                   <span>BMI</span>
-                  <b>{form.height && form.weight ? bmiCalc(form.height, form.weight).toFixed(1) : '—'}</b>
+                  <b dir="ltr">{form.height && form.weight ? bmiCalc(form.height, form.weight).toFixed(1) : '—'} <small>kg/m²</small></b>
+                </div>
+                <div className="hx-vbox calc">
+                  <span>BSA</span>
+                  <b dir="ltr">{form.height && form.weight ? bsaMosteller(form.height, form.weight).toFixed(2) : '—'} <small>m²</small></b>
                 </div>
               </div>
-              <p className="hx-hint">قد و وزن جدید در نمودار رشد هم ثبت می‌شود.</p>
+              {bp?.note && <p className={`hx-flag ${bp.tone === 'ok' ? 'ok' : ''}`} dir="ltr">{bp.label} — {bp.note}</p>}
+              <HxInput label="کراتینین پایه" en="mg/dL" numeric value={form.baselineCr} onChange={(v) => set('baselineCr', v)} dir="ltr" />
+              {form.height && form.baselineCr ? <p className="hx-hint">Schwartz eGFR: <b dir="ltr">{schwartzEGFR(form.height, form.baselineCr).toFixed(1)}</b> mL/min/1.73m²</p> : null}
+              <p className="hx-hint">ⓘ محدوده نبض و تنفس از PALS (کودک بیدار)، فشار خون بر اساس AAP 2017 و صدک قد؛ صدک‌ها خودکار از منحنی WHO (زیر ۲ سال) و CDC محاسبه می‌شوند. قد و وزن جدید در نمودار رشد هم ثبت می‌شود.</p>
+            </HxCard>
+
+            <HxCard icon={HxIcon.steth} title="معاینه سیستم‌ها" sub="روی هر عنوان بزنید؛ دکمه «نرمال» متن استاندارد را درج می‌کند">
+              <button
+                type="button"
+                className="hx-pill solid"
+                onClick={() => {
+                  for (const sys of visibleExamSystems(ageM)) if (!examText(sys).trim()) applyNormal(sys)
+                }}
+              >
+                ✓ بقیه سیستم‌ها: نرمال
+              </button>
+              <div className="hx-acc-list">
+                {visibleExamSystems(ageM).map((sys) => renderExam(sys))}
+              </div>
+              {form.exHeent && <HxArea label="HEENT (یادداشت قبلی)" value={form.exHeent} onChange={(v) => set('exHeent', v)} rows={2} />}
             </HxCard>
           </>
         )}
 
         {step === 12 && (
-          <HxCard icon={HxIcon.steth} title="معاینه فیزیکی" sub="Physical Examination">
-            <button
-              type="button"
-              className="hx-pill solid"
-              onClick={() => {
-                setForm((f) => {
-                  const n = { ...f }
-                  for (const x of EXAM_FIELDS) if (!String(n[x.key] ?? '').trim()) (n as unknown as Record<string, unknown>)[x.key] = x.normal
-                  return n
-                })
-                setDirty(true)
-              }}
-            >
-              ✓ بقیه موارد: طبیعی
-            </button>
-            {EXAM_FIELDS.map((x) => (
-              <HxArea
-                key={x.key}
-                label={x.label}
-                value={form[x.key] as string | null}
-                onChange={(v) => set(x.key, v)}
-                rows={2}
-                chips={
-                  <div className="hx-quick">
-                    <button type="button" className={form[x.key] === x.normal ? 'used' : ''} onClick={() => set(x.key, x.normal)}>
-                      + طبیعی
-                    </button>
-                  </div>
-                }
-              />
-            ))}
-          </HxCard>
+          <>
+            <HxCard icon={HxIcon.note} title="فهرست مشکلات" sub="Problem List">
+              <HxArea value={hx.problemList} onChange={(v) => setH('problemList', v)} placeholder={'۱. …\n۲. …'} rows={4} />
+            </HxCard>
+            <HxCard icon={HxIcon.tube} title="نتایج آزمایش" sub="Laboratory Results">
+              {original && (
+                <button type="button" className="hx-banner" onClick={() => navigate(`/patients/${original.id}?tab=labs`)}>
+                  <span className="hx-tile">{HxIcon.tube}</span>
+                  <span>
+                    <b>ثبت آزمایش در پرونده</b>
+                    <small>نتایج در تب Labs ثبت شوند تا روند Cr/eGFR و هشدارها خودکار محاسبه شود</small>
+                  </span>
+                  <span className="chev">‹</span>
+                </button>
+              )}
+              <HxArea label="خلاصه آزمایش‌ها" value={hx.labNotes} onChange={(v) => setH('labNotes', v)} placeholder="CBC، BUN/Cr، الکترولیت‌ها، VBG، U/A، UPCR، کشت ادرار، C3/C4…" rows={4} />
+            </HxCard>
+            <HxCard icon={HxIcon.kidney} title="تصویربرداری" sub="Imaging">
+              <HxArea value={hx.imagingNotes} onChange={(v) => setH('imagingNotes', v)} placeholder="سونوگرافی کلیه و مجاری (اندازه، اکوژنیسیته، هیدرونفروز SFU/APD)، VCUG، DMSA، MAG3…" rows={3} />
+            </HxCard>
+            <HxCard icon={HxIcon.check} title="سایر بررسی‌ها" sub="Other">
+              <HxArea value={hx.otherTests} onChange={(v) => setH('otherTests', v)} placeholder="بیوپسی کلیه، ژنتیک، اکو، فوندوسکوپی، شنوایی‌سنجی…" rows={3} />
+            </HxCard>
+          </>
         )}
 
         {step === 13 && (
@@ -850,5 +950,51 @@ export function HistoryWizardPage() {
         </button>
       </footer>
     </div>
+  )
+}
+
+function VitalBox({
+  label,
+  unit,
+  value,
+  onChange,
+  range,
+  needAge,
+  note,
+  tone,
+  text,
+  placeholder,
+}: {
+  label: string
+  unit: string
+  value: string | number | null | undefined
+  onChange: (v: string) => void
+  range?: [number, number]
+  needAge?: boolean
+  note?: string
+  tone?: 'ok' | 'bad'
+  text?: boolean
+  placeholder?: string
+}) {
+  const n = value === '' || value == null ? null : Number(value)
+  const out = range && n != null && !Number.isNaN(n) ? (n < range[0] || n > range[1] ? 'bad' : 'ok') : undefined
+  const t = tone ?? out
+  return (
+    <label className={`hx-vbox ${t ?? ''}`}>
+      <span>{label}</span>
+      <span className="row" dir="ltr">
+        <input value={value ?? ''} onChange={(e) => onChange(e.target.value)} inputMode={text ? 'text' : 'decimal'} placeholder={placeholder ?? '—'} />
+        <small>{unit}</small>
+      </span>
+      {range ? (
+        <em>
+          طبیعی: <span dir="ltr">{range[0]}–{range[1]}</span>
+        </em>
+      ) : needAge ? (
+        <em>سن را وارد کنید</em>
+      ) : note ? (
+        <em>{note}</em>
+      ) : null}
+    </label>
   )
 }
