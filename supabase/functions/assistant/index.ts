@@ -3,7 +3,8 @@
 // Model: Claude when ANTHROPIC_API_KEY is set, otherwise Gemini (GEMINI_API_KEY,
 // free tier). ASSISTANT_PROVIDER=anthropic|gemini forces one.
 //
-// POST (SSE stream) { conversationId?, mode, patientId?, chapterId?, message, caseText?, debug? }
+// POST (SSE stream) { conversationId?, mode, patientId?, chapterId?, topicId?, message, caseText?, debug? }
+//   topicId: a Topic Hub topic — its linked chapters (chapter_topics) are searched first
 //   events: meta · step · delta · reset · sources · done · error
 // POST (JSON)       { action: 'flashcards', messageId }
 // POST (JSON)       { action: 'transcribe', audio: <base64 WAV>, mimeType } -> { text }  (Gemini)
@@ -183,6 +184,7 @@ interface ChatBody {
   mode?: Mode
   patientId?: string | null
   chapterId?: string | null
+  topicId?: string | null
   message: string
   caseText?: string | null
   debug?: boolean
@@ -465,6 +467,8 @@ interface ToolCtx {
   db: SupabaseClient
   reg: Registry
   chapterId: string | null
+  /** chapters linked to the conversation's Topic Hub topic — searched first */
+  topicChapterIds: string[]
   step: (t: string) => void
 }
 
@@ -478,8 +482,29 @@ async function runTool(name: string, rawInput: unknown, ctx: ToolCtx): Promise<u
       if (!terms.length) return { error: 'terms required' }
       step(`کتاب‌ها: ${terms.join('، ')}`)
       const chapter = input?.chapter_only && ctx.chapterId ? ctx.chapterId : null
-      const { data, error } = await db.rpc('search_library', { q: terms.join(' '), chapter, k: 6 })
-      if (error) throw error
+      const q = terms.join(' ')
+      let data: LibraryRow[] | null
+      if (!chapter && ctx.topicChapterIds.length) {
+        // Topic Hub: the topic's own chapters first (3 each), then the whole library
+        const scoped = await Promise.all(
+          ctx.topicChapterIds.slice(0, 8).map((c) => db.rpc('search_library', { q, chapter: c, k: 3 })),
+        )
+        const global = await db.rpc('search_library', { q, chapter: null, k: 6 })
+        if (global.error) throw global.error
+        const seen = new Set<string>()
+        const merged: LibraryRow[] = []
+        const topicRows = scoped.flatMap((r) => (r.data ?? []) as (LibraryRow & { score?: number })[]).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        for (const r of [...topicRows, ...((global.data ?? []) as LibraryRow[])]) {
+          if (seen.has(r.chunk_id)) continue
+          seen.add(r.chunk_id)
+          merged.push(r)
+        }
+        data = merged.slice(0, 8)
+      } else {
+        const res = await db.rpc('search_library', { q, chapter, k: 6 })
+        if (res.error) throw res.error
+        data = res.data as LibraryRow[] | null
+      }
       if (!data?.length) return { results: [], note: NOT_FOUND }
       return {
         results: data.map((r: LibraryRow) => {
@@ -672,6 +697,7 @@ interface LoopIO {
   db: SupabaseClient
   reg: Registry
   chapterId: string | null
+  topicChapterIds: string[]
   mode: Mode
   model: string
 }
@@ -974,9 +1000,9 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
   if (message.length > 8000) return json({ error: 'message too long' }, 400)
 
   // ---- conversation
-  let conv: { id: string; mode: Mode; patient_id: string | null; chapter_id: string | null }
+  let conv: { id: string; mode: Mode; patient_id: string | null; chapter_id: string | null; topic_id: string | null }
   if (isUuid(body.conversationId)) {
-    const { data, error } = await db.from('ai_conversations').select('id, mode, patient_id, chapter_id').eq('id', body.conversationId).maybeSingle()
+    const { data, error } = await db.from('ai_conversations').select('id, mode, patient_id, chapter_id, topic_id').eq('id', body.conversationId).maybeSingle()
     if (error) return json({ error: error.message }, 500)
     if (!data) return json({ error: 'conversation not found' }, 404)
     conv = data
@@ -989,9 +1015,10 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
         mode,
         patient_id: mode === 'patient' && isUuid(body.patientId) ? body.patientId : null,
         chapter_id: isUuid(body.chapterId) ? body.chapterId : null,
+        topic_id: isUuid(body.topicId) ? body.topicId : null,
         title: message.replace(/\s+/g, ' ').slice(0, 70),
       })
-      .select('id, mode, patient_id, chapter_id')
+      .select('id, mode, patient_id, chapter_id, topic_id')
       .single()
     if (error) return json({ error: error.message }, 500)
     conv = data
@@ -1042,6 +1069,28 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
     }
   }
 
+  // Topic Hub topic context: name + its linked chapters (searched first)
+  let topicLine = ''
+  let topicChapterIds: string[] = []
+  if (conv.topic_id) {
+    const { data: t } = await db.from('academy_topics').select('name, category').eq('id', conv.topic_id).maybeSingle()
+    const { data: links } = await db
+      .from('chapter_topics')
+      .select('chapter_id, library_chapters(chapter_number, title, library_books(title))')
+      .eq('topic_id', conv.topic_id)
+    const rows = (links ?? []) as unknown as {
+      chapter_id: string
+      library_chapters: { chapter_number: number; title: string; library_books: { title: string } | null } | null
+    }[]
+    topicChapterIds = rows.map((r) => r.chapter_id)
+    if (t) {
+      const list = rows
+        .map((r) => `${r.library_chapters?.library_books?.title ?? ''} · Ch ${r.library_chapters?.chapter_number ?? '?'} — ${r.library_chapters?.title ?? ''} [chapter_id ${r.chapter_id}]`)
+        .join('\n')
+      topicLine = `TOPIC (Topic Hub): ${t.name}${t.category ? ` — ${t.category}` : ''}. Answer in the context of this topic. search_library already returns passages from its linked chapters first; use chapter_outline / read_section with these chapter_ids for depth:\n${list || '(no chapters linked)'}`
+    }
+  }
+
   const contextParts: string[] = []
   if (conv.mode === 'patient') {
     contextParts.push(
@@ -1052,6 +1101,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
           : 'PATIENT CASE: (none given — ask for the case details if needed)',
     )
   }
+  if (topicLine) contextParts.push(topicLine)
   if (chapterLine) contextParts.push(chapterLine)
   if (!contextParts.length) contextParts.push('No chapter attached: search the whole library.')
   contextParts.push(`MODE: ${conv.mode}`)
@@ -1108,7 +1158,7 @@ async function handleChat(body: ChatBody, db: SupabaseClient, userId: string): P
       let stopNote = ''
       let usage = { input: 0, output: 0, cacheRead: 0 }
       try {
-        const io: LoopIO = { send, step, db, reg, chapterId: conv.chapter_id, mode: conv.mode, model }
+        const io: LoopIO = { send, step, db, reg, chapterId: conv.chapter_id, topicChapterIds, mode: conv.mode, model }
         const out =
           PROVIDER === 'gemini' ? await loopGemini(historyText, userTurn, io) : await loopAnthropic(messages, io)
         model = io.model

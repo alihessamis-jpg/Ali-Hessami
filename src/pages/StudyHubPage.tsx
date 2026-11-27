@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type SVGProps } from 'react'
+import { useMemo, useState, type ComponentType, type SVGProps } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { StudyNotesPanel } from '../components/study/StudyNotesPanel'
 import { FlashcardsPanel } from '../components/study/FlashcardsPanel'
@@ -55,6 +55,10 @@ export function StudyHubPage() {
   const initialTab = (params.get('tab') as Tab | null) ?? 'notes'
   const [tab, setTab] = useState<Tab>(TABS.some((t) => t.id === initialTab) ? initialTab : 'notes')
   const chapterIdParam = params.get('chapterId')
+  // Topic Hub → «تمرین سؤال‌های این مبحث»: several chapters + optional filter
+  const chapterIdsParam = useMemo(() => (params.get('chapterIds') ?? '').split(',').filter(Boolean), [params])
+  const filterParam = params.get('filter')
+  const practiceFilter = filterParam === 'wrong' || filterParam === 'unanswered' ? filterParam : 'all'
 
   return (
     <div className="np-page">
@@ -94,7 +98,12 @@ export function StudyHubPage() {
         {tab === 'reasoning' && <ReasoningCasesPanel />}
         {tab === 'labChallenges' && <LabChallengesPanel />}
         {tab === 'imagingChallenges' && <ImagingChallengesPanel />}
-        {tab === 'boardQuestions' && <BoardQuestionsPanel initialChapterId={chapterIdParam} />}
+        {tab === 'boardQuestions' && <BoardQuestionsPanel
+            initialChapterId={chapterIdParam}
+            initialChapterIds={chapterIdsParam}
+            initialFilter={practiceFilter}
+            scopeLabel={params.get('scope')}
+          />}
         {tab === 'consults' && <AttendingConsultsPanel />}
         {tab === 'gaps' && <KnowledgeGapsPanel />}
         {tab === 'cases' && <PersonalCasesPanel />}

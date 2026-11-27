@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { fetchAll } from './fetchAll'
 import { getAuthUser } from './authUser'
 import type { BoardQuestion, BoardQuestionDraft, BoardQuestionMatchItem, BoardQuestionMatchPair } from '../../types/domain'
 
@@ -93,9 +94,11 @@ function toRow(draft: BoardQuestionDraft) {
 // suggestions sit in review_status='pending' until approved and are never
 // mixed in here; see listPendingBoardQuestions for the review queue.
 export async function listBoardQuestions(): Promise<BoardQuestion[]> {
-  const { data, error } = await supabase.from('board_questions').select('*').eq('review_status', 'approved').order('topic')
-  if (error) throw error
-  return (data as BoardQuestionRow[]).map(toDomain)
+  // paged: the bank is larger than PostgREST's 1000-row response cap
+  const rows = await fetchAll<BoardQuestionRow>(() =>
+    supabase.from('board_questions').select('*').eq('review_status', 'approved').order('topic').order('id'),
+  )
+  return rows.map(toDomain)
 }
 
 export async function listBoardQuestionsForChapter(chapterId: string): Promise<BoardQuestion[]> {

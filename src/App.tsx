@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { RequireAuth } from './components/RequireAuth'
 import { Layout } from './components/Layout'
@@ -19,7 +19,6 @@ import { AcademicActivityPage } from './pages/AcademicActivityPage'
 import { ReferencePage } from './pages/ReferencePage'
 import { CalculatorsPage } from './pages/CalculatorsPage'
 import { ChecklistsPage } from './pages/ChecklistsPage'
-import { AcademyPage } from './pages/AcademyPage'
 import { AcademyTopicPage } from './pages/AcademyTopicPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { ReaderPage } from './pages/ReaderPage'
@@ -66,7 +65,8 @@ export function App() {
           <Route path="/calculators" element={protect(<CalculatorsPage />)} />
           <Route path="/checklists" element={protect(<ChecklistsPage />)} />
           <Route path="/academy" element={protect(<LibraryPage />)} />
-          <Route path="/academy/topics" element={protect(<AcademyPage />)} />
+          {/* the old topic list is now the Topic Hub tab of the Library */}
+          <Route path="/academy/topics" element={<Navigate to="/academy?tab=topics" replace />} />
           <Route path="/academy/reader/:id" element={protect(<ReaderPage />)} />
           <Route path="/academy/review" element={protect(<ReviewPage />)} />
           <Route path="/academy/practice" element={protect(<PracticePage />)} />

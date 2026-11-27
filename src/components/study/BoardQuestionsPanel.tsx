@@ -66,9 +66,25 @@ interface BoardQuestionsPanelProps {
   // practice pool to that chapter and starts a session automatically,
   // instead of the usual topic-picker flow.
   initialChapterId?: string | null
+  // Set when arriving from a Topic Hub topic: several chapters at once
+  // (comma-joined ids), an optional filter and a label for the scope.
+  initialChapterIds?: string[] | null
+  initialFilter?: PracticeFilter
+  scopeLabel?: string | null
 }
 
-export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsPanelProps = {}) {
+type PracticeFilter = 'all' | 'wrong' | 'unanswered'
+
+// The chapter scope is kept as one string (comma-joined ids) so the
+// existing practice-resume snapshot keeps working unchanged.
+const scopeIds = (scope: string | null): Set<string> | null => (scope ? new Set(scope.split(',').filter(Boolean)) : null)
+
+export function BoardQuestionsPanel({
+  initialChapterId = null,
+  initialChapterIds = null,
+  initialFilter = 'all',
+  scopeLabel = null,
+}: BoardQuestionsPanelProps = {}) {
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('practice')
   const [chapterFilterId, setChapterFilterId] = useState<string | null>(null)
@@ -128,13 +144,14 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
   }, [questions])
 
   useEffect(() => {
-    if (!initialChapterId || autoStartedRef.current || questions.length === 0) return
+    const scope = initialChapterIds?.length ? initialChapterIds.join(',') : initialChapterId
+    if (!scope || autoStartedRef.current || questions.length === 0) return
     autoStartedRef.current = true
     setMode('practice')
-    setChapterFilterId(initialChapterId)
-    startPractice(initialChapterId)
+    setChapterFilterId(scope)
+    startPractice(scope, initialFilter === 'wrong', initialFilter === 'unanswered')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialChapterId, questions])
+  }, [initialChapterId, initialChapterIds, questions])
 
   // v1.6 (section 10.1): tapping a source link in the current question's
   // explanation -- persist exactly enough to restore this session (above)
@@ -174,13 +191,19 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
   const countForTopic = (t: string) => topicCounts.get(t) ?? 0
   const wrongQuestionIds = useMemo(() => new Set(attempts.filter((a) => !a.isCorrect).map((a) => a.questionId)), [attempts])
 
-  function startPractice(chapterId: string | null = chapterFilterId, onlyWrong = false) {
-    const basePool = chapterId
-      ? questions.filter((q) => q.chapterId === chapterId)
+  function startPractice(chapterId: string | null = chapterFilterId, onlyWrong = false, onlyUnanswered = false) {
+    const ids = scopeIds(chapterId)
+    const basePool = ids
+      ? questions.filter((q) => q.chapterId != null && ids.has(q.chapterId))
       : practiceTopic === 'All'
         ? questions
         : questions.filter((q) => q.topic === practiceTopic)
-    const pool = onlyWrong ? basePool.filter((q) => wrongQuestionIds.has(q.id)) : basePool
+    const answered = onlyUnanswered ? new Set(attempts.map((a) => a.questionId)) : null
+    const pool = onlyWrong
+      ? basePool.filter((q) => wrongQuestionIds.has(q.id))
+      : answered
+        ? basePool.filter((q) => !answered.has(q.id))
+        : basePool
     setQueue(shuffle(pool))
     setQueueIndex(0)
     setSelectedIndex(null)
@@ -403,7 +426,13 @@ export function BoardQuestionsPanel({ initialChapterId = null }: BoardQuestionsP
           </div>
           {chapterFilterId && (
             <p className="patient-meta">
-              Practicing this chapter's questions only.{' '}
+              {scopeLabel ? (
+                <span dir="auto">
+                  Practicing «{scopeLabel}» only{initialFilter === 'wrong' ? ' — wrong answers' : initialFilter === 'unanswered' ? ' — unanswered' : ''}.
+                </span>
+              ) : (
+                (scopeIds(chapterFilterId)?.size ?? 0) > 1 ? "Practicing these chapters' questions only." : "Practicing this chapter's questions only."
+              )}{' '}
               <button
                 type="button"
                 className="link-button"

@@ -19,7 +19,6 @@ const STATIC_ROUTES = [
   '/calculators',
   '/checklists',
   '/academy',
-  '/academy/topics',
   '/academy/review',
   '/academy/practice',
   '/academy/mistakes',

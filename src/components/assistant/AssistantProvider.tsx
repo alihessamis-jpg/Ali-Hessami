@@ -10,6 +10,8 @@ export interface OpenAssistantOptions {
   mode?: AssistantMode
   patientId?: string | null
   chapterId?: string | null
+  /** Topic Hub topic: retrieval prefers that topic's linked chapters */
+  topicId?: string | null
   conversationId?: string | null
   prompt?: string | null
   autoSend?: boolean
@@ -32,10 +34,17 @@ function routeContext(pathname: string): OpenAssistantOptions {
   if (p?.params.id && p.params.id !== 'quick-aki') return { mode: 'patient', patientId: p.params.id }
   const r = matchPath('/academy/reader/:id', pathname)
   if (r?.params.id) return { mode: 'study', chapterId: r.params.id }
+  // Topic Hub topic page (/academy/<uuid>, not /academy/review etc.)
+  const t = matchPath('/academy/:id', pathname)
+  if (t?.params.id && /^[0-9a-f-]{36}$/i.test(t.params.id)) return { mode: 'study', topicId: t.params.id }
   return { mode: 'general' }
 }
 
 async function contextLabel(o: OpenAssistantOptions): Promise<string | null> {
+  if (o.topicId) {
+    const { data } = await supabase.from('academy_topics').select('name').eq('id', o.topicId).maybeSingle()
+    return data ? `مبحث · ${data.name}` : null
+  }
   if (o.patientId) {
     // display only, in this browser — never sent to the model
     const { data } = await supabase.from('patients').select('name, age, diagnosis').eq('id', o.patientId).maybeSingle()
@@ -55,9 +64,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
 
   const open = useCallback(
     (opts: OpenAssistantOptions = {}) => {
-      const base = opts.patientId || opts.chapterId || opts.conversationId ? {} : routeContext(location.pathname)
+      const base = opts.patientId || opts.chapterId || opts.topicId || opts.conversationId ? {} : routeContext(location.pathname)
       const o: OpenAssistantOptions = { ...base, ...opts }
-      if (!o.mode) o.mode = o.patientId ? 'patient' : o.chapterId ? 'study' : 'general'
+      if (!o.mode) o.mode = o.patientId ? 'patient' : o.chapterId || o.topicId ? 'study' : 'general'
       const key = Date.now()
       setSession({ ...o, key, label: null })
       void contextLabel(o).then((label) => setSession((s) => (s && s.key === key ? { ...s, label } : s)))
@@ -123,6 +132,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                 mode={session.mode ?? 'general'}
                 patientId={session.patientId ?? null}
                 chapterId={session.chapterId ?? null}
+                topicId={session.topicId ?? null}
                 conversationId={session.conversationId ?? null}
                 contextLabel={session.label}
                 initialPrompt={session.prompt ?? null}

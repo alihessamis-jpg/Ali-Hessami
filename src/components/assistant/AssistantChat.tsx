@@ -56,6 +56,7 @@ export interface AssistantChatProps {
   mode: AssistantMode
   patientId?: string | null
   chapterId?: string | null
+  topicId?: string | null
   /** Shown in the context bar only (never sent). */
   contextLabel?: string | null
   /** Text to put in the composer (e.g. a selected passage). */
@@ -74,6 +75,7 @@ export function AssistantChat({
   mode,
   patientId = null,
   chapterId = null,
+  topicId = null,
   contextLabel,
   initialPrompt,
   autoSend,
@@ -194,6 +196,7 @@ export function AssistantChat({
             mode,
             patientId: isPatient ? patientId : null,
             chapterId,
+            topicId,
             message: q,
             caseText: isPatient && firstTurn ? caseText : null,
             debug: import.meta.env.DEV,
@@ -240,7 +243,7 @@ export function AssistantChat({
         abortRef.current = null
       }
     },
-    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, caseText, onConversation, voice],
+    [busy, isPatient, firstTurn, caseState, conversationId, mode, patientId, chapterId, topicId, caseText, onConversation, voice],
   )
 
   // quick-action from outside (patient chips / «بپرس» on a selection)

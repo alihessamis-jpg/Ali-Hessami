@@ -291,6 +291,10 @@ export interface AcademyTopic {
   caseStem?: string | null
   caseQuestions: string[]
   caseDiscussion?: string | null
+  /** «📝 یادداشت من» (Topic Hub) */
+  myNotes?: string | null
+  /** set when the topic is edited by hand in the app */
+  editedAt?: string | null
 }
 
 export type AcademyTopicDraft = Omit<AcademyTopic, 'id'>
