@@ -48,6 +48,7 @@ export function GuidelinesPanel({ search }: { search: string }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [pdfBusy, setPdfBusy] = useState<string | null>(null)
   const [questions, setQuestions] = useState<Record<string, string>>({})
+  const [open, setOpen] = useState<Set<string>>(new Set())
   const pkgInput = useRef<HTMLInputElement>(null)
   const pdfInput = useRef<HTMLInputElement>(null)
   const pdfTarget = useRef<string | null>(null)
@@ -115,7 +116,8 @@ export function GuidelinesPanel({ search }: { search: string }) {
   }
 
   const q = search.trim().toLowerCase()
-  const visible = items.filter(
+  const sorted = [...items].sort((a, b) => (b.book.year ?? 9999) - (a.book.year ?? 9999) || a.book.title.localeCompare(b.book.title))
+  const visible = sorted.filter(
     (g) =>
       !q ||
       [g.book.title, g.book.organization, g.book.summary, g.book.scope, ...g.chapters.map((c) => c.title)]
@@ -166,7 +168,7 @@ export function GuidelinesPanel({ search }: { search: string }) {
         visible.map(({ book, chapters }) => {
           const analysis = chapters.find((c) => c.partRoman === 'A') ?? chapters[0]
           const originals = chapters.filter((c) => c !== analysis)
-          const recommendations = originals.find((c) => (c.subtitle ?? '').includes('دوزبانه')) ?? originals[0]
+          const recommendations = originals.find((c) => (c.subtitle ?? '').includes('دوزبانه'))
           const question = questions[book.id] ?? ''
           function ask(prompt: string) {
             if (!analysis) return
@@ -174,8 +176,49 @@ export function GuidelinesPanel({ search }: { search: string }) {
           }
           const draft = isDraft(book.docStatus)
           const highlights: GuidelineHighlight[] = book.highlights ?? []
+          // With many guidelines the list starts collapsed; a search or a
+          // short list shows everything expanded.
+          const expanded = open.has(book.id) || visible.length <= 2 || q !== ''
+          const toggle = () =>
+            setOpen((prev) => {
+              const next = new Set(prev)
+              if (next.has(book.id)) next.delete(book.id)
+              else next.add(book.id)
+              return next
+            })
+          if (!expanded) {
+            return (
+              <button type="button" className="np-card gl-card gl-row" key={book.id} onClick={toggle} aria-expanded={false}>
+                <div className="gl-tags">
+                  {book.organization && (
+                    <span className="np-tag" style={{ color: '#1546A8', background: '#E3EDFD' }}>
+                      {book.organization}
+                    </span>
+                  )}
+                  {book.year && (
+                    <span className="np-tag" style={{ color: '#5B6B82', background: '#EEF2F8' }}>
+                      {book.year}
+                    </span>
+                  )}
+                  {book.docStatus && (
+                    <span className="np-tag" style={draft ? { color: '#93590B', background: '#FDF0DC' } : { color: '#17663A', background: '#DDF3E6' }}>
+                      {book.docStatus}
+                    </span>
+                  )}
+                </div>
+                <span className="gl-title">{book.title}</span>
+                {book.scope && <span className="np-small">{book.scope}</span>}
+                <span className="gl-row-more">باز کردن ▾</span>
+              </button>
+            )
+          }
           return (
             <article className="np-card gl-card" key={book.id}>
+              {visible.length > 2 && q === '' && (
+                <button type="button" className="gl-collapse" onClick={toggle} aria-expanded={true}>
+                  بستن ▴
+                </button>
+              )}
               <div className="gl-tags">
                 {book.organization && (
                   <span className="np-tag" style={{ color: '#1546A8', background: '#E3EDFD' }}>
@@ -216,8 +259,10 @@ export function GuidelinesPanel({ search }: { search: string }) {
                 {analysis && (
                   <Link className="gl-tile" to={`/academy/reader/${analysis.id}`}>
                     <span className="gl-tile-ic" aria-hidden="true">📘</span>
-                    <b>تحلیل و نکات کلیدی</b>
-                    <span>جدول توصیه‌ها، PEARL، تله‌ها، الگوریتم‌ها و بانک تست</span>
+                    <b>{analysis.language === 'fa' ? 'تحلیل و نکات کلیدی' : analysis.title}</b>
+                    <span>
+                      {analysis.language === 'fa' ? 'جدول توصیه‌ها، PEARL، تله‌ها، الگوریتم‌ها و بانک تست' : analysis.subtitle ?? ''}
+                    </span>
                   </Link>
                 )}
                 {recommendations && (

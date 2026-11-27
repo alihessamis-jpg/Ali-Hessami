@@ -10433,3 +10433,8 @@ html.force-reduced-motion .pc-ecg-line {
 .rd-size button:disabled { opacity: 0.4; cursor: default; }
 .rd-size span { font: 700 13px 'Plus Jakarta Sans', sans-serif; min-width: 44px; text-align: center; color: var(--text-muted); }
 .gl-tip { margin: 8px 0 0; font-size: 14px; line-height: 1.8; color: var(--text-muted); font-family: 'Vazirmatn', sans-serif; }
+.gl-row { text-align: left; cursor: pointer; gap: 8px; font: inherit; color: var(--text); width: 100%; }
+.gl-row .gl-title { font-size: 18px; font-weight: 700; }
+.gl-row-more, .gl-collapse { font: 700 13.5px 'Vazirmatn', sans-serif; color: var(--accent); }
+.gl-row-more { align-self: flex-end; }
+.gl-collapse { align-self: flex-end; background: none; border: 0; cursor: pointer; padding: 4px 6px; }
