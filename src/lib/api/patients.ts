@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 import { getAuthUser } from './authUser'
 import type { Patient, PatientCareStatus, PatientDraft } from '../../types/domain'
+import type { PedsHistory } from '../pedsHistory'
 
 interface PatientRow {
   id: string
@@ -51,6 +52,7 @@ interface PatientRow {
   ex_neuro: string | null
   ex_edema: string | null
   ex_hydration: string | null
+  peds_history?: PedsHistory | null
 }
 
 function toDomain(row: PatientRow): Patient {
@@ -103,6 +105,7 @@ function toDomain(row: PatientRow): Patient {
     exNeuro: row.ex_neuro,
     exEdema: row.ex_edema,
     exHydration: row.ex_hydration,
+    pedsHistory: row.peds_history ?? null,
   }
 }
 
@@ -220,4 +223,41 @@ export async function listActivePatientIds(): Promise<Set<string>> {
   const { data, error } = await supabase.from('patients').select('id').in('care_status', ['inpatient', 'outpatient'])
   if (error) throw error
   return new Set((data as Array<{ id: string }>).map((r) => r.id))
+}
+
+// The pediatric history wizard's structured answers live in one jsonb
+// column (peds_history_migration.sql). Saved separately from updatePatient
+// so a database that hasn't run that migration yet still saves every other
+// field; until then the answers are kept on this device instead.
+const LOCAL_KEY = (id: string) => `nephron.pedsHistory.${id}`
+
+export function readLocalPedsHistory(id: string): PedsHistory | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY(id))
+    return raw ? (JSON.parse(raw) as PedsHistory) : null
+  } catch {
+    return null
+  }
+}
+
+export async function savePedsHistory(id: string, history: PedsHistory): Promise<'server' | 'local'> {
+  const value = { ...history, updatedAt: new Date().toISOString() }
+  try {
+    localStorage.setItem(LOCAL_KEY(id), JSON.stringify(value))
+  } catch {
+    /* storage full / private mode */
+  }
+  const { error } = await supabase.from('patients').update({ peds_history: value }).eq('id', id)
+  if (!error) return 'server'
+  const missingColumn = error.code === '42703' || error.code === 'PGRST204' || /peds_history/.test(error.message ?? '')
+  if (missingColumn) return 'local'
+  throw error
+}
+
+/** Server copy wins unless this device has a newer unsynced one. */
+export function resolvePedsHistory(patient: Patient): PedsHistory {
+  const server = patient.pedsHistory ?? null
+  const local = readLocalPedsHistory(patient.id)
+  if (server && local) return (local.updatedAt ?? '') > (server.updatedAt ?? '') ? local : server
+  return server ?? local ?? {}
 }

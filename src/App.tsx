@@ -13,6 +13,7 @@ import { DailyCasePage } from './pages/DailyCasePage'
 import { DailyCaseArchivePage } from './pages/DailyCaseArchivePage'
 import { PatientsListPage } from './pages/PatientsListPage'
 import { PatientDetailPage } from './pages/PatientDetailPage'
+import { HistoryWizardPage } from './pages/HistoryWizardPage'
 import { QuickAkiEntryPage } from './pages/QuickAkiEntryPage'
 import { CaseLogPage } from './pages/CaseLogPage'
 import { AcademicActivityPage } from './pages/AcademicActivityPage'
@@ -58,6 +59,7 @@ export function App() {
           <Route path="/daily-case/:id" element={protect(<DailyCasePage />)} />
           <Route path="/patients" element={protect(<PatientsListPage />)} />
           <Route path="/patients/quick-aki" element={protect(<QuickAkiEntryPage />)} />
+          <Route path="/patients/:id/history" element={protect(<HistoryWizardPage />)} />
           <Route path="/patients/:id" element={protect(<PatientDetailPage />)} />
           <Route path="/case-log" element={protect(<CaseLogPage />)} />
           <Route path="/academic-activity" element={protect(<AcademicActivityPage />)} />

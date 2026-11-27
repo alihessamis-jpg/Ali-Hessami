@@ -1,14 +1,25 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { createPatient, listPatients, updatePatient } from '../lib/api/patients'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { createPatient, listPatients, resolvePedsHistory, updatePatient } from '../lib/api/patients'
+import { STEPS } from '../lib/pedsHistory'
 import { listLabEntriesByTest } from '../lib/api/labs'
 import { DEFAULT_USER_SETTINGS, getUserSettings } from '../lib/api/settings'
 import { formatAge } from '../lib/patientAge'
 import { toShamsi } from '../lib/shamsi'
 import { useCountUp } from '../hooks/useCountUp'
-import { PersonIcon, PlusIcon, SearchIcon, WarningIcon, ZapIcon } from '../components/icons'
+import {
+  CalculatorIcon,
+  ChecklistIcon,
+  MedicationsIcon,
+  PatientsIcon,
+  PersonIcon,
+  PlusIcon,
+  SearchIcon,
+  SparkleIcon,
+  WarningIcon,
+  ZapIcon,
+} from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
-import { HeroScene } from '../components/hero/HeroScene'
 import type { Patient, PatientCareStatus } from '../types/domain'
 
 const WARDS: Array<{ id: PatientCareStatus; label: string; chipLabel: string }> = [
@@ -30,10 +41,10 @@ const CARE_STATUS_LABELS: Record<PatientCareStatus, string> = {
   expired: 'Expired',
 }
 
-function StatCount({ value, label }: { value: number; label: string }) {
+function StatCount({ value, label, tone }: { value: number; label: string; tone: string }) {
   const animated = useCountUp(value, 1000)
   return (
-    <div>
+    <div className={`pl-stat ${tone}`}>
       <b>{Math.round(animated ?? 0)}</b>
       <span>{label}</span>
     </div>
@@ -125,61 +136,54 @@ export function PatientsListPage() {
 
   const countByWard = (id: PatientCareStatus) => patients.filter((p) => p.careStatus === id).length
 
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+
+  const quick: Array<{ label: string; sub: string; tone: string; icon: ReactNode; onClick: () => void }> = [
+    {
+      label: 'شرح حال جدید',
+      sub: 'Pediatric history',
+      tone: 'teal',
+      icon: <HistoryDocIcon />,
+      onClick: () => navigate(`/patients/new/history?ward=${ward === 'expired' ? 'inpatient' : ward}`),
+    },
+    { label: 'Quick AKI', sub: 'KDIGO staging', tone: 'amber', icon: <ZapIcon />, onClick: () => navigate('/patients/quick-aki') },
+    { label: 'دستیار', sub: 'Case analysis', tone: 'rose', icon: <SparkleIcon />, onClick: () => navigate('/assistant') },
+    { label: 'Calculators', sub: 'eGFR, BSA, doses', tone: 'sky', icon: <CalculatorIcon />, onClick: () => navigate('/calculators') },
+    { label: 'Drug reference', sub: 'Renal dosing', tone: 'pink', icon: <MedicationsIcon />, onClick: () => navigate('/reference') },
+    { label: 'Checklists', sub: 'Workups', tone: 'violet', icon: <ChecklistIcon />, onClick: () => navigate('/checklists') },
+  ]
+
   return (
-    <div className="np-page">
-      <section className="pt-hero np-fade">
-        <HeroScene scene="branching" page="patients" className="hero-scene" />
-        <div className="hero-scrim" />
-        <div className="pt-hero-top">
+    <div className="np-page pl-page">
+      <header className="pl-head np-fade">
+        <span className="pl-avatar" aria-hidden="true">
+          <PatientsIcon />
+        </span>
+        <div className="pl-head-txt">
+          <span>
+            {greeting} · <span className="fa">{toShamsi(new Date().toISOString().slice(0, 10), 'long')}</span>
+          </span>
           <h1>Patients</h1>
-          <div className="pt-hero-actions">
-            <Link to="/patients/quick-aki" className="pt-glass">
-              <ZapIcon />
-              Quick AKI entry
-            </Link>
-            <button type="button" className="pt-solid" onClick={() => setShowNewForm((v) => !v)}>
-              <PlusIcon />
-              New patient
-            </button>
-          </div>
         </div>
-        <svg viewBox="0 0 700 40" width="100%" height="40" fill="none" preserveAspectRatio="none" aria-hidden="true" style={{ position: 'relative', zIndex: 2, display: 'block' }}>
-          <path
-            d="M0 22H120l8-14 10 28 8-20 6 6H330l8-14 10 28 8-20 6 6H540l8-14 10 28 8-20 6 6H700"
-            stroke="rgba(127,212,255,.25)"
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d="M0 22H120l8-14 10 28 8-20 6 6H330l8-14 10 28 8-20 6 6H540l8-14 10 28 8-20 6 6H700"
-            stroke="#7FD4FF"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray="120 480"
-            vectorEffect="non-scaling-stroke"
-            className="pt-ecg-path"
-          />
-        </svg>
-        <div className="pt-stats">
-          <StatCount value={countByWard('inpatient')} label="Inpatient F1" />
-          <StatCount value={countByWard('outpatient')} label="Outpatient / HD" />
-          <StatCount value={countByWard('discharged')} label="Discharged" />
-        </div>
-      </section>
+        <button type="button" className="pl-iconbtn" aria-label="Quick add by name" onClick={() => setShowNewForm((v) => !v)}>
+          <PlusIcon />
+        </button>
+      </header>
+
+      <div className="pl-stats np-fade">
+        <StatCount value={countByWard('inpatient')} label="Inpatient" tone="teal" />
+        <StatCount value={countByWard('outpatient')} label="Outpatient / HD" tone="sky" />
+        <StatCount value={Object.keys(lowHbByPatient).length} label="Low Hb alerts" tone="rose" />
+      </div>
 
       {showNewForm && (
         <div className="pt-new-form np-fade">
           <p className="patient-meta" style={{ margin: 0 }}>
-            Will be added to: {WARDS.find((w) => w.id === ward)?.label}
+            Quick add to: {WARDS.find((w) => w.id === ward)?.label}
           </p>
           <form className="inline-form" style={{ marginBottom: 0 }} onSubmit={(e) => void handleCreate(e)}>
-            <input
-              placeholder="Patient name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
+            <input placeholder="Patient name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <button type="submit" disabled={creating}>
               Add
             </button>
@@ -187,51 +191,58 @@ export function PatientsListPage() {
         </div>
       )}
 
-      <div className="pt-toolbar np-fade" style={{ animationDelay: '.08s' }}>
-        <nav className="pt-chips" aria-label="Care ward">
+      <section className="pl-quick np-fade" style={{ animationDelay: '.05s' }}>
+        <h2>Quick access · دسترسی سریع</h2>
+        <div className="pl-grid">
+          {quick.map((q) => (
+            <button key={q.label} type="button" className="pl-q" onClick={q.onClick}>
+              <span className={`pl-q-ic ${q.tone}`}>{q.icon}</span>
+              <b>{q.label}</b>
+              <small>{q.sub}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="pl-toolbar np-fade" style={{ animationDelay: '.08s' }}>
+        <nav className="pl-seg" aria-label="Care ward">
           {WARDS.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              className={w.id === ward ? 'pt-chip on' : 'pt-chip'}
-              onClick={() => setWard(w.id)}
-            >
-              {w.chipLabel} · {countByWard(w.id)}
+            <button key={w.id} type="button" className={w.id === ward ? 'on' : ''} onClick={() => setWard(w.id)}>
+              {w.chipLabel}
+              <span>{countByWard(w.id)}</span>
             </button>
           ))}
         </nav>
-
-        <label className="pt-search">
+        <label className="pl-search">
           <SearchIcon />
-          <input
-            aria-label="Search patients"
-            placeholder="Search by name or diagnosis"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <input aria-label="Search patients" placeholder="Search by name or diagnosis" value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
       </div>
 
       {error && <p className="form-error">{error}</p>}
 
       {loading ? (
-        <p>Loading…</p>
+        <div className="pl-list">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="pl-card skel" />
+          ))}
+        </div>
       ) : visiblePatients.length === 0 ? (
         <div className="pt-empty">
-          <EmptyState>
-            {wardPatients.length === 0 ? 'No patients here yet.' : 'No patients match your search.'}
-          </EmptyState>
+          <EmptyState>{wardPatients.length === 0 ? 'No patients here yet.' : 'No patients match your search.'}</EmptyState>
         </div>
       ) : (
-        <div className="pt-list">
+        <div className="pl-list">
           {visiblePatients.map((p, i) => {
             const critical = lowHbByPatient[p.id] != null
+            const female = (p.sex ?? '').trim().toLowerCase().startsWith('f')
+            const male = (p.sex ?? '').trim().toLowerCase().startsWith('m')
+            const hxDone = resolvePedsHistory(p).completedSteps?.length ?? 0
             return (
               // A plain div + onClick here, not a <Link> wrapping the row: nesting
               // the <select> status picker inside an <a> is invalid HTML and some
               // mobile browsers (notably iOS Safari) resolve a tap anywhere on the
-              // row to the nested control instead of the link, so the whole card
-              // opened the status dropdown instead of navigating to the patient.
+              // row to the nested control instead of the link.
               <div
                 key={p.id}
                 role="link"
@@ -243,52 +254,89 @@ export function PatientsListPage() {
                     navigate(`/patients/${p.id}`)
                   }
                 }}
-                className={critical ? 'pt-pt crit' : 'pt-pt'}
-                style={{ animationDelay: `${Math.min(i, 8) * 0.07}s`, cursor: 'pointer' }}
+                className={critical ? 'pl-card crit' : 'pl-card'}
+                style={{ animationDelay: `${Math.min(i, 8) * 0.05}s` }}
               >
-                <span className="pt-av">
+                <span className={`pl-av ${female ? 'f' : male ? 'm' : ''}`}>
                   <PersonIcon />
                 </span>
-                <span className="pt-info">
-                  <span className="pt-name" dir="rtl" style={{ textAlign: 'left' }}>
+                <span className="pl-info">
+                  <span className="pl-name" dir="auto">
                     {p.name}
                   </span>
-                  <span className="pt-sub">{[formatAge(p.age), p.diagnosis].filter(Boolean).join(' · ') || 'No details yet'}</span>
+                  <span className="pl-sub">
+                    {[formatAge(p.age), female ? 'F' : male ? 'M' : null, p.bed ? `Bed ${p.bed}` : null].filter(Boolean).join(' · ') || 'No details yet'}
+                  </span>
+                  {p.diagnosis && (
+                    <span className="pl-dx" dir="auto">
+                      {p.diagnosis}
+                    </span>
+                  )}
+                  <span className="pl-hx" title="History steps completed">
+                    <span className="pl-hx-bar">
+                      <i style={{ width: `${(hxDone / STEPS.length) * 100}%` }} />
+                    </span>
+                    <button
+                      type="button"
+                      className="pl-hx-link"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/patients/${p.id}/history`)
+                      }}
+                    >
+                      History {hxDone}/{STEPS.length}
+                    </button>
+                  </span>
                 </span>
-                {critical && (
-                  <span className="pt-alert">
-                    <WarningIcon />
-                    Hb {lowHbByPatient[p.id]}
-                  </span>
-                )}
-                {p.careStatus === 'expired' ? (
-                  <span className="pt-ward pt-ward-expired" onClick={(e) => e.stopPropagation()}>
-                    Expired{p.deceasedDate ? ` · ${toShamsi(p.deceasedDate)}` : ''}
-                  </span>
-                ) : (
-                  <select
-                    className="pt-ward"
-                    value={p.careStatus}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
-                  >
-                    {EDITABLE_CARE_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {CARE_STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <span className="pl-side">
+                  {critical && (
+                    <span className="pt-alert">
+                      <WarningIcon />
+                      Hb {lowHbByPatient[p.id]}
+                    </span>
+                  )}
+                  {p.careStatus === 'expired' ? (
+                    <span className="pt-ward pt-ward-expired" onClick={(e) => e.stopPropagation()}>
+                      Expired{p.deceasedDate ? ` · ${toShamsi(p.deceasedDate)}` : ''}
+                    </span>
+                  ) : (
+                    <select
+                      className="pt-ward"
+                      value={p.careStatus}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => void handleSetCareStatus(p, e.target.value as PatientCareStatus)}
+                    >
+                      {EDITABLE_CARE_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {CARE_STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </span>
               </div>
             )
           })}
         </div>
       )}
 
-      <button type="button" className="pt-fab" onClick={() => setShowNewForm((v) => !v)}>
+      <button
+        type="button"
+        className="pt-fab pl-fab"
+        onClick={() => navigate(`/patients/new/history?ward=${ward === 'expired' ? 'inpatient' : ward}`)}
+      >
         <PlusIcon />
-        {showNewForm ? 'Cancel' : 'New patient'}
+        شرح حال جدید
       </button>
     </div>
+  )
+}
+
+function HistoryDocIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M14 3v6h6M12 12v6M9 15h6" />
+    </svg>
   )
 }
