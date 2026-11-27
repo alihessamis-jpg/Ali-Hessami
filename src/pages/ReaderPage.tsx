@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import JSZip from 'jszip'
 import {
@@ -49,6 +49,12 @@ import { addBoardQuestionAttempt } from '../lib/api/boardQuestionAttempts'
 import { SelectionAsk } from '../components/assistant/SelectionAsk'
 import { useAssistant } from '../components/assistant/AssistantProvider'
 import { STUDY_CHIPS } from '../components/assistant/AssistantChat'
+
+const TEXT_SCALE_KEY = 'np-reader-text-scale'
+const TEXT_SCALE_MIN = 0.9
+const TEXT_SCALE_MAX = 1.6
+const TRANSLATE_CHAPTER_PROMPT =
+  'این فصل را بخش‌به‌بخش به فارسی روان ترجمه کن. اصطلاحات پزشکی، نام داروها، اعداد، واحدها و شمارهٔ توصیه‌ها را به انگلیسی نگه دار. از بخش اول شروع کن (chapter_outline و read_section)، متن هر بخش را کامل ترجمه کن و بعد از هر بخش بپرس بخش بعدی را ترجمه کنم یا نه.'
 import type {
   AcademyTopic,
   BoardQuestion,
@@ -206,6 +212,26 @@ export function ReaderPage() {
   const [figurePanelOpen, setFigurePanelOpen] = useState(false)
 
   const articleRef = useRef<HTMLDivElement>(null)
+  // Reader text size (A− / A+), remembered on this device.
+  const [textScale, setTextScale] = useState<number>(() => {
+    try {
+      const v = Number(window.localStorage.getItem(TEXT_SCALE_KEY))
+      return v >= TEXT_SCALE_MIN && v <= TEXT_SCALE_MAX ? v : 1
+    } catch {
+      return 1
+    }
+  })
+  function changeTextScale(delta: number) {
+    setTextScale((prev) => {
+      const next = Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, Math.round((prev + delta) * 10) / 10))
+      try {
+        window.localStorage.setItem(TEXT_SCALE_KEY, String(next))
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }
   const bottomSentinelRef = useRef<HTMLDivElement>(null)
   const furthestSectionIndexRef = useRef(-1)
   const [furthestSectionIndex, setFurthestSectionIndex] = useState(-1)
@@ -905,6 +931,15 @@ export function ReaderPage() {
             <h1 style={{ position: 'relative', zIndex: 2 }}>{chapter.title}</h1>
           </div>
           <div className="pc-ai-chips reader" dir="rtl">
+            {chapter.language === 'en' && (
+              <button
+                type="button"
+                className="pc-ai-chip"
+                onClick={() => openAssistant({ mode: 'study', chapterId: chapter.id, prompt: TRANSLATE_CHAPTER_PROMPT, autoSend: true })}
+              >
+                🔤 ترجمهٔ فارسی بخش‌به‌بخش
+              </button>
+            )}
             {['خلاصه + نقشه ذهنی', '۵ سؤال بورد و تصحیح', 'تله‌ها', 'سناریوی بالینی'].map((label, i) => (
               <button
                 key={label}
@@ -949,6 +984,15 @@ export function ReaderPage() {
                 Imported note · {chapter.language ?? 'fa'}
               </span>
             )}
+          </div>
+          <div className="rd-size" role="group" aria-label="Text size">
+            <button type="button" onClick={() => changeTextScale(-0.1)} disabled={textScale <= TEXT_SCALE_MIN} aria-label="Smaller text">
+              A−
+            </button>
+            <span>{Math.round(textScale * 100)}%</span>
+            <button type="button" onClick={() => changeTextScale(0.1)} disabled={textScale >= TEXT_SCALE_MAX} aria-label="Larger text">
+              A+
+            </button>
           </div>
           <div className="prog" aria-label={`${activeReadingPct}% read`}>
             <i style={{ width: `${activeReadingPct}%` }} />
@@ -1019,7 +1063,7 @@ export function ReaderPage() {
 
         <div className="stack">
           <SelectionAsk containerRef={articleRef} chapterId={chapter.id} />
-          <article className="art-card np-fade" ref={articleRef}>
+          <article className={chapter.language === 'en' ? 'art-card np-fade prose-en' : 'art-card np-fade'} ref={articleRef} style={{ '--prose-scale': textScale } as CSSProperties}>
             {offlineFallback && (
               <p className="np-small" style={{ color: '#93590B', background: '#FDF0D5', padding: '8px 12px', borderRadius: 10 }}>
                 Offline — showing the last downloaded version of this chapter. Import, approving cards, and new figures need a
