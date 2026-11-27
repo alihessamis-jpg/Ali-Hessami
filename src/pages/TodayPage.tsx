@@ -12,6 +12,7 @@ import { getUserSettings } from '../lib/api/settings'
 import { ensureTodayVerse, listDailyVerses, updateDailyVerseSrs } from '../lib/api/dailyVerses'
 import { localIsoDate, verseForDate } from '../lib/dailyVerse'
 import { DailyVerseCard } from '../components/DailyVerseCard'
+import { DailyCaseCard } from '../components/dailyCase/DailyCaseCard'
 import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
 import { toShamsi } from '../lib/shamsi'
@@ -360,6 +361,8 @@ export function TodayPage() {
           notice={verseNotice}
         />
       )}
+
+      <DailyCaseCard />
 
       {totalDue === 0 ? (
         <div className="np-card np-fade">
