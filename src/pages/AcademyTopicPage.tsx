@@ -189,6 +189,19 @@ export function AcademyTopicPage() {
   const [notesSaved, setNotesSaved] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
+  // Today → «مرور امروز / جدید امروز» links here with ?review=1: open the study
+  // tools and bring the Leitner rating (which schedules the next review) into view.
+  const reviewMode = params.get('review') === '1'
+  const toolsRef = useRef<HTMLDetailsElement>(null)
+  const recallRef = useRef<HTMLDivElement>(null)
+  const topicId = topic?.id ?? null
+
+  useEffect(() => {
+    if (!reviewMode || !topicId || editing || tab !== 'summary') return
+    if (toolsRef.current) toolsRef.current.open = true
+    const t = window.setTimeout(() => recallRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
+    return () => window.clearTimeout(t)
+  }, [reviewMode, topicId, editing, tab])
 
   useEffect(() => {
     function onScroll() {
@@ -660,7 +673,7 @@ export function AcademyTopicPage() {
                 </section>
               )}
 
-              <details className="np-card th-sec th-tools">
+              <details className="np-card th-sec th-tools" ref={toolsRef}>
                 <summary>
                   <h2>ابزارهای مطالعه</h2>
                   <span className="np-small">
@@ -687,7 +700,7 @@ export function AcademyTopicPage() {
                     <span className="calc-value">{masteryPct != null ? `${masteryPct}%` : '—'}</span>
                   </div>
                 </div>
-                <div className="th-recall">
+                <div className={`th-recall ${reviewMode ? 'th-recall-focus' : ''}`} ref={recallRef}>
                   <span className="np-small">یادآوری این مبحث را ارزیابی کن (Leitner):</span>
                   <div className="dc-actions">
                     <button type="button" className="np-btn ghost sm" onClick={() => void handleReview('difficult')}>

@@ -22,6 +22,7 @@ import { ANURIA_THRESHOLD_ML_KG_HR, POLYURIA_THRESHOLD_ML_KG_HR } from '../lib/f
 import { listActiveReminders, type ActiveReminder } from '../lib/api/reminders'
 import { listActivePatientIds } from '../lib/api/patients'
 import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
+import { planTopicReview } from '../lib/topicReviewPlan'
 import { listAllAcademyCards } from '../lib/api/academyCards'
 import { listFlashcards } from '../lib/api/flashcards'
 import { ensureLibraryBookSeeded, listAllLibraryCards } from '../lib/api/library'
@@ -48,7 +49,7 @@ import {
   WarningIcon,
   ZapIcon,
 } from '../components/icons'
-import type { AcademyTopic, Flashcard, KnowledgeGap, LibraryCard, LibraryChapter, ReadingItem, ResearchProject } from '../types/domain'
+import type { AcademyProgress, AcademyTopic, Flashcard, KnowledgeGap, LibraryCard, LibraryChapter, ReadingItem, ResearchProject } from '../types/domain'
 
 function pickHighYieldCardOfTheDay(cards: LibraryCard[]): LibraryCard | null {
   const pool = cards.filter((c) => c.status === 'approved' && c.highYield)
@@ -173,7 +174,7 @@ export function DashboardPage() {
   const [labs, setLabs] = useState<AbnormalLab[]>([])
   const [reminders, setReminders] = useState<ActiveReminder[]>([])
   const [topics, setTopics] = useState<AcademyTopic[]>([])
-  const [topicProgress, setTopicProgress] = useState<Record<string, string | null>>({})
+  const [topicProgress, setTopicProgress] = useState<AcademyProgress[]>([])
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [weakTopicCount, setWeakTopicCount] = useState(0)
   const [knowledgeGaps, setKnowledgeGaps] = useState<KnowledgeGap[]>([])
@@ -262,7 +263,7 @@ export function DashboardPage() {
           setLabs(labRows)
           setReminders(reminderRows)
           setTopics(topicRows)
-          setTopicProgress(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
+          setTopicProgress(progressRows)
           setFlashcards(flashcardRows)
           setAcademyUnavailable(!academyV2.ok)
           setLibraryCards(academyV2.libraryCardRows)
@@ -316,10 +317,10 @@ export function DashboardPage() {
     .filter((a): a is AlertItem => a !== null)
   const labAlerts = labs.map(labToAlert)
 
-  const dueTopics = topics.filter((t) => {
-    const next = topicProgress[t.id]
-    return !next || next <= today
-  })
+  // due = has academy_progress and next_review <= today (never-reviewed topics
+  // are «new», introduced 3 a day on Today — not counted as due)
+  const topicPlan = planTopicReview(topics, topicProgress, new Map(), today)
+  const dueTopics = topicPlan.due
   const dueFlashcards = flashcards.filter((c) => !c.nextReview || c.nextReview <= today)
   const dueReadingCheckpoints = listDueCheckpoints(readingItems, today)
   const dueLeitnerItems = listDueLeitnerItems(readingItems, today)
@@ -422,7 +423,7 @@ export function DashboardPage() {
     return sa !== sb ? sa - sb : a.name.localeCompare(b.name)
   })
 
-  const topicOfTheDay = dueTopics[0] ?? topics[0] ?? null
+  const topicOfTheDay = dueTopics[0] ?? topicPlan.fresh[0] ?? topics[0] ?? null
   const cardOfTheDay = pickHighYieldCardOfTheDay(libraryCards)
 
   return (

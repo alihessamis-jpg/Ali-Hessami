@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { HeroScene } from '../components/hero/HeroScene'
-import { listAcademyProgress, listAcademyTopics } from '../lib/api/academy'
+import { listAcademyProgress, listAcademyTopics, listTopicQuestionStats } from '../lib/api/academy'
+import { categoryAccuracy, planTopicReview } from '../lib/topicReviewPlan'
+import { categoryFa } from '../lib/topicHub'
 import { listAllAcademyCards, updateAcademyCardSrs } from '../lib/api/academyCards'
 import { listFlashcards, updateFlashcardSrs } from '../lib/api/flashcards'
 import { listAllLibraryCards, listReadingLog } from '../lib/api/library'
@@ -15,11 +17,13 @@ import { DailyVerseCard } from '../components/DailyVerseCard'
 import { DailyCaseCard } from '../components/dailyCase/DailyCaseCard'
 import { describeError, tagPromise } from '../lib/debugError'
 import { scheduleReview } from '../lib/srs'
-import { toShamsi } from '../lib/shamsi'
+import { toPersianDigits, toShamsi } from '../lib/shamsi'
+import { blockDir, isolateLatinRuns } from '../lib/bidiText'
+import { plainCardText } from '../lib/cardText'
 import { useAuth } from '../context/AuthContext'
 import { AcademyIcon, BookIcon, CalendarIcon, FlashcardsIcon } from '../components/icons'
 import { EmptyState } from '../components/illustrations/EmptyState'
-import type { AcademyCard, AcademyTopic, DailyVerse, Flashcard, LibraryCard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
+import type { AcademyCard, AcademyProgress, AcademyTopic, DailyVerse, Flashcard, LibraryCard, ReadingItem, ReviewCheckpointKey } from '../types/domain'
 
 type Rating = 'easy' | 'moderate' | 'difficult'
 
@@ -57,6 +61,19 @@ function DueReviewCard({
   onGrade: (rating: Rating) => void
   animationDelay: string
 }) {
+  // Long questions/answers: clamp to 6 lines with «ادامه»; the toggle only
+  // appears when the visible face's text is actually cut off.
+  const [expanded, setExpanded] = useState(false)
+  const [overflowing, setOverflowing] = useState(false)
+  const frontRef = useRef<HTMLParagraphElement>(null)
+  const backRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => setExpanded(false), [question])
+  useLayoutEffect(() => {
+    const el = (showBack ? backRef : frontRef).current
+    setOverflowing(!!el && !expanded && el.scrollHeight > el.clientHeight + 1)
+  }, [question, answer, showBack, expanded])
+  const qText = plainCardText(question ?? '')
+  const aText = plainCardText(answer || '—')
   return (
     <div className="np-card np-fade" style={{ animationDelay }}>
       <div className="np-head">
@@ -71,17 +88,25 @@ function DueReviewCard({
       {meta && <p className="td-meta">{meta}</p>}
       <div className="td-flipwrap">
         <div className={showBack ? 'td-flip on' : 'td-flip'}>
-          <div className="td-face td-front" dir="rtl">
+          <div className="td-face td-front" dir="rtl" aria-hidden={showBack}>
             <span className="np-small">سؤال</span>
-            <p className="td-q">{question}</p>
-            <span className="np-small">&nbsp;</span>
+            <p ref={frontRef} className={expanded ? 'td-q' : 'td-q clamped'} dir={blockDir(qText)}>
+              {isolateLatinRuns(qText)}
+            </p>
           </div>
-          <div className="td-face td-back" dir="rtl">
+          <div className="td-face td-back" dir="rtl" aria-hidden={!showBack}>
             <span className="np-small">پاسخ</span>
-            <p className="td-q">{answer || '—'}</p>
+            <p ref={backRef} className={expanded ? 'td-q' : 'td-q clamped'} dir={blockDir(aText)}>
+              {isolateLatinRuns(aText)}
+            </p>
           </div>
         </div>
       </div>
+      {(overflowing || expanded) && (
+        <button type="button" className="td-more" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+          {expanded ? 'بستن ▴' : 'ادامه ▾'}
+        </button>
+      )}
       {!showBack ? (
         <button type="button" className="td-btn" onClick={onShowBack}>
           Show answer
@@ -112,7 +137,8 @@ export function TodayPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [topics, setTopics] = useState<AcademyTopic[]>([])
-  const [topicNextReview, setTopicNextReview] = useState<Record<string, string | null>>({})
+  const [topicProgress, setTopicProgress] = useState<AcademyProgress[]>([])
+  const [catAccuracy, setCatAccuracy] = useState<Map<string, number>>(new Map())
 
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [flashcardIndex, setFlashcardIndex] = useState(0)
@@ -159,6 +185,15 @@ export function TodayPage() {
     }
   }, [session, localToday])
 
+  // Category accuracy for ordering new topics — optional; without it new
+  // topics are simply introduced in category order.
+  useEffect(() => {
+    if (!session) return
+    listTopicQuestionStats()
+      .then((rows) => setCatAccuracy(categoryAccuracy(rows)))
+      .catch(() => undefined)
+  }, [session])
+
   useEffect(() => {
     if (!session) return
     setLoading(true)
@@ -174,7 +209,7 @@ export function TodayPage() {
     ])
       .then(([topicRows, progressRows, flashcardRows, readingRows, cardRows, libraryCardRows, log, settings]) => {
         setTopics(topicRows)
-        setTopicNextReview(Object.fromEntries(progressRows.map((p) => [p.topicId, p.nextReview])))
+        setTopicProgress(progressRows)
         setFlashcards(flashcardRows)
         setReadingItems(readingRows)
         setAcademyCards(cardRows)
@@ -191,10 +226,11 @@ export function TodayPage() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  const dueTopics = useMemo(
-    () => topics.filter((t) => !topicNextReview[t.id] || (topicNextReview[t.id] as string) <= today),
-    [topics, topicNextReview, today]
-  )
+  // Academy topics: due = has progress and next_review <= today; plus up to
+  // 3 new topics a day, weakest categories first (see topicReviewPlan.ts).
+  const topicPlan = useMemo(() => planTopicReview(topics, topicProgress, catAccuracy, today), [topics, topicProgress, catAccuracy, today])
+  const dueTopics = topicPlan.due
+  const newTopics = topicPlan.fresh
   const dueFlashcards = useMemo(() => flashcards.filter((c) => !c.nextReview || c.nextReview <= today), [flashcards, today])
   const dueLeitnerItems = useMemo(() => listDueLeitnerItems(readingItems, today), [readingItems, today])
   const dueCheckpoints = useMemo(() => listDueCheckpoints(readingItems, today), [readingItems, today])
@@ -232,6 +268,7 @@ export function TodayPage() {
 
   const totalDue =
     dueTopics.length +
+    newTopics.length +
     dueFlashcards.length +
     dueLeitnerItems.length +
     dueCheckpoints.length +
@@ -460,28 +497,41 @@ export function TodayPage() {
             </div>
           )}
 
-          {dueTopics.length > 0 && (
+          {(dueTopics.length > 0 || newTopics.length > 0) && (
             <div className="np-card np-fade" style={{ animationDelay: '0.32s' }}>
               <div className="np-head">
                 <div className="np-head-l">
                   <span className="np-ic">
                     <AcademyIcon />
                   </span>
-                  <h2>Academy topics due</h2>
+                  <h2>Academy topics</h2>
                 </div>
-                <span className="np-pill" style={{ color: '#93590B', background: '#FDF0DC' }}>
-                  {dueTopics.length}
+              </div>
+              <div className="td-topic-counts np-fa" dir="rtl">
+                <span className="td-count review">
+                  مرور امروز: <b>{toPersianDigits(dueTopics.length)}</b>
+                </span>
+                <span className="td-count new">
+                  جدید امروز: <b>{toPersianDigits(newTopics.length)}</b>
                 </span>
               </div>
-              {dueTopics.slice(0, 3).map((t) => (
-                <Link key={t.id} to={`/academy/${t.id}`} className="td-row">
-                  <span className="td-dot" />
-                  <b>{t.name}</b>
-                  <span className="np-small">{t.category}</span>
+              {dueTopics.slice(0, 5).map((t) => (
+                <Link key={t.id} to={`/academy/${t.id}?review=1`} className="td-row" dir="rtl">
+                  <span className="td-dot" style={{ background: '#c27a0e' }} />
+                  <b dir="auto">{t.name}</b>
+                  <span className="np-small np-fa">مرور · {categoryFa(t.category)}</span>
                 </Link>
               ))}
-              <Link to="/academy?tab=topics" className="td-outline">
-                {dueTopics.length > 3 ? `Start review · ${dueTopics.length - 3} more` : 'Start review'}
+              {dueTopics.length > 5 && <span className="np-small np-fa">و {toPersianDigits(dueTopics.length - 5)} مبحث دیگر برای مرور</span>}
+              {newTopics.map((t) => (
+                <Link key={t.id} to={`/academy/${t.id}?review=1`} className="td-row" dir="rtl">
+                  <span className="td-dot" style={{ background: '#1e5bd8' }} />
+                  <b dir="auto">{t.name}</b>
+                  <span className="np-small np-fa">جدید · {categoryFa(t.category)}</span>
+                </Link>
+              ))}
+              <Link to="/academy?tab=topics" className="td-outline np-fa">
+                Topic Hub
               </Link>
             </div>
           )}
