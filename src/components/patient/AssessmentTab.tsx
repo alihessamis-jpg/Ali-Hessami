@@ -238,7 +238,7 @@ export function AssessmentTab({ patient, onUpdated }: Props) {
                 <label key={String(key)}>
                   {label}
                   <input
-                    value={form[key] ?? ''}
+                    value={(form[key] as string | number | null | undefined) ?? ''}
                     onChange={(e) => setField(key, e.target.value)}
                     type={NUMERIC_FIELDS.has(key) ? 'number' : 'text'}
                     step={NUMERIC_FIELDS.has(key) ? 'any' : undefined}
