@@ -11342,3 +11342,30 @@ div.hx-acc-head { cursor: default; }
 .dp-disclaimer { margin: 0; background: #e6f1ee; border-radius: 18px; padding: 14px 16px; font-size: 13.5px; color: #3b4659; line-height: 1.9; }
 .dp-dose { background: #fff; border: 1px solid #e3e8f0; border-radius: 22px; padding: 12px; }
 .ref-badge.dp-badge { background: #e5f5ee; color: #16865e; }
+/* Mobile tab bar: frosted light by default (readable over white pages),
+   switches to light-on-dark while it sits over a dark hero
+   (MobileTabBar → useOnDarkBackground). */
+@media (max-width: 768px) {
+  .mobile-tab-bar {
+    background: rgba(250, 251, 253, 0.84);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(15, 27, 45, 0.08);
+    box-shadow: 0 10px 30px rgba(15, 27, 45, 0.14);
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .mobile-tab-bar-item { color: #55657c; transition: color 0.25s ease; }
+  .mobile-tab-bar-item.active { color: var(--accent-dark); }
+
+  .mobile-tab-bar.on-dark {
+    background: rgba(8, 18, 24, 0.62);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  .mobile-tab-bar.on-dark .mobile-tab-bar-item { color: rgba(255, 255, 255, 0.78); }
+  .mobile-tab-bar.on-dark .mobile-tab-bar-item.active { color: #fff; }
+  .mobile-tab-bar.on-dark .mobile-tab-bar-pill { background: rgba(255, 255, 255, 0.18); }
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .mobile-tab-bar, .mobile-tab-bar-item { transition: none; }
+}
