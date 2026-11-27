@@ -9,7 +9,6 @@ import { listLabEntries } from '../lib/api/labs'
 import { schwartzEGFR } from '../lib/formulas'
 import { isUnderlyingDiseaseDuplicate } from '../lib/clinicalFlags'
 import { toShamsi } from '../lib/shamsi'
-import { HeroScene } from '../components/hero/HeroScene'
 import { OverviewTab } from '../components/patient/OverviewTab'
 import { AssessmentTab } from '../components/patient/AssessmentTab'
 import { LabsTab } from '../components/patient/LabsTab'
@@ -244,36 +243,42 @@ export function PatientDetailPage() {
     (v): v is string => Boolean(v)
   )
 
+  const sexLower = (patient.sex ?? '').trim().toLowerCase()
+  const sexTone = sexLower.startsWith('f') ? 'f' : sexLower.startsWith('m') ? 'm' : ''
+
   const latestGrowth = growthEntries.length > 0 ? growthEntries[growthEntries.length - 1] : null
   const crEntries = labEntries.filter((e) => e.test === 'Creatinine' && e.value != null).sort((a, b) => a.date.localeCompare(b.date))
   const latestCr = crEntries.length > 0 ? crEntries[crEntries.length - 1] : null
   const latestEGFR = latestCr && patient.height ? schwartzEGFR(patient.height, latestCr.value as number) : null
 
   return (
-    <div className="np-page pc-page">
-      <Link to="/patients" className="np-backlink" style={{ display: 'flex' }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-          <path d="m15 6-6 6 6 6" />
-        </svg>
-        Patients
-      </Link>
+    <div className="np-page pc-page hm">
+      <header className="pd-top">
+        <Link to="/patients" className="pd-round" aria-label="Patients">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+        </Link>
+        <div className="pd-top-title">
+          <h1>Patient chart</h1>
+          <p>{wardChip || 'No ward set'}</p>
+        </div>
+      </header>
 
-      <section className="np-hero np-fade">
-        <HeroScene scene="cross" page="patient" className="hero-scene" />
-        <div className="hero-scrim" />
-        <div className="pc-top">
-          <span className="pc-avatar">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <section className="pd-card np-fade">
+        <div className="pd-id">
+          <span className={`pd-avatar ${sexTone}`} aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21a8 8 0 0 1 16 0" />
             </svg>
           </span>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span className="pc-name fa" dir="rtl" style={{ textAlign: 'left' }}>
+          <div className="pd-id-main">
+            <span className="pd-name fa" dir="auto">
               {patient.name}
             </span>
             {patient.code && (
-              <button type="button" className="pc-idbtn" onClick={() => setIdShown((v) => !v)} aria-label="Toggle national ID">
+              <button type="button" className="pd-idbtn" onClick={() => setIdShown((v) => !v)} aria-label="Toggle national ID">
                 {idShown ? `ID ${patient.code} · tap to hide` : `ID •••• ${patient.code.slice(-4)} · tap to show`}
               </button>
             )}
@@ -281,201 +286,127 @@ export function PatientDetailPage() {
         </div>
 
         {chips.length > 0 && (
-          <div className="pc-chips">
+          <div className="pd-chips">
             {chips.map((c, i) => (
-              <span key={i} className="pc-chip">
+              <span key={i} className="pd-chip" dir="auto">
                 {c}
               </span>
             ))}
           </div>
         )}
 
-        <svg className="pc-ecg" viewBox="0 0 700 34" width="100%" height="34" fill="none" preserveAspectRatio="none" aria-hidden="true">
-          <path
-            d="M0 18H150l8-12 10 24 8-17 6 5H400l8-12 10 24 8-17 6 5H700"
-            stroke="rgba(127,212,255,.22)"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            className="pc-ecg-line"
-            d="M0 18H150l8-12 10 24 8-17 6 5H400l8-12 10 24 8-17 6 5H700"
-            stroke="#7FD4FF"
-            strokeWidth={2.4}
-            strokeDasharray="120 480"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+        <div className="pd-actions">
+          <Link to={`/patients/${id}/history`} className="pd-btn solid">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+              <path d="M14 3v6h6M8 13h8M8 17h5" />
+            </svg>
+            <span className="fa">شرح حال</span>
+          </Link>
+          <button type="button" className="pd-btn soft" onClick={() => openAssistant({ mode: 'patient', patientId: id })}>
+            <SparkleIcon width={16} height={16} aria-hidden="true" />
+            <span className="fa">تحلیل با دستیار</span>
+          </button>
+        </div>
+        <div className="pd-actions sm">
+          <Link to={`/study/personal-cases/new?patientId=${id}`} className="pd-btn">
+            Build teaching case
+          </Link>
+          {!showLusStudyTab && (
+            <button
+              type="button"
+              className="pd-btn"
+              onClick={() => {
+                setWantsLusStudy(true)
+                setTab('lusStudy')
+              }}
+            >
+              Enroll in LUS Study
+            </button>
+          )}
+          <button type="button" className="pd-btn" onClick={() => window.print()}>
+            Print
+          </button>
+          {patient.careStatus !== 'expired' && (
+            <button type="button" className="pd-btn danger" onClick={() => setExpireOpen(true)}>
+              Mark as expired
+            </button>
+          )}
+        </div>
+      </section>
 
-        <div className="pc-ai-chips" dir="rtl">
+      <section className="pd-ai" dir="rtl">
+        <span className="pd-ai-label fa">دستیار</span>
+        <div className="pd-ai-chips">
           {['تحلیل قدم‌به‌قدم', 'تشخیص‌های افتراقی', 'چک دوز داروها', 'workup بعدی'].map((label, i) => (
             <button
               key={label}
               type="button"
-              className="pc-ai-chip"
+              className="pd-ai-chip"
               onClick={() => openAssistant({ mode: 'patient', patientId: id, prompt: PATIENT_CHIPS[i] })}
             >
               ✨ {label}
             </button>
           ))}
         </div>
-
-        <div className="pc-actions">
-          <button type="button" className="np-btn white sm" onClick={() => openAssistant({ mode: 'patient', patientId: id })}>
-            <SparkleIcon width={16} height={16} aria-hidden="true" />
-            تحلیل با دستیار
-          </button>
-          <Link to={`/study/personal-cases/new?patientId=${id}`} className="np-btn white sm">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5" />
-            </svg>
-            Build teaching case
-          </Link>
-          {!showLusStudyTab && (
-            <button
-              type="button"
-              className="np-btn glass sm"
-              onClick={() => {
-                setWantsLusStudy(true)
-                setTab('lusStudy')
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />
-                <circle cx="16" cy="6" r="2" />
-                <circle cx="10" cy="12" r="2" />
-                <circle cx="18" cy="18" r="2" />
-              </svg>
-              Enroll in LUS Study
-            </button>
-          )}
-          <button type="button" className="np-btn glass sm" aria-label="Print" onClick={() => window.print()}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-            </svg>
-            Print
-          </button>
-          {patient.careStatus !== 'expired' && (
-            <button type="button" className="np-btn glass sm" onClick={() => setExpireOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M6.5 6.5l11 11" />
-              </svg>
-              Mark as expired
-            </button>
-          )}
-          <button type="button" className="np-btn sm pc-addhero" style={{ marginLeft: 'auto' }} onClick={() => setAddOpen(true)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Add
-          </button>
-        </div>
       </section>
 
-      <div className="pc-vitals">
-        <div className={latestGrowth?.weightKg != null ? 'pc-vtile' : 'pc-vtile empty'}>
-          <span className="np-small">Weight</span>
-          {latestGrowth?.weightKg != null ? (
-            <>
-              <b>
-                {latestGrowth.weightKg} <small>kg</small>
-              </b>
-              <span className="np-small fa">{toShamsi(latestGrowth.date)}</span>
-            </>
-          ) : (
-            <>
-              <b>—</b>
-              <span className="np-small">Not recorded</span>
-            </>
-          )}
-          <button type="button" className="pc-vtile-add" aria-label="Add weight" onClick={() => navigateTo('growth')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
+      <div className="pd-vitals">
+        {[
+          {
+            label: 'Weight',
+            value: latestGrowth?.weightKg != null ? `${latestGrowth.weightKg}` : null,
+            unit: 'kg',
+            date: latestGrowth?.weightKg != null ? latestGrowth.date : null,
+            empty: 'Not recorded',
+            go: 'growth' as Tab,
+          },
+          {
+            label: 'Height / length',
+            value: latestGrowth?.heightCm != null ? `${latestGrowth.heightCm}` : null,
+            unit: 'cm',
+            date: latestGrowth?.heightCm != null ? latestGrowth.date : null,
+            empty: 'Not recorded',
+            go: 'growth' as Tab,
+          },
+          {
+            label: 'Blood pressure',
+            value: latestGrowth?.bpSystolic != null && latestGrowth.bpDiastolic != null ? `${latestGrowth.bpSystolic}/${latestGrowth.bpDiastolic}` : null,
+            unit: 'mmHg',
+            date: latestGrowth?.bpSystolic != null ? latestGrowth.date : null,
+            empty: 'Not recorded',
+            go: 'growth' as Tab,
+          },
+          {
+            label: 'Latest Cr / eGFR',
+            value: latestCr ? `${latestCr.value} / ${latestEGFR != null ? Math.round(latestEGFR) : '—'}` : null,
+            unit: '',
+            date: latestCr ? latestCr.date : null,
+            empty: 'No labs yet',
+            go: 'labs' as Tab,
+          },
+        ].map((v) => (
+          <button key={v.label} type="button" className={v.value ? 'pd-vtile' : 'pd-vtile empty'} onClick={() => navigateTo(v.go)}>
+            <span className="pd-vlabel">{v.label}</span>
+            <b>
+              {v.value ?? '—'} {v.value && v.unit && <small>{v.unit}</small>}
+            </b>
+            <span className="pd-vdate fa">{v.date ? toShamsi(v.date) : v.empty}</span>
+            <span className="pd-vadd" aria-hidden="true">
+              +
+            </span>
           </button>
-        </div>
-        <div className={latestGrowth?.heightCm != null ? 'pc-vtile' : 'pc-vtile empty'}>
-          <span className="np-small">Height / length</span>
-          {latestGrowth?.heightCm != null ? (
-            <>
-              <b>
-                {latestGrowth.heightCm} <small>cm</small>
-              </b>
-              <span className="np-small fa">{toShamsi(latestGrowth.date)}</span>
-            </>
-          ) : (
-            <>
-              <b>—</b>
-              <span className="np-small">Not recorded</span>
-            </>
-          )}
-          <button type="button" className="pc-vtile-add" aria-label="Add height" onClick={() => navigateTo('growth')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </div>
-        <div className={latestGrowth?.bpSystolic != null ? 'pc-vtile' : 'pc-vtile empty'}>
-          <span className="np-small">Blood pressure</span>
-          {latestGrowth?.bpSystolic != null && latestGrowth.bpDiastolic != null ? (
-            <>
-              <b>
-                {latestGrowth.bpSystolic}/{latestGrowth.bpDiastolic}
-              </b>
-              <span className="np-small fa">{toShamsi(latestGrowth.date)}</span>
-            </>
-          ) : (
-            <>
-              <b>—</b>
-              <span className="np-small">Not recorded</span>
-            </>
-          )}
-          <button type="button" className="pc-vtile-add" aria-label="Add BP" onClick={() => navigateTo('growth')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </div>
-        <div className={latestCr ? 'pc-vtile' : 'pc-vtile empty'}>
-          <span className="np-small">Latest Cr / eGFR</span>
-          {latestCr ? (
-            <>
-              <b style={{ fontSize: 18 }}>
-                {latestCr.value} <small>/ {latestEGFR != null ? Math.round(latestEGFR) : '—'}</small>
-              </b>
-              <span className="np-small fa">{toShamsi(latestCr.date)}</span>
-            </>
-          ) : (
-            <>
-              <b>—</b>
-              <span className="np-small">No labs yet</span>
-            </>
-          )}
-          <button type="button" className="pc-vtile-add" aria-label="Add lab" onClick={() => navigateTo('labs')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-        </div>
+        ))}
       </div>
 
       <div className="pc-layout">
-        <nav className="pc-tabs np-chips" aria-label="Chart sections">
+        <nav className="pc-tabs pd-tabs" aria-label="Chart sections">
           {TABS.filter((t) => visibleIds.has(t.id)).map((t) => {
             const TabIcon = t.icon
             return (
-              <button key={t.id} type="button" className={t.id === tab ? 'np-chip on' : 'np-chip'} onClick={() => setTab(t.id)}>
-                {t.id === tab && (
-                  <motion.span
-                    layoutId="pc-tab-pill"
-                    className="pc-tab-pill"
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                  />
-                )}
+              <button key={t.id} type="button" className={t.id === tab ? 'on' : ''} onClick={() => setTab(t.id)}>
                 <TabIcon width={15} height={15} />
-                <span className="pc-tab-label">{t.label}</span>
+                <span>{t.label}</span>
               </button>
             )
           })}
@@ -509,7 +440,7 @@ export function PatientDetailPage() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
           >
-            {renderTab(tab)}
+            <div className="pd-content">{renderTab(tab)}</div>
           </motion.div>
         </AnimatePresence>
         {offlinePrep && (
@@ -521,7 +452,7 @@ export function PatientDetailPage() {
         )}
       </div>
 
-      <button type="button" className={fabHidden ? 'pc-fab pc-fab--hidden' : 'pc-fab'} onClick={() => setAddOpen(true)}>
+      <button type="button" className={fabHidden ? 'pc-fab pd-fab pc-fab--hidden' : 'pc-fab pd-fab'} onClick={() => setAddOpen(true)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
