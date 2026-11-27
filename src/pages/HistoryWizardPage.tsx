@@ -21,7 +21,10 @@ import {
   NEONATAL,
   PMH,
   PRENATAL,
-  ROS,
+  CHILDHOOD_INFECTIONS,
+  ROS_SYSTEMS,
+  rosItems,
+  type Surgery,
   SCREENING,
   SCREENING_RESULTS,
   STEPS,
@@ -88,6 +91,7 @@ export function HistoryWizardPage() {
   const [showAllAges, setShowAllAges] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [openRos, setOpenRos] = useState<string | null>('gen')
 
   const step = Math.min(Math.max(Number(params.get('step') ?? 1) || 1, 1), STEPS.length)
   const stepsRef = useRef<HTMLDivElement>(null)
@@ -123,7 +127,7 @@ export function HistoryWizardPage() {
     setHx((h) => ({ ...h, [key]: value }))
     setDirty(true)
   }
-  function tri(key: 'prenatal' | 'neonatal' | 'supplements' | 'milestones' | 'vaccines' | 'allergies' | 'pmhFlags' | 'familyFlags' | 'ros') {
+  function tri(key: 'prenatal' | 'neonatal' | 'supplements' | 'milestones' | 'vaccines' | 'allergies' | 'pmhFlags' | 'familyFlags' | 'ros' | 'infections') {
     return (id: string) => setH(key, cycleTri(hx[key] as TriMap | undefined, id))
   }
 
@@ -567,30 +571,154 @@ export function HistoryWizardPage() {
         )}
 
         {step === 8 && (
-          <HxCard icon={HxIcon.history} title="سوابق پزشکی" sub="Past Medical & Surgical History">
-            <TriLegend />
-            <TriChips options={PMH} value={hx.pmhFlags} onToggle={tri('pmhFlags')} />
-            <HxArea label="توضیحات سوابق پزشکی" value={form.pmh} onChange={(v) => set('pmh', v)} placeholder="بستری‌های قبلی (علت، تاریخ)، UTIهای قبلی و ارگانیسم، VCUG / DMSA قبلی…" />
-            <HxArea label="سابقه جراحی" value={hx.surgicalHx} onChange={(v) => setH('surgicalHx', v)} placeholder="نوع جراحی، تاریخ، عوارض بیهوشی" rows={2} />
-            <HxArea label="سابقه دیالیز" value={form.dialysisHx} onChange={(v) => set('dialysisHx', v)} rows={2} />
-            <HxArea label="سابقه پیوند" value={form.transplantHx} onChange={(v) => set('transplantHx', v)} rows={2} />
-          </HxCard>
+          <>
+            <HxCard icon={HxIcon.history} title="بیماری‌های قبلی" sub="Past Medical History">
+              <TriLegend />
+              <TriChips options={PMH} value={hx.pmhFlags} onToggle={tri('pmhFlags')} />
+              <HxArea label="توضیحات" value={form.pmh} onChange={(v) => set('pmh', v)} placeholder="زمان تشخیص، وضعیت کنترل، درمان… (UTIهای قبلی و ارگانیسم، VCUG / DMSA قبلی)" />
+              <HxArea label="سابقه بستری" value={hx.admissionsHx} onChange={(v) => setH('admissionsHx', v)} placeholder="تاریخ، علت و مدت بستری" />
+              <HxArea label="سابقه دیالیز" value={form.dialysisHx} onChange={(v) => set('dialysisHx', v)} rows={2} />
+              <HxArea label="سابقه پیوند" value={form.transplantHx} onChange={(v) => set('transplantHx', v)} rows={2} />
+            </HxCard>
+            <HxCard icon={HxIcon.hospital} title="سابقه جراحی" sub="اعمال جراحی قبلی">
+              {(hx.surgeries ?? []).length === 0 && !hx.surgicalHx && <p className="hx-empty">عمل جراحی ثبت نشده</p>}
+              {hx.surgicalHx && <HxArea label="یادداشت قبلی" value={hx.surgicalHx} onChange={(v) => setH('surgicalHx', v)} rows={2} />}
+              {(hx.surgeries ?? []).map((sg, i) => {
+                const upd = (patch: Partial<Surgery>) => setH('surgeries', (hx.surgeries ?? []).map((x) => (x.id === sg.id ? { ...x, ...patch } : x)))
+                return (
+                  <div key={sg.id} className="hx-subcard">
+                    <div className="hx-subcard-head">
+                      <b>جراحی {toPersianDigits(i + 1)}</b>
+                      <button type="button" className="hx-x" aria-label="حذف" onClick={() => setH('surgeries', (hx.surgeries ?? []).filter((x) => x.id !== sg.id))}>
+                        ✕
+                      </button>
+                    </div>
+                    <HxInput label="نوع عمل" value={sg.name} onChange={(v) => upd({ name: v })} placeholder="مثلاً Pyeloplasty، Ureteral reimplantation، Orchiopexy" />
+                    <HxInput label="تاریخ / سن" value={sg.date} onChange={(v) => upd({ date: v })} placeholder="۱۴۰۲ یا ۲ سالگی" />
+                    <HxInput label="توضیحات" value={sg.notes} onChange={(v) => upd({ notes: v })} placeholder="بیمارستان، عوارض، عارضه بیهوشی" />
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                className="hx-add"
+                onClick={() => setH('surgeries', [...(hx.surgeries ?? []), { id: `${Date.now()}`, name: '' }])}
+              >
+                ＋ افزودن عمل جراحی
+              </button>
+            </HxCard>
+            <HxCard icon={HxIcon.child} title="بیماری‌های عفونی دوران کودکی">
+              <TriChips options={CHILDHOOD_INFECTIONS} value={hx.infections} onToggle={tri('infections')} />
+              <HxArea label="توضیحات" value={hx.infectionNotes} onChange={(v) => setH('infectionNotes', v)} placeholder="سن ابتلا، عوارض، درمان…" />
+            </HxCard>
+          </>
         )}
 
         {step === 9 && (
-          <HxCard icon={HxIcon.family} title="سابقه خانوادگی" sub="Family History">
-            <TriLegend />
-            <TriChips options={FAMILY} value={hx.familyFlags} onToggle={tri('familyFlags')} />
-            {hx.consanguinity === 'first' && <p className="hx-flag">والدین فامیل درجه یک — به بیماری‌های اتوزومال مغلوب (سیستینوز، NPHP، ARPKD…) فکر کنید.</p>}
-            <HxArea label="توضیحات" value={form.familyHx} onChange={(v) => set('familyHx', v)} placeholder="چه کسی، چه بیماری، در چه سنی (رسم شجره‌نامه در صورت نیاز)" />
-          </HxCard>
+          <>
+            <HxCard icon={HxIcon.family} title="سابقه خانوادگی" sub="Family History">
+              <TriLegend />
+              <TriChips options={FAMILY} value={hx.familyFlags} onToggle={tri('familyFlags')} />
+              {hx.consanguinity === 'first' && <p className="hx-flag">والدین فامیل درجه یک — به بیماری‌های اتوزومال مغلوب (سیستینوز، NPHP، ARPKD…) فکر کنید.</p>}
+              <HxArea
+                label="وضعیت سلامت والدین و خواهر/برادرها"
+                value={form.familyHx}
+                onChange={(v) => set('familyHx', v)}
+                placeholder="سن و سلامت والدین، خواهر و برادرها، فوت نوزاد یا کودک در خانواده، سقط‌های مکرر مادر… (رسم شجره‌نامه در صورت نیاز)"
+                rows={4}
+              />
+            </HxCard>
+            <HxCard icon={HxIcon.home} title="محیط زندگی و مراقبت" sub="Social History">
+              <HxArea label="مراقب اصلی و وضعیت خانواده" value={hx.caregiver} onChange={(v) => setH('caregiver', v)} placeholder="زندگی با والدین؟ مراقب در طول روز، شغل والدین، وضعیت اقتصادی، بیمه…" />
+              <HxArea label="محیط و مواجهه‌ها" value={hx.exposures} onChange={(v) => setH('exposures', v)} placeholder="دود سیگار در منزل، حیوانات، تماس با بیمار، سفر اخیر، آب آشامیدنی، سرب…" />
+              <HxArea label="مهدکودک / مدرسه" value={hx.daycare} onChange={(v) => setH('daycare', v)} placeholder="نام، پایه، روابط با همسالان، غیبت به خاطر بیماری" />
+              <HxArea label="خواب" value={hx.sleep} onChange={(v) => setH('sleep', v)} placeholder="ساعات خواب، خرخر، بیدار شدن شبانه برای ادرار، محل خواب شیرخوار" />
+              {(ageM == null || ageM >= 120) && (
+                <HxArea
+                  label="نوجوان (HEADSS)"
+                  value={hx.headss}
+                  onChange={(v) => setH('headss', v)}
+                  placeholder="Home، Education، Activities، Drugs، Sexuality، Suicide/Depression (ترجیحاً بدون حضور والدین) — در CKD / پیوند: پایبندی به دارو"
+                  rows={4}
+                />
+              )}
+            </HxCard>
+          </>
         )}
 
         {step === 10 && (
-          <HxCard icon={HxIcon.kidney} title="مرور سیستم‌ها" sub="Review of Systems — با تمرکز کلیوی">
+          <HxCard icon={HxIcon.note} title="مرور سیستم‌ها" sub="Review of Systems">
             <TriLegend />
-            <TriChips options={ROS} value={hx.ros} onToggle={tri('ros')} />
-            <HxArea label="توضیحات" value={hx.rosNotes} onChange={(v) => setH('rosNotes', v)} />
+            <div className="hx-acc-list">
+              {ROS_SYSTEMS.map((sys) => {
+                const items = rosItems(sys, form.sex)
+                const open = openRos === sys.id
+                const yes = items.filter((it) => hx.ros?.[`${sys.id}-${it.id}`] === 'yes').length
+                const no = items.filter((it) => hx.ros?.[`${sys.id}-${it.id}`] === 'no').length
+                return (
+                  <div key={sys.id} className={open ? 'hx-acc open' : 'hx-acc'}>
+                    <button type="button" className="hx-acc-head" onClick={() => setOpenRos(open ? null : sys.id)} aria-expanded={open}>
+                      <b>{sys.title}</b>
+                      <small>{sys.en}</small>
+                      {yes > 0 && <span className="hx-count y">{toPersianDigits(yes)}</span>}
+                      {no > 0 && <span className="hx-count n">{toPersianDigits(no)}</span>}
+                      <svg className="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                    {open && (
+                      <div className="hx-acc-body">
+                        {sys.groups
+                          .filter((g) => rosItems({ ...sys, groups: [g] }, form.sex).length > 0)
+                          .map((g, gi) => (
+                            <div key={gi} className="hx-field">
+                              {g.title && <HxLabel>{g.title}</HxLabel>}
+                              <TriChips
+                                options={g.items.map((it) => ({ id: `${sys.id}-${it.id}`, label: it.label }))}
+                                value={hx.ros}
+                                onToggle={tri('ros')}
+                              />
+                            </div>
+                          ))}
+                        <div className="hx-acc-actions">
+                          <button
+                            type="button"
+                            className="hx-pill solid"
+                            onClick={() => {
+                              const r = { ...(hx.ros ?? {}) }
+                              for (const it of items) if (!r[`${sys.id}-${it.id}`]) r[`${sys.id}-${it.id}`] = 'no'
+                              setH('ros', r)
+                            }}
+                          >
+                            <i className="hx-neg" /> بقیه موارد: منفی
+                          </button>
+                          <button
+                            type="button"
+                            className="hx-pill ghost"
+                            onClick={() => {
+                              const r = { ...(hx.ros ?? {}) }
+                              for (const it of sys.groups.flatMap((g) => g.items)) delete r[`${sys.id}-${it.id}`]
+                              setH('ros', r)
+                            }}
+                          >
+                            پاک کردن
+                          </button>
+                        </div>
+                        <HxArea
+                          label="توضیحات تکمیلی"
+                          value={hx.rosSysNotes?.[sys.id]}
+                          onChange={(v) => setH('rosSysNotes', { ...(hx.rosSysNotes ?? {}), [sys.id]: v })}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {(hx.rosNotes || Object.keys(hx.ros ?? {}).some((k) => !k.includes('-'))) && (
+              <p className="hx-hint">موارد ثبت‌شده در نسخه قبلی این بخش در خلاصه شرح حال حفظ شده‌اند.</p>
+            )}
           </HxCard>
         )}
 
