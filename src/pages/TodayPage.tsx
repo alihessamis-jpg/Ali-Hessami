@@ -480,7 +480,7 @@ export function TodayPage() {
                   <span className="np-small">{t.category}</span>
                 </Link>
               ))}
-              <Link to="/academy/topics" className="td-outline">
+              <Link to="/academy?tab=topics" className="td-outline">
                 {dueTopics.length > 3 ? `Start review · ${dueTopics.length - 3} more` : 'Start review'}
               </Link>
             </div>

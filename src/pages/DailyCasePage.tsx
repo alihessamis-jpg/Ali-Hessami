@@ -17,6 +17,8 @@ import { addReadingItemFromQuestion, updateReadingItemSrs } from '../lib/api/rea
 import { getImagingSignedUrl } from '../lib/storage'
 import { caseScore, CATEGORY_LABEL, REVIEW_THRESHOLD, stagePoints, addDaysIso, tehranToday } from '../lib/dailyCase'
 import { describeError } from '../lib/debugError'
+import { rootTopicForCategories } from '../lib/api/topicHub'
+import { CASE_CATEGORY_TO_HUB } from '../lib/topicHub'
 import { shamsiWeekdayLabel } from '../lib/dailyVerse'
 import { toPersianDigits } from '../lib/shamsi'
 import { CaseFigure, CaseText, DifficultyPill, LabTable, ScoreRing, SourceCard } from '../components/dailyCase/CaseParts'
@@ -591,6 +593,8 @@ function FinalPanel({ c, score, attempt, onAgain }: { c: DailyCase; score: numbe
         ))}
       </details>
 
+      <TopicHubLink caseCategory={c.topicCategory} />
+
       <div className="dc-actions">
         <button type="button" className="np-btn ghost" onClick={onAgain}>
           حل دوباره
@@ -600,6 +604,23 @@ function FinalPanel({ c, score, attempt, onAgain }: { c: DailyCase; score: numbe
         </Link>
       </div>
     </section>
+  )
+}
+
+/** «مرور این مبحث در Topic Hub» — the root topic of the matching Academy category. */
+function TopicHubLink({ caseCategory }: { caseCategory: string | null }) {
+  const [target, setTarget] = useState<{ id: string; name: string } | null>(null)
+  useEffect(() => {
+    const hubs = caseCategory ? CASE_CATEGORY_TO_HUB[caseCategory] ?? [] : []
+    rootTopicForCategories(hubs)
+      .then(setTarget)
+      .catch(() => setTarget(null))
+  }, [caseCategory])
+  if (!target) return null
+  return (
+    <Link to={`/academy/${target.id}`} className="dc-hublink">
+      📚 مرور این مبحث در Topic Hub — <span dir="auto">{target.name}</span>
+    </Link>
   )
 }
 

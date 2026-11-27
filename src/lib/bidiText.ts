@@ -137,10 +137,11 @@ export function tokenizeBidi(text: string): BidiToken[] {
 
 export function isolateLatinRuns(text: string): string {
   // Also used on raw markdown (MarkdownSection): never let an isolate span
-  // markdown syntax such as table pipes, emphasis markers, link brackets or
-  // a link's "](url)" target.
+  // markdown syntax such as table pipes, emphasis markers, link brackets,
+  // a link's "](url)" target, or a line-leading ordered-list marker ("1. ") —
+  // an isolate before the digit stops markdown from seeing the list at all.
   return text
-    .split(/(\]\([^)]*\)|[|*_`[\]#>]+)/)
+    .split(/(\]\([^)]*\)|[|*_`[\]#>]+|(?:^|(?<=\n))[ \t]*\d+[.)](?=[ \t]))/)
     .map((piece, k) =>
       k % 2 === 1
         ? piece

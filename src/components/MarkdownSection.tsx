@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { Link } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 import type { Element as HastElement, RootContent } from 'hast'
 import { isLatinOnly, isolateLatinRuns } from '../lib/bidiText'
@@ -107,6 +108,25 @@ function rtlBlock(Tag: 'p' | 'li' | 'td' | 'th' | 'h1' | 'h2' | 'h3' | 'h4' | 'h
     return <Tag {...rest} dir="rtl">{isLatinOnly(raw) ? <bdi dir="ltr">{children}</bdi> : children}</Tag>
   }
 }
+// isolateLatinRuns() wraps Latin runs (URLs included) in invisible bidi
+// isolates before parsing, so strip them from link targets. In-app paths
+// (e.g. «(Ch.44 §3)» → /academy/reader/…#ch44-s3) navigate with the router.
+function MarkdownLink({ href, children }: { href?: string; children?: React.ReactNode }) {
+  const to = (href ?? '').replace(/[\u2066-\u2069]/g, '')
+  if (to.startsWith('/')) {
+    return (
+      <Link to={to} className="md-xref">
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <a href={to} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  )
+}
+
 const RTL_BLOCKS = {
   p: rtlBlock('p'),
   li: rtlBlock('li'),
@@ -183,6 +203,7 @@ export function MarkdownSection({ text, sectionKey, onMakeCard, onMakeCardsFromT
         remarkPlugins={[remarkGfm]}
         components={{
           ...RTL_BLOCKS,
+          a: ({ href, children }) => <MarkdownLink href={href}>{children}</MarkdownLink>,
           table: (props) => <TableWithCardButton {...props} onMakeCardsFromTable={onMakeCardsFromTable} />,
         }}
       >

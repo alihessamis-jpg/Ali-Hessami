@@ -53,6 +53,8 @@ export interface AskParams {
   mode: AssistantMode
   patientId?: string | null
   chapterId?: string | null
+  /** Topic Hub topic the chat was opened from (its chapters are searched first) */
+  topicId?: string | null
   message: string
   caseText?: string | null
   debug?: boolean

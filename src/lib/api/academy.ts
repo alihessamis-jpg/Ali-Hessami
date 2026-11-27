@@ -22,6 +22,8 @@ interface TopicRow {
   case_stem: string | null
   case_questions: string[]
   case_discussion: string | null
+  my_notes?: string | null
+  edited_at?: string | null
 }
 
 interface ProgressRow {
@@ -53,6 +55,8 @@ function topicToDomain(row: TopicRow): AcademyTopic {
     caseStem: row.case_stem,
     caseQuestions: row.case_questions ?? [],
     caseDiscussion: row.case_discussion,
+    myNotes: row.my_notes ?? null,
+    editedAt: row.edited_at ?? null,
   }
 }
 
@@ -76,6 +80,8 @@ function topicToRow(draft: Partial<AcademyTopic>) {
     case_stem: draft.caseStem,
     case_questions: draft.caseQuestions,
     case_discussion: draft.caseDiscussion,
+    my_notes: draft.myNotes,
+    edited_at: draft.editedAt,
   }
 }
 

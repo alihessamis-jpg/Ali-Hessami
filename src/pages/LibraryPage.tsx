@@ -7,20 +7,19 @@ import {
   listLibraryChapters,
   listReadingLog,
 } from '../lib/api/library'
-import { listAcademyCardsForTopic } from '../lib/api/academyCards'
-import { listAcademyTopics } from '../lib/api/academy'
 import { listBoardQuestions } from '../lib/api/boardQuestions'
 import { listBoardQuestionAttempts } from '../lib/api/boardQuestionAttempts'
 import { getUserSettings, updateUserSettings } from '../lib/api/settings'
 import { computeReadingStreak } from '../lib/libraryNote'
 import { cacheLibrarySnapshot, getCachedLibrarySnapshot } from '../lib/offlineCache'
 import { AcademyIcon, BookIcon, QuizIcon, SearchIcon, UploadIcon } from '../components/icons'
+import { TopicHubPanel } from '../components/topicHub/TopicHubPanel'
 import { QuestionImportPanel } from '../components/library/QuestionImportPanel'
 import { BulkCardImportPanel } from '../components/library/BulkCardImportPanel'
 import { NoteBundleImportPanel } from '../components/library/NoteBundleImportPanel'
 import { BookSwitcher, type LibraryBookStats } from '../components/library/BookSwitcher'
 import { GuidelinesPanel } from '../components/library/GuidelinesPanel'
-import type { AcademyTopic, BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
+import type { BoardQuestion, BoardQuestionAttempt, LibraryBook, LibraryCard, LibraryChapter, ReadingLogEntry } from '../types/domain'
 
 type LibraryTab = 'book' | 'topics' | 'guidelines'
 
@@ -59,20 +58,22 @@ export function LibraryPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [noteBundleImportOpen, setNoteBundleImportOpen] = useState(false)
-  const [topics, setTopics] = useState<AcademyTopic[]>([])
-  const [topicCardCounts, setTopicCardCounts] = useState<Record<string, { total: number; due: number }>>({})
+  const [moreOpen, setMoreOpen] = useState(false)
   const [dailyGoal, setDailyGoal] = useState(10)
   const [goalSheetOpen, setGoalSheetOpen] = useState(false)
   const [goalDraft, setGoalDraft] = useState('10')
   const [todayPages, setTodayPages] = useState(0)
   const [streak, setStreak] = useState(0)
-  const [tab, setTabState] = useState<LibraryTab>(() => (searchParams.get('tab') === 'guidelines' ? 'guidelines' : 'book'))
+  const [tab, setTabState] = useState<LibraryTab>(() => {
+    const t = searchParams.get('tab')
+    return t === 'guidelines' || t === 'topics' ? t : 'book'
+  })
 
   function setTab(next: LibraryTab) {
     setTabState(next)
-    // Keep ?tab=guidelines in the URL so Back from a guideline chapter returns here.
+    // Keep ?tab=guidelines / ?tab=topics in the URL so Back from a chapter or a topic returns here.
     const params = new URLSearchParams(searchParams)
-    if (next === 'guidelines') params.set('tab', 'guidelines')
+    if (next === 'guidelines' || next === 'topics') params.set('tab', next)
     else params.delete('tab')
     setSearchParams(params, { replace: true })
   }
@@ -85,26 +86,6 @@ export function LibraryPage() {
 
   useEffect(() => {
     setLoading(true)
-
-    const topicsPromise = listAcademyTopics()
-      .then(async (topicRows) => {
-        const counts: Record<string, { total: number; due: number }> = {}
-        const now = new Date()
-        await Promise.all(
-          topicRows.map(async (t) => {
-            const topicCards = await listAcademyCardsForTopic(t.id)
-            counts[t.id] = {
-              total: topicCards.length,
-              due: topicCards.filter((c) => !c.nextReview || new Date(c.nextReview) <= now).length,
-            }
-          })
-        )
-        return { topicRows, counts }
-      })
-      .catch((err) => {
-        console.error('Academy topics failed to load', err)
-        return { topicRows: [] as AcademyTopic[], counts: {} as Record<string, { total: number; due: number }> }
-      })
 
     // The bundled textbook (book #1) is seeded/ensured as before; any other
     // books the user has added (e.g. a second handbook, chapters added by
@@ -169,10 +150,8 @@ export function LibraryPage() {
       return [] as BoardQuestionAttempt[]
     })
 
-    Promise.all([topicsPromise, bookPromise, getUserSettings().catch(() => null), questionsPromise, attemptsPromise])
-      .then(([{ topicRows, counts }, bookResult, settings, questionRows, attemptRows]) => {
-        setTopics(topicRows)
-        setTopicCardCounts(counts)
+    Promise.all([bookPromise, getUserSettings().catch(() => null), questionsPromise, attemptsPromise])
+      .then(([bookResult, settings, questionRows, attemptRows]) => {
         setQuestions(questionRows)
         setQuestionAttempts(attemptRows)
         setBookUnavailable(!bookResult.ok)
@@ -385,7 +364,13 @@ export function LibraryPage() {
               <label className="np-sr" htmlFor="lib-q">
                 Search chapters
               </label>
-              <input id="lib-q" placeholder={tab === 'guidelines' ? 'Search guidelines (e.g. AKI, VUR, CRRT)' : 'Search chapters (e.g. RTA, nephrotic, transplant)'} value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input id="lib-q" placeholder={
+                  tab === 'guidelines'
+                    ? 'Search guidelines (e.g. AKI, VUR, CRRT)'
+                    : tab === 'topics'
+                      ? 'جستجو در مباحث و key points…'
+                      : 'Search chapters (e.g. RTA, nephrotic, transplant)'
+                } value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="seg" style={{ flexShrink: 0 }}>
               <button type="button" className={tab === 'book' ? 'on' : ''} onClick={() => setTab('book')} disabled={bookUnavailable}>
@@ -398,18 +383,34 @@ export function LibraryPage() {
                 My topics
               </button>
             </div>
-            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setImportOpen(true)}>
-              <UploadIcon width={16} height={16} />
-              Import questions
-            </button>
-            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setBulkImportOpen(true)}>
-              <UploadIcon width={16} height={16} />
-              Bulk import
-            </button>
-            <button type="button" className="np-btn ghost sm" style={{ flexShrink: 0 }} onClick={() => setNoteBundleImportOpen(true)}>
-              <UploadIcon width={16} height={16} />
-              Import bundle (zip)
-            </button>
+            <div className="lib-more">
+              <button
+                type="button"
+                className="np-btn ghost sm"
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                aria-label="Import options"
+                onClick={() => setMoreOpen((v) => !v)}
+              >
+                ⋯
+              </button>
+              {moreOpen && (
+                <div className="lib-more-menu" role="menu" onClick={() => setMoreOpen(false)}>
+                  <button type="button" role="menuitem" onClick={() => setImportOpen(true)}>
+                    <UploadIcon width={16} height={16} />
+                    Import questions
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => setBulkImportOpen(true)}>
+                    <UploadIcon width={16} height={16} />
+                    Bulk import
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => setNoteBundleImportOpen(true)}>
+                    <UploadIcon width={16} height={16} />
+                    Import bundle (zip)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {tab === 'guidelines' ? (
@@ -520,28 +521,7 @@ export function LibraryPage() {
               })}
             </div>
           ) : (
-            <div className="parts np-fade" style={{ animationDelay: '.16s' }}>
-              {topics
-                .filter((t) => !q || t.name.toLowerCase().includes(q))
-                .map((t) => {
-                  const stats = topicCardCounts[t.id] ?? { total: 0, due: 0 }
-                  return (
-                    <Link className="ch" to={`/academy/${t.id}`} key={t.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid var(--line)' }}>
-                      <span className="cn" style={{ width: 'auto' }}>
-                        <AcademyIcon width={18} height={18} />
-                      </span>
-                      <span>
-                        <span className="ct" dir="rtl">
-                          {t.name}
-                        </span>
-                        <span className="cm">{t.category && <span>{t.category}</span>}{stats.total > 0 && <span>{stats.total} cards</span>}</span>
-                      </span>
-                      <span className="right">{stats.due > 0 && <span className="due">{stats.due} due</span>}</span>
-                    </Link>
-                  )
-                })}
-              {topics.length === 0 && <p className="empty-state">No topics yet — build one from the old Academy flow.</p>}
-            </div>
+            <TopicHubPanel search={search} />
           )}
           <span className="np-small">Chapter status and due counts update as you read and review.</span>
         </div>
